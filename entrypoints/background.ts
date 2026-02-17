@@ -12,7 +12,6 @@ import {
   isStale,
 } from '../lib/background/operator-cache.js';
 import { setKey, removeKey, hasKey } from '../lib/background/key-store.js';
-import { clearSDK } from '../lib/background/sdk-manager.js';
 import { SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../lib/shared/networks.js';
 import type { ModuleType, WalletState } from '../lib/shared/types.js';
 import {
@@ -177,8 +176,7 @@ export default defineBackground(() => {
       }
 
       case 'switch-network': {
-        clearSDK(undefined, command.chainId as SupportedChainId);
-        const state = await setState({ chainId: command.chainId });
+                const state = await setState({ chainId: command.chainId });
         broadcastToPopups({ type: 'state-update', state });
         await notifyChainChanged(command.chainId);
 
@@ -326,8 +324,7 @@ export default defineBackground(() => {
           ...state.customRpcUrls,
           [command.chainId]: command.rpcUrl,
         };
-        clearSDK(undefined, command.chainId as SupportedChainId);
-        const updated = await setState({ customRpcUrls });
+                const updated = await setState({ customRpcUrls });
         broadcastToPopups({ type: 'state-update', state: updated });
         break;
       }

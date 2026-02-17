@@ -1,6 +1,5 @@
 import React from 'react';
-import { CHAINS } from '@lidofinance/lido-ethereum-sdk';
-import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
+import { CHAIN_ID, ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 
 type Props = {
   chainId: number;
@@ -8,8 +7,8 @@ type Props = {
 };
 
 const NETWORKS = [
-  { id: CHAINS.Mainnet, name: 'Mainnet' },
-  { id: CHAINS.Hoodi, name: 'Hoodi' },
+  { id: CHAIN_ID.Mainnet, name: 'Mainnet' },
+  { id: CHAIN_ID.Hoodi, name: 'Hoodi' },
   { id: ANVIL_CHAIN_ID, name: 'Anvil' },
 ];
 

@@ -45,10 +45,11 @@ export async function handleRpcRequest(
     }
 
     case 'wallet_switchEthereumChain': {
-      if (!Array.isArray(params) || !params[0]?.chainId) {
+      const switchParam = params?.[0] as { chainId?: string } | undefined;
+      if (!switchParam?.chainId) {
         return { error: { code: -32602, message: 'Invalid params' } };
       }
-      const requestedChainId = Number(params[0].chainId);
+      const requestedChainId = Number(switchParam.chainId);
       const isSupported =
         (SUPPORTED_CHAIN_IDS as number[]).includes(requestedChainId) ||
         requestedChainId === ANVIL_NETWORK.chainId;

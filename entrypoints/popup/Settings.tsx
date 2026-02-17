@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CHAINS } from '@lidofinance/lido-ethereum-sdk';
 import type { WalletState } from '../../lib/shared/types.js';
-import { DEFAULT_NETWORKS, ANVIL_NETWORK } from '../../lib/shared/networks.js';
+import { CHAIN_ID, DEFAULT_NETWORKS, ANVIL_NETWORK } from '../../lib/shared/networks.js';
 
 type Props = {
   state: WalletState;
@@ -9,8 +8,8 @@ type Props = {
 };
 
 const CONFIGURABLE_NETWORKS = [
-  { chainId: CHAINS.Mainnet, label: 'Mainnet RPC', defaultUrl: DEFAULT_NETWORKS[CHAINS.Mainnet].rpcUrl },
-  { chainId: CHAINS.Hoodi, label: 'Hoodi RPC', defaultUrl: DEFAULT_NETWORKS[CHAINS.Hoodi].rpcUrl },
+  { chainId: CHAIN_ID.Mainnet, label: 'Mainnet RPC', defaultUrl: DEFAULT_NETWORKS[CHAIN_ID.Mainnet].rpcUrl },
+  { chainId: CHAIN_ID.Hoodi, label: 'Hoodi RPC', defaultUrl: DEFAULT_NETWORKS[CHAIN_ID.Hoodi].rpcUrl },
   { chainId: ANVIL_NETWORK.chainId, label: 'Anvil RPC', defaultUrl: ANVIL_NETWORK.rpcUrl },
 ];
 

@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "description": "Chrome extension for QA testing Lido CSM widget — connect as any operator address",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "typecheck": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -18,11 +24,16 @@
     "viem": "^2.26.0"
   },
   "devDependencies": {
+    "@types/chrome": "^0.1.36",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@wxt-dev/module-react": "^1.1.0",
+    "oxlint": "^1.48.0",
     "playwright": "^1.58.2",
     "typescript": "^5.8.0",
     "wxt": "^0.20.0"
+  },
+  "volta": {
+    "node": "24.13.1"
   }
 }

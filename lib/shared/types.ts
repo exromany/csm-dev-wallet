@@ -23,6 +23,7 @@ export type CachedOperator = {
   extendedManagerPermissions: boolean;
   ownerAddress: Address; // manager or rewards, whichever has extended perms
   curveId: string; // bigint serialized
+  operatorType: string; // CSM: DEF|LEA|ICS|CC, CM: PTO|PO|PGO|DO|EEO|MODC|IODC|CC
 };
 
 export type OperatorCacheEntry = {

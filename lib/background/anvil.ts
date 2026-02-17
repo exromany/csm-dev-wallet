@@ -1,7 +1,6 @@
-import { CHAINS } from '@lidofinance/lido-ethereum-sdk';
 import { CSM_CONTRACT_ADDRESSES } from '@lidofinance/lido-csm-sdk/common';
 import type { Address } from 'viem';
-import type { SupportedChainId } from '../shared/networks.js';
+import { CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
 
 /** Detect which chain an Anvil fork is based on by probing CSM contracts */
 export async function detectAnvilFork(
@@ -15,15 +14,15 @@ export async function detectAnvilFork(
     if (chainId !== 31337) return null;
 
     // Probe mainnet CSM module contract
-    const mainnetCsm = CSM_CONTRACT_ADDRESSES[CHAINS.Mainnet].csModule;
+    const mainnetCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Mainnet].csModule;
     if (mainnetCsm && (await hasCode(rpcUrl, mainnetCsm))) {
-      return CHAINS.Mainnet;
+      return CHAIN_ID.Mainnet;
     }
 
     // Probe Hoodi CSM module contract
-    const hoodiCsm = CSM_CONTRACT_ADDRESSES[CHAINS.Hoodi].csModule;
+    const hoodiCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Hoodi].csModule;
     if (hoodiCsm && (await hasCode(rpcUrl, hoodiCsm))) {
-      return CHAINS.Hoodi;
+      return CHAIN_ID.Hoodi;
     }
 
     return null;

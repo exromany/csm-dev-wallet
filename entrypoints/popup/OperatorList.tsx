@@ -100,6 +100,7 @@ function OperatorRow({
     <div className="operator-row">
       <div className="operator-header">
         <span className="operator-id">#{op.id}</span>
+        <span className="operator-type">{op.operatorType}</span>
         <button
           className={`btn-star ${isFavorite ? 'active' : ''}`}
           onClick={onToggleFavorite}

@@ -1,12 +1,17 @@
-import { CHAINS } from '@lidofinance/lido-ethereum-sdk';
 import type { Chain } from 'viem';
 import { mainnet, hoodi } from 'viem/chains';
 
-export type SupportedChainId = typeof CHAINS.Mainnet | typeof CHAINS.Hoodi;
+/** Lido chain IDs (mirrors @lidofinance/lido-ethereum-sdk CHAINS enum) */
+export const CHAIN_ID = {
+  Mainnet: 1,
+  Hoodi: 560048,
+} as const;
+
+export type SupportedChainId = (typeof CHAIN_ID)[keyof typeof CHAIN_ID];
 
 export const SUPPORTED_CHAIN_IDS: SupportedChainId[] = [
-  CHAINS.Mainnet,
-  CHAINS.Hoodi,
+  CHAIN_ID.Mainnet,
+  CHAIN_ID.Hoodi,
 ];
 
 export const ANVIL_CHAIN_ID = 31337;
@@ -21,14 +26,14 @@ export type NetworkConfig = {
 };
 
 export const DEFAULT_NETWORKS: Record<SupportedChainId, NetworkConfig> = {
-  [CHAINS.Mainnet]: {
-    chainId: CHAINS.Mainnet,
+  [CHAIN_ID.Mainnet]: {
+    chainId: CHAIN_ID.Mainnet,
     name: 'Ethereum Mainnet',
     rpcUrl: 'https://eth.drpc.org',
     viemChain: mainnet,
   },
-  [CHAINS.Hoodi]: {
-    chainId: CHAINS.Hoodi,
+  [CHAIN_ID.Hoodi]: {
+    chainId: CHAIN_ID.Hoodi,
     name: 'Hoodi Testnet',
     rpcUrl: 'https://ethereum-hoodi-rpc.publicnode.com',
     viemChain: hoodi,
