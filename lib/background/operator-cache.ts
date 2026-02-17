@@ -41,6 +41,34 @@ function getDiscoveryAddress(chainId: SupportedChainId): Address {
   return addr;
 }
 
+export async function isModuleAvailable(
+  moduleType: ModuleType,
+  chainId: SupportedChainId,
+  customRpcUrl?: string,
+): Promise<boolean> {
+  const network = DEFAULT_NETWORKS[chainId];
+  const rpcUrl = customRpcUrl ?? network.rpcUrl;
+
+  const client = createPublicClient({
+    chain: network.viemChain,
+    transport: http(rpcUrl),
+  });
+
+  try {
+    const discoveryAddress = getDiscoveryAddress(chainId);
+    const moduleId = BigInt(MODULE_IDS[moduleType][chainId]);
+    const [moduleAddress] = await client.readContract({
+      address: discoveryAddress,
+      abi: SMDiscoveryAbi,
+      functionName: 'moduleCache',
+      args: [moduleId],
+    });
+    return moduleAddress !== zeroAddress;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchAllOperators(
   moduleType: ModuleType,
   chainId: SupportedChainId,

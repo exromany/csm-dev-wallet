@@ -11,9 +11,7 @@ export function ConnectedBar({ address, onDisconnect }: Props) {
   return (
     <div className="connected-bar">
       <span className="address">{truncateAddress(address.address)}</span>
-      <span className={`badge ${address.canSign ? 'sign' : 'watch'}`}>
-        {address.canSign ? 'can sign' : 'watch-only'}
-      </span>
+      <span className="badge watch">watch-only</span>
       <button className="btn-disconnect" onClick={onDisconnect}>
         Disconnect
       </button>

@@ -224,6 +224,18 @@ input:focus, select:focus {
   color: var(--accent);
 }
 
+.operator-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  background: var(--border);
+  color: var(--text-dim);
+}
+
 .btn-star {
   font-size: 16px;
   line-height: 1;
@@ -254,6 +266,11 @@ input:focus, select:focus {
   color: white;
 }
 
+.address-row.selected .address-mono,
+.address-row.selected .role-badge {
+  color: inherit;
+}
+
 .role-badge {
   font-size: 10px;
   font-weight: 600;
@@ -264,7 +281,18 @@ input:focus, select:focus {
 .role-badge.manager { color: #7c83ff; }
 .role-badge.rewards { color: #00d68f; }
 .role-badge.proposed { color: var(--text-dim); }
-.role-badge.owner { color: var(--warning); }
+.role-badge.owner {
+  color: var(--bg);
+  background: var(--warning);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 16px;
+}
+
+.address-row.selected .role-badge.owner {
+  color: var(--bg);
+}
 
 .address-mono {
   font-family: 'SF Mono', 'Consolas', monospace;
@@ -312,6 +340,7 @@ input:focus, select:focus {
 /* Filter bar */
 .filter-bar {
   display: flex;
+  align-items: center;
   gap: 6px;
   margin-bottom: 8px;
 }

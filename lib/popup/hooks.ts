@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { WalletState, CachedOperator, ModuleType } from '../shared/types.js';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
-import { PORT_NAME, type PopupCommand, type PopupEvent } from '../shared/messages.js';
+import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 
 // ── useWalletState ──
 
@@ -101,6 +101,27 @@ export function useOperators(
   }, [operators, search]);
 
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
+}
+
+// ── useModuleAvailability ──
+
+export function useModuleAvailability(port: chrome.runtime.Port | null) {
+  const [modules, setModules] = useState<ModuleAvailability>({ csm: true, cm: true });
+
+  useEffect(() => {
+    if (!port) return;
+
+    const handler = (event: PopupEvent) => {
+      if (event.type === 'module-availability') {
+        setModules(event.modules);
+      }
+    };
+
+    port.onMessage.addListener(handler);
+    return () => port.onMessage.removeListener(handler);
+  }, [port]);
+
+  return modules;
 }
 
 // ── useFavorites ──

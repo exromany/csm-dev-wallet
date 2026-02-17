@@ -9,7 +9,6 @@ type Props = {
   onAdd: (address: string) => void;
   onRemove: (address: string) => void;
   onSelect: (address: string) => void;
-  onImportKey: (address: string, privateKey: string) => void;
 };
 
 export function ManualAddresses({
@@ -18,25 +17,14 @@ export function ManualAddresses({
   onAdd,
   onRemove,
   onSelect,
-  onImportKey,
 }: Props) {
   const [input, setInput] = useState('');
-  const [keyInput, setKeyInput] = useState('');
-  const [keyAddress, setKeyAddress] = useState<string | null>(null);
 
   const handleAdd = () => {
     const trimmed = input.trim();
     if (isAddress(trimmed)) {
       onAdd(trimmed);
       setInput('');
-    }
-  };
-
-  const handleImportKey = () => {
-    if (keyAddress && keyInput.startsWith('0x')) {
-      onImportKey(keyAddress, keyInput);
-      setKeyInput('');
-      setKeyAddress(null);
     }
   };
 
@@ -53,30 +41,6 @@ export function ManualAddresses({
           Add
         </button>
       </div>
-
-      {keyAddress && (
-        <div className="manual-input-row" style={{ marginBottom: 12 }}>
-          <input
-            type="password"
-            placeholder="0x private key..."
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleImportKey()}
-          />
-          <button className="btn-add" onClick={handleImportKey}>
-            Import
-          </button>
-          <button
-            className="btn-disconnect"
-            onClick={() => {
-              setKeyAddress(null);
-              setKeyInput('');
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
 
       {addresses.length === 0 && (
         <div className="empty-state">
@@ -98,13 +62,6 @@ export function ManualAddresses({
               <span className="address-mono">{truncateAddress(addr)}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, padding: '2px 6px' }}>
-              <button
-                className="btn-disconnect"
-                style={{ fontSize: 11 }}
-                onClick={() => setKeyAddress(addr)}
-              >
-                Import Key
-              </button>
               <button
                 className="btn-disconnect"
                 style={{ fontSize: 11 }}

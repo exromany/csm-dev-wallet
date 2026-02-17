@@ -1,19 +1,11 @@
-import {
-  createWalletClient,
-  http,
-  type Address,
-  type Hex,
-  hexToBigInt,
-} from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { mainnet, hoodi } from 'viem/chains';
+import type { Address } from 'viem';
 import { getState, setState, notifyChainChanged } from './state.js';
-import { getKey } from './key-store.js';
-import { DEFAULT_NETWORKS, ANVIL_NETWORK, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
+import { withImpersonation, jsonRpc } from './anvil.js';
+import { DEFAULT_NETWORKS, ANVIL_NETWORK, ANVIL_CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
 
-const UNSUPPORTED_SIGNING_ERROR = {
+const WATCH_ONLY_ERROR = {
   code: 4200,
-  message: 'CSM Dev Wallet: This is a watch-only address. Signing is not supported unless you import a private key.',
+  message: 'CSM Dev Wallet: Watch-only address. Signing is only available on Anvil networks.',
 };
 
 const NOT_CONNECTED_ERROR = {
@@ -62,16 +54,14 @@ export async function handleRpcRequest(
     }
 
     case 'wallet_addEthereumChain': {
-      // QA wallet: reject adding unknown chains
       return { error: { code: 4902, message: 'CSM Dev Wallet does not support adding chains' } };
     }
 
     case 'wallet_requestPermissions': {
-      // Auto-approve — QA wallet has no permission gates
       return { result: [{ parentCapability: 'eth_accounts' }] };
     }
 
-    // Signing methods — block if watch-only
+    // Signing methods — Anvil impersonation or watch-only error
     case 'eth_sendTransaction':
     case 'eth_signTypedData_v4':
     case 'eth_signTypedData':
@@ -80,10 +70,11 @@ export async function handleRpcRequest(
       if (!state.selectedAddress) {
         return { error: NOT_CONNECTED_ERROR };
       }
-      if (!state.selectedAddress.canSign) {
-        return { error: UNSUPPORTED_SIGNING_ERROR };
+      if (state.chainId !== ANVIL_CHAIN_ID) {
+        return { error: WATCH_ONLY_ERROR };
       }
-      return handleSigning(method, params, state.selectedAddress.address, state.chainId);
+      const rpcUrl = state.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
+      return handleAnvilSigning(method, params, state.selectedAddress.address, rpcUrl);
     }
 
     // Everything else — proxy to RPC
@@ -93,93 +84,18 @@ export async function handleRpcRequest(
   }
 }
 
-const INVALID_PARAMS_ERROR = {
-  code: -32602,
-  message: 'Invalid params',
-};
-
-async function handleSigning(
+async function handleAnvilSigning(
   method: string,
   params: unknown[] | undefined,
   address: Address,
-  chainId: number,
+  rpcUrl: string,
 ): Promise<{ result?: unknown; error?: { code: number; message: string } }> {
-  if (!Array.isArray(params) || params.length === 0) {
-    return { error: INVALID_PARAMS_ERROR };
-  }
-
-  const key = await getKey(address);
-  if (!key) {
-    return { error: UNSUPPORTED_SIGNING_ERROR };
-  }
-
   try {
-    const account = privateKeyToAccount(key as Hex);
-    const chain = getChainForId(chainId);
-    const rpcUrl = getRpcUrl(chainId);
-
-    const client = createWalletClient({
-      account,
-      chain,
-      transport: http(rpcUrl),
+    return await withImpersonation(rpcUrl, address, async () => {
+      return proxyToRpc(method, params, ANVIL_CHAIN_ID, { [ANVIL_CHAIN_ID]: rpcUrl });
     });
-
-    switch (method) {
-      case 'personal_sign': {
-        if (params.length < 2) return { error: INVALID_PARAMS_ERROR };
-        // personal_sign(data, address)
-        const [message] = params as [Hex, Address];
-        const signature = await client.signMessage({
-          message: { raw: message },
-        });
-        return { result: signature };
-      }
-
-      case 'eth_sign': {
-        if (params.length < 2) return { error: INVALID_PARAMS_ERROR };
-        // eth_sign(address, data) — reversed vs personal_sign
-        const [, message] = params as [Address, Hex];
-        const signature = await client.signMessage({
-          message: { raw: message },
-        });
-        return { result: signature };
-      }
-
-      case 'eth_signTypedData_v4':
-      case 'eth_signTypedData': {
-        if (params.length < 2) return { error: INVALID_PARAMS_ERROR };
-        const [, typedDataJson] = params as [Address, string];
-        let typedData: unknown;
-        try {
-          typedData = typeof typedDataJson === 'string'
-            ? JSON.parse(typedDataJson)
-            : typedDataJson;
-        } catch {
-          return { error: { code: -32602, message: 'Invalid typed data JSON' } };
-        }
-        const signature = await client.signTypedData(typedData as any);
-        return { result: signature };
-      }
-
-      case 'eth_sendTransaction': {
-        const [txParams] = params as [Record<string, any>];
-        if (!txParams || typeof txParams !== 'object') {
-          return { error: INVALID_PARAMS_ERROR };
-        }
-        const hash = await client.sendTransaction({
-          to: txParams.to as Address,
-          data: txParams.data as Hex | undefined,
-          value: txParams.value ? hexToBigInt(txParams.value) : undefined,
-          gas: txParams.gas ? hexToBigInt(txParams.gas) : undefined,
-        });
-        return { result: hash };
-      }
-
-      default:
-        return { error: { code: 4200, message: `Unsupported method: ${method}` } };
-    }
   } catch (err: any) {
-    return { error: { code: -32000, message: err.message ?? 'Signing failed' } };
+    return { error: { code: -32000, message: err.message ?? 'Anvil signing failed' } };
   }
 }
 
@@ -189,7 +105,7 @@ async function proxyToRpc(
   chainId: number,
   customRpcUrls: Partial<Record<number, string>>,
 ): Promise<{ result?: unknown; error?: { code: number; message: string } }> {
-  const rpcUrl = customRpcUrls[chainId as SupportedChainId] ?? getRpcUrl(chainId);
+  const rpcUrl = customRpcUrls[chainId] ?? getRpcUrl(chainId);
 
   try {
     const res = await fetch(rpcUrl, {
@@ -222,11 +138,4 @@ function getRpcUrl(chainId: number): string {
   if (chainId === ANVIL_NETWORK.chainId) return ANVIL_NETWORK.rpcUrl;
   const network = DEFAULT_NETWORKS[chainId as SupportedChainId];
   return network?.rpcUrl ?? DEFAULT_NETWORKS[1 as SupportedChainId].rpcUrl;
-}
-
-function getChainForId(chainId: number) {
-  if (chainId === 1) return mainnet;
-  if (chainId === 17000) return hoodi;
-  // For Anvil / unknown, use mainnet as base
-  return mainnet;
 }

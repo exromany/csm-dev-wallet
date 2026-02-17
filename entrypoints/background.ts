@@ -10,8 +10,8 @@ import {
   fetchAllOperators,
   getCachedOperators,
   isStale,
+  isModuleAvailable,
 } from '../lib/background/operator-cache.js';
-import { setKey, removeKey, hasKey } from '../lib/background/key-store.js';
 import { SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../lib/shared/networks.js';
 import type { ModuleType, WalletState } from '../lib/shared/types.js';
 import {
@@ -25,10 +25,6 @@ import { isAddress, type Address } from 'viem';
 
 function assertAddress(value: string): asserts value is Address {
   if (!isAddress(value)) throw new Error(`Invalid address: ${value}`);
-}
-
-function assertHexKey(value: string): asserts value is `0x${string}` {
-  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) throw new Error('Invalid private key format');
 }
 
 function isValidRpcUrl(url: string): boolean {
@@ -133,6 +129,16 @@ export default defineBackground(() => {
     }
   }
 
+  /** Check CM availability and broadcast to popups. CSM is always available. */
+  async function checkModuleAvailability(chainId: SupportedChainId, customRpcUrl?: string) {
+    const cmAvailable = await isModuleAvailable('cm', chainId, customRpcUrl);
+    broadcastToPopups({
+      type: 'module-availability',
+      modules: { csm: true, cm: cmAvailable },
+    });
+    return cmAvailable;
+  }
+
   async function handlePopupCommand(
     command: PopupCommand,
     port: chrome.runtime.Port,
@@ -144,6 +150,7 @@ export default defineBackground(() => {
 
         const chainId = state.chainId as SupportedChainId;
         if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
+          checkModuleAvailability(chainId, state.customRpcUrls[chainId]);
           await triggerRefresh(state.moduleType, chainId, state);
         }
         break;
@@ -151,12 +158,10 @@ export default defineBackground(() => {
 
       case 'select-address': {
         assertAddress(command.address);
-        const canSign = await hasKey(command.address);
         const state = await setState({
           selectedAddress: {
             address: command.address,
             source: command.source,
-            canSign,
           },
           isConnected: true,
         });
@@ -176,12 +181,13 @@ export default defineBackground(() => {
       }
 
       case 'switch-network': {
-                const state = await setState({ chainId: command.chainId });
+        const state = await setState({ chainId: command.chainId });
         broadcastToPopups({ type: 'state-update', state });
         await notifyChainChanged(command.chainId);
 
         const chainId = command.chainId as SupportedChainId;
         if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
+          checkModuleAvailability(chainId, state.customRpcUrls[chainId]);
           await triggerRefresh(state.moduleType, chainId, state);
         }
         break;
@@ -282,49 +288,18 @@ export default defineBackground(() => {
         break;
       }
 
-      case 'import-key': {
-        assertAddress(command.address);
-        assertHexKey(command.privateKey);
-        await setKey(command.address, command.privateKey);
-        const state = await getState();
-        if (
-          state.selectedAddress?.address.toLowerCase() ===
-          command.address.toLowerCase()
-        ) {
-          const updated = await setState({
-            selectedAddress: { ...state.selectedAddress, canSign: true },
-          });
-          broadcastToPopups({ type: 'state-update', state: updated });
-        }
-        break;
-      }
-
-      case 'remove-key': {
-        assertAddress(command.address);
-        await removeKey(command.address);
-        const state = await getState();
-        if (
-          state.selectedAddress?.address.toLowerCase() ===
-          command.address.toLowerCase()
-        ) {
-          const updated = await setState({
-            selectedAddress: { ...state.selectedAddress, canSign: false },
-          });
-          broadcastToPopups({ type: 'state-update', state: updated });
-        }
-        break;
-      }
-
       case 'set-custom-rpc': {
         if (command.rpcUrl && !isValidRpcUrl(command.rpcUrl)) {
           throw new Error('RPC URL must use HTTPS or localhost');
         }
         const state = await getState();
-        const customRpcUrls = {
-          ...state.customRpcUrls,
-          [command.chainId]: command.rpcUrl,
-        };
-                const updated = await setState({ customRpcUrls });
+        const customRpcUrls = { ...state.customRpcUrls };
+        if (command.rpcUrl) {
+          customRpcUrls[command.chainId] = command.rpcUrl;
+        } else {
+          delete customRpcUrls[command.chainId];
+        }
+        const updated = await setState({ customRpcUrls });
         broadcastToPopups({ type: 'state-update', state: updated });
         break;
       }

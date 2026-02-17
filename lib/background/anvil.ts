@@ -45,7 +45,21 @@ async function hasCode(rpcUrl: string, address: Address): Promise<boolean> {
   return code !== '0x' && code !== '0x0';
 }
 
-async function jsonRpc(
+/** Impersonate an account on Anvil, execute fn, then stop impersonating */
+export async function withImpersonation<T>(
+  rpcUrl: string,
+  address: Address,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await jsonRpc(rpcUrl, 'anvil_impersonateAccount', [address]);
+  try {
+    return await fn();
+  } finally {
+    await jsonRpc(rpcUrl, 'anvil_stopImpersonatingAccount', [address]).catch(() => {});
+  }
+}
+
+export async function jsonRpc(
   rpcUrl: string,
   method: string,
   params: unknown[] = [],

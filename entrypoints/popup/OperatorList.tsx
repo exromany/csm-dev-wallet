@@ -49,6 +49,48 @@ export function OperatorList({
   );
 }
 
+type AddressGroup = {
+  address: string;
+  roles: { role: AddressRole; label: string }[];
+  isOwner: boolean;
+};
+
+function groupAddresses(op: CachedOperator): AddressGroup[] {
+  const entries: { role: AddressRole; label: string; address: string; isOwner: boolean }[] = [
+    { role: 'manager', label: 'MGR', address: op.managerAddress, isOwner: op.extendedManagerPermissions },
+    { role: 'rewards', label: 'RWD', address: op.rewardsAddress, isOwner: !op.extendedManagerPermissions },
+  ];
+  if (op.proposedManagerAddress) {
+    entries.push({ role: 'proposedManager', label: 'P-MGR', address: op.proposedManagerAddress, isOwner: false });
+  }
+  if (op.proposedRewardsAddress) {
+    entries.push({ role: 'proposedRewards', label: 'P-RWD', address: op.proposedRewardsAddress, isOwner: false });
+  }
+
+  const grouped = new Map<string, AddressGroup>();
+  for (const e of entries) {
+    const key = e.address.toLowerCase();
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.roles.push({ role: e.role, label: e.label });
+      existing.isOwner = existing.isOwner || e.isOwner;
+    } else {
+      grouped.set(key, {
+        address: e.address,
+        roles: [{ role: e.role, label: e.label }],
+        isOwner: e.isOwner,
+      });
+    }
+  }
+  return Array.from(grouped.values());
+}
+
+function roleBadgeClass(role: AddressRole): string {
+  if (role === 'manager') return 'manager';
+  if (role === 'rewards') return 'rewards';
+  return 'proposed';
+}
+
 function OperatorRow({
   operator: op,
   selectedAddress,
@@ -62,45 +104,14 @@ function OperatorRow({
   onToggleFavorite: () => void;
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
 }) {
-  const isOwnerManager = op.extendedManagerPermissions;
-
-  const addresses: { role: AddressRole; label: string; address: string; isOwner: boolean }[] = [
-    {
-      role: 'manager',
-      label: 'MGR',
-      address: op.managerAddress,
-      isOwner: isOwnerManager,
-    },
-    {
-      role: 'rewards',
-      label: 'RWD',
-      address: op.rewardsAddress,
-      isOwner: !isOwnerManager,
-    },
-  ];
-
-  if (op.proposedManagerAddress) {
-    addresses.push({
-      role: 'proposedManager',
-      label: 'P-MGR',
-      address: op.proposedManagerAddress,
-      isOwner: false,
-    });
-  }
-  if (op.proposedRewardsAddress) {
-    addresses.push({
-      role: 'proposedRewards',
-      label: 'P-RWD',
-      address: op.proposedRewardsAddress,
-      isOwner: false,
-    });
-  }
+  const groups = groupAddresses(op);
 
   return (
     <div className="operator-row">
       <div className="operator-header">
         <span className="operator-id">#{op.id}</span>
-        <span className="operator-type">{op.operatorType}</span>
+        {op.operatorType && <span className="operator-type">{op.operatorType}</span>}
+        <div className="spacer" />
         <button
           className={`btn-star ${isFavorite ? 'active' : ''}`}
           onClick={onToggleFavorite}
@@ -110,20 +121,21 @@ function OperatorRow({
         </button>
       </div>
 
-      {addresses.map(({ role, label, address, isOwner }) => {
-        const selected =
-          selectedAddress?.toLowerCase() === address.toLowerCase();
+      {groups.map((group) => {
+        const selected = selectedAddress?.toLowerCase() === group.address.toLowerCase();
         return (
           <div
-            key={role}
+            key={group.address}
             className={`address-row ${selected ? 'selected' : ''}`}
-            onClick={() => onSelect(address, op.id, role)}
+            onClick={() => onSelect(group.address, op.id, group.roles[0].role)}
           >
-            <span className={`role-badge ${role === 'manager' ? 'manager' : role === 'rewards' ? 'rewards' : 'proposed'}`}>
-              {label}
-            </span>
-            {isOwner && <span className="role-badge owner">owner</span>}
-            <span className="address-mono">{truncateAddress(address)}</span>
+            {group.roles.map(({ role, label }) => (
+              <span key={role} className={`role-badge ${roleBadgeClass(role)}`}>
+                {label}
+              </span>
+            ))}
+            {group.isOwner && <span className="role-badge owner">owner</span>}
+            <span className="address-mono">{truncateAddress(group.address)}</span>
           </div>
         );
       })}

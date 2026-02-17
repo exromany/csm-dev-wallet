@@ -1,5 +1,4 @@
 import type { Address } from 'viem';
-import type { SupportedChainId } from './networks.js';
 
 export type ModuleType = 'csm' | 'cm';
 
@@ -34,7 +33,6 @@ export type OperatorCacheEntry = {
 export type SelectedAddress = {
   address: Address;
   source: AddressSource;
-  canSign: boolean;
 };
 
 export type WalletState = {
@@ -42,7 +40,7 @@ export type WalletState = {
   moduleType: ModuleType;
   selectedAddress: SelectedAddress | null;
   isConnected: boolean;
-  customRpcUrls: Partial<Record<SupportedChainId, string>>;
+  customRpcUrls: Partial<Record<number, string>>;
   favorites: string[]; // scoped: "csm:1:42"
   manualAddresses: Address[];
 };

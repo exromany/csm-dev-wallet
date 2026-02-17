@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useWalletState, useOperators, useFavorites } from '../../lib/popup/hooks.js';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useWalletState, useOperators, useFavorites, useModuleAvailability } from '../../lib/popup/hooks.js';
 import { formatTimeAgo } from '../../lib/popup/utils.js';
 import { NetworkSelector } from './NetworkSelector.js';
 import { ModuleSelector } from './ModuleSelector.js';
@@ -18,7 +18,15 @@ export function App() {
     state.moduleType,
   );
   const favorites = useFavorites(state, send);
+  const availableModules = useModuleAvailability(port);
   const [tab, setTab] = useState<Tab>('operators');
+
+  // Auto-switch away from CM if it becomes unavailable
+  useEffect(() => {
+    if (state.moduleType === 'cm' && availableModules.cm === false) {
+      send({ type: 'switch-module', moduleType: 'csm' });
+    }
+  }, [availableModules.cm, state.moduleType, send]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const displayOperators = useMemo(
@@ -40,6 +48,7 @@ export function App() {
 
       <ModuleSelector
         moduleType={state.moduleType}
+        availableModules={availableModules}
         onSwitch={(moduleType) => send({ type: 'switch-module', moduleType })}
       />
 
@@ -124,9 +133,6 @@ export function App() {
                 address,
                 source: { type: 'manual' },
               })
-            }
-            onImportKey={(address, privateKey) =>
-              send({ type: 'import-key', address, privateKey })
             }
           />
         )}

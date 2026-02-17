@@ -49,14 +49,15 @@ export type PopupCommand =
   | { type: 'toggle-favorite'; operatorId: string }
   | { type: 'add-manual-address'; address: string }
   | { type: 'remove-manual-address'; address: string }
-  | { type: 'import-key'; address: string; privateKey: string }
-  | { type: 'remove-key'; address: string }
   | { type: 'set-custom-rpc'; chainId: number; rpcUrl: string };
+
+export type ModuleAvailability = Partial<Record<ModuleType, boolean>>;
 
 export type PopupEvent =
   | { type: 'state-update'; state: import('./types.js').WalletState }
   | { type: 'operators-update'; chainId: number; moduleType: ModuleType; operators: import('./types.js').CachedOperator[]; lastFetchedAt: number }
   | { type: 'operators-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
+  | { type: 'module-availability'; modules: ModuleAvailability }
   | { type: 'error'; message: string };
 
 // ── Service Worker → Content Script (broadcast) ──────────────────────
