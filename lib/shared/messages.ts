@@ -7,6 +7,7 @@
  */
 
 import type { ModuleType } from './types.js';
+import type { RpcError } from './errors.js';
 
 // ── Inpage ↔ Content Script (window.postMessage) ──────────────────────
 
@@ -17,7 +18,7 @@ export type InpageMessage = {
   direction: 'to-content' | 'to-inpage';
 } & (
   | { type: 'rpc-request'; id: number; method: string; params?: unknown[] }
-  | { type: 'rpc-response'; id: number; result?: unknown; error?: unknown }
+  | { type: 'rpc-response'; id: number; result?: unknown; error?: RpcError }
   | { type: 'event'; event: string; data: unknown }
 );
 
@@ -45,6 +46,7 @@ export type PopupCommand =
   | { type: 'disconnect' }
   | { type: 'switch-network'; chainId: number }
   | { type: 'switch-module'; moduleType: ModuleType }
+  | { type: 'request-operators'; chainId: number; moduleType: ModuleType }
   | { type: 'refresh-operators'; chainId: number; moduleType: ModuleType }
   | { type: 'toggle-favorite'; operatorId: string }
   | { type: 'add-manual-address'; address: string }

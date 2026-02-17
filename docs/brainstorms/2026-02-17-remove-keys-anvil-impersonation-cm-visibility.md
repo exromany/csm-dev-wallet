@@ -12,7 +12,7 @@ Four related changes to simplify the wallet and make Anvil testing seamless:
 1. **Remove private key import** — wallet becomes purely watch-only
 2. **Fix RPC settings save bug** — empty strings and Anvil custom URLs
 3. **Anvil impersonation** — sign transactions via `anvil_impersonateAccount`
-4. **Hide CM module** — when not deployed on current network
+4. **Hide CM module** — when not deployed on current network (changed to disable instead hiding)
 
 ## Why
 

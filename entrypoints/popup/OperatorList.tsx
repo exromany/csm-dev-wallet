@@ -4,6 +4,7 @@ import { truncateAddress } from '../../lib/popup/utils.js';
 
 type Props = {
   operators: CachedOperator[];
+  allOperatorsCount: number;
   loading: boolean;
   selectedAddress?: string;
   favorites: {
@@ -15,6 +16,7 @@ type Props = {
 
 export function OperatorList({
   operators,
+  allOperatorsCount,
   loading,
   selectedAddress,
   favorites,
@@ -30,7 +32,8 @@ export function OperatorList({
   }
 
   if (operators.length === 0) {
-    return <div className="empty-state">No operators found</div>;
+    const message = allOperatorsCount > 0 ? 'No matching operators' : 'No operators found';
+    return <div className="empty-state">{message}</div>;
   }
 
   return (

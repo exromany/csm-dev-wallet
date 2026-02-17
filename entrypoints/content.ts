@@ -4,8 +4,10 @@ import {
   MSG_CHANNEL,
   type InpageMessage,
   type RpcRequestMessage,
+  type RpcResponseMessage,
   type BroadcastMessage,
 } from '../lib/shared/messages.js';
+import { errorMessage } from '../lib/shared/errors.js';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -19,7 +21,7 @@ export default defineContentScript({
 
     const SW_TIMEOUT_MS = 30_000;
 
-    function sendWithTimeout(request: RpcRequestMessage): Promise<any> {
+    function sendWithTimeout(request: RpcRequestMessage): Promise<unknown> {
       return Promise.race([
         chrome.runtime.sendMessage(request),
         new Promise((_, reject) =>
@@ -41,7 +43,7 @@ export default defineContentScript({
         };
 
         try {
-          const response = await sendWithTimeout(request);
+          const response = await sendWithTimeout(request) as RpcResponseMessage;
 
           window.postMessage(
             {
@@ -54,14 +56,14 @@ export default defineContentScript({
             } satisfies InpageMessage,
             window.location.origin,
           );
-        } catch (err: any) {
+        } catch (err: unknown) {
           window.postMessage(
             {
               channel: MSG_CHANNEL,
               direction: 'to-inpage',
               type: 'rpc-response',
               id: msg.id,
-              error: { code: -32603, message: err.message },
+              error: { code: -32603, message: errorMessage(err) },
             } satisfies InpageMessage,
             window.location.origin,
           );

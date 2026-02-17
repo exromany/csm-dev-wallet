@@ -128,11 +128,6 @@ input:focus, select:focus {
   background: var(--border);
 }
 
-.connected-bar .badge.sign {
-  background: var(--success);
-  color: var(--bg);
-}
-
 .connected-bar .badge.watch {
   background: var(--warning);
   color: var(--bg);
@@ -177,6 +172,11 @@ input:focus, select:focus {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+}
+
+.module-pill.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Staleness label */
@@ -335,6 +335,15 @@ input:focus, select:focus {
 
 .settings-group input {
   width: 100%;
+}
+
+.error-message {
+  background: var(--danger);
+  color: white;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  margin-bottom: 12px;
 }
 
 /* Filter bar */

@@ -13,7 +13,11 @@
     "zip": "wxt zip",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "test:e2e": "wxt build && npx tsx test/e2e/run-all.ts",
+    "test:e2e:only": "npx tsx",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -24,13 +28,19 @@
     "viem": "^2.26.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/chrome": "^0.1.36",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
     "@wxt-dev/module-react": "^1.1.0",
+    "jsdom": "^28.1.0",
     "oxlint": "^1.48.0",
     "playwright": "^1.58.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.0",
+    "vitest": "^4.0.18",
     "wxt": "^0.20.0"
   },
   "volta": {

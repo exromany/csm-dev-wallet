@@ -1,6 +1,8 @@
 import type { Address } from 'viem';
 import { getState, setState, notifyChainChanged } from './state.js';
-import { withImpersonation, jsonRpc } from './anvil.js';
+import { withImpersonation } from './anvil.js';
+import { rawJsonRpc } from './rpc.js';
+import { errorMessage } from '../shared/errors.js';
 import { DEFAULT_NETWORKS, ANVIL_NETWORK, ANVIL_CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
 
 const WATCH_ONLY_ERROR = {
@@ -12,6 +14,8 @@ const NOT_CONNECTED_ERROR = {
   code: 4100,
   message: 'CSM Dev Wallet: No address selected. Open the extension popup to connect.',
 };
+
+const BLOCKED_METHODS = /^(anvil_|hardhat_|evm_)/i;
 
 export async function handleRpcRequest(
   method: string,
@@ -77,8 +81,11 @@ export async function handleRpcRequest(
       return handleAnvilSigning(method, params, state.selectedAddress.address, rpcUrl);
     }
 
-    // Everything else — proxy to RPC
+    // Everything else — proxy to RPC (block dangerous methods)
     default: {
+      if (BLOCKED_METHODS.test(method)) {
+        return { error: { code: 4200, message: `Method ${method} is not available` } };
+      }
       return proxyToRpc(method, params, state.chainId, state.customRpcUrls);
     }
   }
@@ -94,8 +101,8 @@ async function handleAnvilSigning(
     return await withImpersonation(rpcUrl, address, async () => {
       return proxyToRpc(method, params, ANVIL_CHAIN_ID, { [ANVIL_CHAIN_ID]: rpcUrl });
     });
-  } catch (err: any) {
-    return { error: { code: -32000, message: err.message ?? 'Anvil signing failed' } };
+  } catch (err: unknown) {
+    return { error: { code: -32000, message: errorMessage(err) || 'Anvil signing failed' } };
   }
 }
 
@@ -108,29 +115,13 @@ async function proxyToRpc(
   const rpcUrl = customRpcUrls[chainId] ?? getRpcUrl(chainId);
 
   try {
-    const res = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method,
-        params: params ?? [],
-      }),
-    });
-    const json = await res.json();
-
+    const json = await rawJsonRpc(rpcUrl, method, params ?? []);
     if (json.error) {
-      const error: { code: number; message: string; data?: unknown } = {
-        code: json.error.code,
-        message: json.error.message,
-      };
-      if (json.error.data !== undefined) error.data = json.error.data;
-      return { error };
+      return { error: { code: json.error.code, message: json.error.message } };
     }
     return { result: json.result };
-  } catch (err: any) {
-    return { error: { code: -32603, message: `RPC error: ${err.message}` } };
+  } catch {
+    return { error: { code: -32603, message: 'RPC request failed' } };
   }
 }
 

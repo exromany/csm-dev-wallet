@@ -16,21 +16,21 @@ export function ModuleSelector({
   availableModules: ModuleAvailability;
   onSwitch: (moduleType: ModuleType) => void;
 }) {
-  const visible = MODULES.filter((m) => availableModules[m.type] !== false);
-
-  if (visible.length <= 1) return null;
-
   return (
     <div className="module-selector">
-      {visible.map((m) => (
-        <button
-          key={m.type}
-          className={`module-pill ${moduleType === m.type ? 'active' : ''}`}
-          onClick={() => onSwitch(m.type)}
-        >
-          {m.label}
-        </button>
-      ))}
+      {MODULES.map((m) => {
+        const disabled = availableModules[m.type] === false;
+        return (
+          <button
+            key={m.type}
+            className={`module-pill ${moduleType === m.type ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+            disabled={disabled}
+            onClick={() => onSwitch(m.type)}
+          >
+            {m.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

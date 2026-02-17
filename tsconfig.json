@@ -4,5 +4,6 @@
     "strict": true,
     "jsx": "react-jsx",
     "types": ["@types/chrome"]
-  }
+  },
+  "exclude": ["test"]
 }

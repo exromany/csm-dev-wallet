@@ -11,8 +11,11 @@ import {
   getCachedOperators,
   isStale,
   isModuleAvailable,
+  getModuleAvailabilityCache,
+  setModuleAvailabilityCache,
 } from '../lib/background/operator-cache.js';
 import { SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../lib/shared/networks.js';
+import { errorMessage } from '../lib/shared/errors.js';
 import type { ModuleType, WalletState } from '../lib/shared/types.js';
 import {
   PORT_NAME,
@@ -21,7 +24,7 @@ import {
   type PopupCommand,
   type PopupEvent,
 } from '../lib/shared/messages.js';
-import { isAddress, type Address } from 'viem';
+import { isAddress, getAddress, type Address } from 'viem';
 
 function assertAddress(value: string): asserts value is Address {
   if (!isAddress(value)) throw new Error(`Invalid address: ${value}`);
@@ -30,7 +33,7 @@ function assertAddress(value: string): asserts value is Address {
 function isValidRpcUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
   } catch {
     return false;
   }
@@ -39,15 +42,28 @@ function isValidRpcUrl(url: string): boolean {
 export default defineBackground(() => {
   // ── RPC requests from content scripts ──
   chrome.runtime.onMessage.addListener(
-    (message: RpcRequestMessage, _sender, sendResponse) => {
+    (message: RpcRequestMessage, sender, sendResponse) => {
       if (message.type !== 'rpc-request') return false;
+      if (!sender.tab?.id) return false;
 
-      handleRpcRequest(message.method, message.params).then((response) => {
-        sendResponse({
-          type: 'rpc-response',
-          ...response,
-        } satisfies RpcResponseMessage);
-      });
+      handleRpcRequest(message.method, message.params)
+        .then(async (response) => {
+          // Dapp-initiated chain switch — sync popup state
+          if (message.method === 'wallet_switchEthereumChain' && !response.error) {
+            const state = await getState();
+            broadcastToPopups({ type: 'state-update', state });
+          }
+          sendResponse({
+            type: 'rpc-response',
+            ...response,
+          } satisfies RpcResponseMessage);
+        })
+        .catch((err: unknown) => {
+          sendResponse({
+            type: 'rpc-response',
+            error: { code: -32603, message: errorMessage(err) },
+          } satisfies RpcResponseMessage);
+        });
 
       return true; // async response
     },
@@ -65,8 +81,8 @@ export default defineBackground(() => {
     port.onMessage.addListener(async (command: PopupCommand) => {
       try {
         await handlePopupCommand(command, port);
-      } catch (err: any) {
-        sendToPort(port, { type: 'error', message: err.message });
+      } catch (err: unknown) {
+        sendToPort(port, { type: 'error', message: errorMessage(err) });
       }
     });
   });
@@ -119,23 +135,31 @@ export default defineBackground(() => {
         operators: entry.operators,
         lastFetchedAt: entry.lastFetchedAt,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       broadcastToPopups({
         type: 'error',
-        message: `Failed to fetch operators: ${err.message}`,
+        message: `Failed to fetch operators: ${errorMessage(err)}`,
       });
     } finally {
       broadcastToPopups({ type: 'operators-loading', chainId, moduleType, loading: false });
     }
   }
 
-  /** Check CM availability and broadcast to popups. CSM is always available. */
+  /** Send persisted module availability immediately, then recheck via RPC. */
+  async function sendPersistedAvailability(chainId: SupportedChainId, port?: chrome.runtime.Port) {
+    const cached = await getModuleAvailabilityCache(chainId);
+    if (cached) {
+      const event: PopupEvent = { type: 'module-availability', modules: cached };
+      if (port) sendToPort(port, event); else broadcastToPopups(event);
+    }
+  }
+
+  /** Check CM availability via RPC, persist result, and broadcast. */
   async function checkModuleAvailability(chainId: SupportedChainId, customRpcUrl?: string) {
     const cmAvailable = await isModuleAvailable('cm', chainId, customRpcUrl);
-    broadcastToPopups({
-      type: 'module-availability',
-      modules: { csm: true, cm: cmAvailable },
-    });
+    const modules = { csm: true, cm: cmAvailable };
+    await setModuleAvailabilityCache(chainId, modules);
+    broadcastToPopups({ type: 'module-availability', modules });
     return cmAvailable;
   }
 
@@ -150,7 +174,8 @@ export default defineBackground(() => {
 
         const chainId = state.chainId as SupportedChainId;
         if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
-          checkModuleAvailability(chainId, state.customRpcUrls[chainId]);
+          await sendPersistedAvailability(chainId, port);
+          checkModuleAvailability(chainId, state.customRpcUrls[chainId]).catch(() => {});
           await triggerRefresh(state.moduleType, chainId, state);
         }
         break;
@@ -187,8 +212,8 @@ export default defineBackground(() => {
 
         const chainId = command.chainId as SupportedChainId;
         if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
-          checkModuleAvailability(chainId, state.customRpcUrls[chainId]);
-          await triggerRefresh(state.moduleType, chainId, state);
+          await sendPersistedAvailability(chainId);
+          checkModuleAvailability(chainId, state.customRpcUrls[chainId]).catch(() => {});
         }
         break;
       }
@@ -201,11 +226,14 @@ export default defineBackground(() => {
         });
         broadcastToPopups({ type: 'state-update', state });
         await notifyAccountsChanged([]);
+        break;
+      }
 
-        const chainId = state.chainId as SupportedChainId;
-        if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
-          await triggerRefresh(command.moduleType, chainId, state);
-        }
+      case 'request-operators': {
+        const chainId = command.chainId as SupportedChainId;
+        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) break;
+        const currentState = await getState();
+        await triggerRefresh(command.moduleType, chainId, currentState);
         break;
       }
 
@@ -235,10 +263,10 @@ export default defineBackground(() => {
             operators: entry.operators,
             lastFetchedAt: entry.lastFetchedAt,
           });
-        } catch (err: any) {
+        } catch (err: unknown) {
           broadcastToPopups({
             type: 'error',
-            message: `Failed to fetch operators: ${err.message}`,
+            message: `Failed to fetch operators: ${errorMessage(err)}`,
           });
         } finally {
           broadcastToPopups({
@@ -264,12 +292,13 @@ export default defineBackground(() => {
 
       case 'add-manual-address': {
         assertAddress(command.address);
+        const normalized = getAddress(command.address);
         const state = await getState();
-        if (!state.manualAddresses.includes(command.address)) {
+        if (!state.manualAddresses.some((a) => getAddress(a) === normalized)) {
           const updated = await setState({
             manualAddresses: [
               ...state.manualAddresses,
-              command.address,
+              normalized,
             ],
           });
           broadcastToPopups({ type: 'state-update', state: updated });
@@ -279,9 +308,10 @@ export default defineBackground(() => {
 
       case 'remove-manual-address': {
         const state = await getState();
+        const normalized = getAddress(command.address);
         const updated = await setState({
           manualAddresses: state.manualAddresses.filter(
-            (a) => a.toLowerCase() !== command.address.toLowerCase(),
+            (a) => getAddress(a) !== normalized,
           ),
         });
         broadcastToPopups({ type: 'state-update', state: updated });
@@ -290,7 +320,7 @@ export default defineBackground(() => {
 
       case 'set-custom-rpc': {
         if (command.rpcUrl && !isValidRpcUrl(command.rpcUrl)) {
-          throw new Error('RPC URL must use HTTPS or localhost');
+          throw new Error('Invalid RPC URL');
         }
         const state = await getState();
         const customRpcUrls = { ...state.customRpcUrls };

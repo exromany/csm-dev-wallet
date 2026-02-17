@@ -11,8 +11,8 @@ import { Settings } from './Settings.js';
 type Tab = 'operators' | 'manual' | 'settings';
 
 export function App() {
-  const { state, send, port } = useWalletState();
-  const { operators, loading, lastFetchedAt, search, setSearch, refresh } = useOperators(
+  const { state, send, port, error, clearError } = useWalletState();
+  const { operators, allOperators, loading, lastFetchedAt, search, setSearch, refresh } = useOperators(
     port,
     state.chainId,
     state.moduleType,
@@ -29,11 +29,12 @@ export function App() {
   }, [availableModules.cm, state.moduleType, send]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+  const { isFavorite } = favorites;
   const displayOperators = useMemo(
     () => showFavoritesOnly
-      ? operators.filter((op) => favorites.isFavorite(op.id))
+      ? operators.filter((op) => isFavorite(op.id))
       : operators,
-    [operators, showFavoritesOnly, favorites],
+    [operators, showFavoritesOnly, isFavorite],
   );
 
   return (
@@ -55,16 +56,19 @@ export function App() {
       {state.selectedAddress && (
         <ConnectedBar
           address={state.selectedAddress}
+          chainId={state.chainId}
           onDisconnect={() => send({ type: 'disconnect' })}
         />
       )}
+
+      {error && <div className="error-message">{error}</div>}
 
       <div className="tabs">
         {(['operators', 'manual', 'settings'] as Tab[]).map((t) => (
           <button
             key={t}
             className={`tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
+            onClick={() => { setTab(t); clearError(); }}
           >
             {t === 'operators' ? 'Operators' : t === 'manual' ? 'Manual' : 'Settings'}
           </button>
@@ -76,7 +80,7 @@ export function App() {
           <>
             <input
               className="search-bar"
-              placeholder="Search by ID or address..."
+              placeholder="Search by #ID, address, or type..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -105,6 +109,7 @@ export function App() {
             </div>
             <OperatorList
               operators={displayOperators}
+              allOperatorsCount={allOperators.length}
               loading={loading}
               selectedAddress={state.selectedAddress?.address}
               favorites={favorites}

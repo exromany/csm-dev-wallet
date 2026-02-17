@@ -4,52 +4,66 @@ import type { BroadcastMessage } from '../shared/messages.js';
 
 const STORAGE_KEY = 'wallet_state';
 
-/** Migrate legacy state to current shape */
-function migrateState(raw: WalletState): WalletState {
+// ── In-memory cache + write mutex ──
+
+let cached: WalletState | null = null;
+let writeLock: Promise<WalletState> = Promise.resolve(DEFAULT_WALLET_STATE);
+
+/** Migrate legacy state to current shape — returns new object when changed */
+function migrateState(raw: WalletState): { state: WalletState; changed: boolean } {
   let changed = false;
+  let state = raw;
 
   // Add moduleType if missing (pre-v2 state)
-  if (!raw.moduleType) {
-    raw.moduleType = 'csm';
+  if (!state.moduleType) {
+    state = { ...state, moduleType: 'csm' };
     changed = true;
   }
 
   // Migrate bare favorite IDs ("42") to scoped format ("csm:<chainId>:42")
-  const migrated = raw.favorites.map((fav) => {
+  const migrated = state.favorites.map((fav) => {
     if (!fav.includes(':')) {
       changed = true;
-      return `csm:${raw.chainId}:${fav}`;
+      return `csm:${state.chainId}:${fav}`;
     }
     return fav;
   });
 
   if (changed) {
-    raw.favorites = migrated;
+    state = { ...state, favorites: migrated };
   }
 
-  return raw;
+  return { state, changed };
 }
 
 export async function getState(): Promise<WalletState> {
+  if (cached) return cached;
+
   const data = await chrome.storage.local.get(STORAGE_KEY);
   const raw = (data[STORAGE_KEY] as WalletState | undefined) ?? { ...DEFAULT_WALLET_STATE };
-  const state = migrateState(raw);
+  const { state, changed } = migrateState(raw);
 
-  // Persist if migration changed anything
-  if (raw !== state || !data[STORAGE_KEY]) {
+  if (changed || !data[STORAGE_KEY]) {
     await chrome.storage.local.set({ [STORAGE_KEY]: state });
   }
 
+  cached = state;
   return state;
 }
 
 export async function setState(
   update: Partial<WalletState>,
 ): Promise<WalletState> {
-  const current = await getState();
-  const next = { ...current, ...update };
-  await chrome.storage.local.set({ [STORAGE_KEY]: next });
-  return next;
+  const result = writeLock.then(async () => {
+    const current = await getState();
+    const next = { ...current, ...update };
+    cached = next;
+    await chrome.storage.local.set({ [STORAGE_KEY]: next });
+    return next;
+  });
+  // On failure, reset lock to current state so subsequent calls aren't stuck
+  writeLock = result.catch(() => getState());
+  return result;
 }
 
 /** Broadcast state change to all content scripts */

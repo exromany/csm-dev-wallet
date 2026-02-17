@@ -7,6 +7,7 @@ import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability 
 
 export function useWalletState() {
   const [state, setLocalState] = useState<WalletState>(DEFAULT_WALLET_STATE);
+  const [error, setError] = useState<string | null>(null);
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
 
   useEffect(() => {
@@ -16,6 +17,10 @@ export function useWalletState() {
     p.onMessage.addListener((event: PopupEvent) => {
       if (event.type === 'state-update') {
         setLocalState(event.state);
+        setError(null);
+      }
+      if (event.type === 'error') {
+        setError(event.message);
       }
     });
 
@@ -30,7 +35,9 @@ export function useWalletState() {
     [port],
   );
 
-  return { state, send, port };
+  const clearError = useCallback(() => setError(null), []);
+
+  return { state, send, port, error, clearError };
 }
 
 // ── useOperators ──
@@ -54,7 +61,7 @@ export function useOperators(
 
     // Reset state on chain/module change
     setOperators([]);
-    setLoading(false);
+    setLoading(true);
     setLastFetchedAt(null);
 
     const handler = (event: PopupEvent) => {
@@ -67,6 +74,7 @@ export function useOperators(
       ) {
         setOperators(event.operators);
         setLastFetchedAt(event.lastFetchedAt);
+        setLoading(false);
       }
       if (
         event.type === 'operators-loading' &&
@@ -78,6 +86,11 @@ export function useOperators(
     };
 
     port.onMessage.addListener(handler);
+    port.postMessage({
+      type: 'request-operators',
+      chainId,
+      moduleType,
+    } satisfies PopupCommand);
     return () => port.onMessage.removeListener(handler);
   }, [port, chainId, moduleType]);
 
@@ -89,16 +102,7 @@ export function useOperators(
     } satisfies PopupCommand);
   }, [port, chainId, moduleType]);
 
-  const filtered = useMemo(() => {
-    if (!search) return operators;
-    const q = search.toLowerCase();
-    return operators.filter(
-      (op) =>
-        op.id.includes(q) ||
-        op.managerAddress.toLowerCase().includes(q) ||
-        op.rewardsAddress.toLowerCase().includes(q),
-    );
-  }, [operators, search]);
+  const filtered = useMemo(() => filterOperators(operators, search), [operators, search]);
 
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
 }
@@ -106,7 +110,7 @@ export function useOperators(
 // ── useModuleAvailability ──
 
 export function useModuleAvailability(port: chrome.runtime.Port | null) {
-  const [modules, setModules] = useState<ModuleAvailability>({ csm: true, cm: true });
+  const [modules, setModules] = useState<ModuleAvailability>({ csm: true, cm: false });
 
   useEffect(() => {
     if (!port) return;
@@ -137,10 +141,37 @@ export function useFavorites(
     [send],
   );
 
+  const favoriteSet = useMemo(() => new Set(state.favorites), [state.favorites]);
+
   const isFavorite = useCallback(
-    (operatorId: string) => state.favorites.includes(`${prefix}${operatorId}`),
-    [state.favorites, prefix],
+    (operatorId: string) => favoriteSet.has(`${prefix}${operatorId}`),
+    [favoriteSet, prefix],
   );
 
   return { toggle, isFavorite };
+}
+
+// ── filterOperators ──
+
+export function filterOperators(operators: CachedOperator[], search: string): CachedOperator[] {
+  if (!search) return operators;
+  const raw = search.trim();
+  if (!raw) return operators;
+
+  // #N → exact ID match
+  if (raw.startsWith('#')) {
+    const id = raw.slice(1);
+    return operators.filter((op) => op.id === id);
+  }
+
+  const q = raw.toLowerCase();
+  return operators.filter(
+    (op) =>
+      op.id.includes(q) ||
+      op.operatorType.toLowerCase().includes(q) ||
+      op.managerAddress.toLowerCase().includes(q) ||
+      op.rewardsAddress.toLowerCase().includes(q) ||
+      op.proposedManagerAddress?.toLowerCase().includes(q) ||
+      op.proposedRewardsAddress?.toLowerCase().includes(q),
+  );
 }
