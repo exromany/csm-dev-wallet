@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type RefObject } from 'react';
 import type { WalletState, CachedOperator, ModuleType } from '../shared/types.js';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
+import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
+import type { Address } from 'viem';
 
 // ── useWalletState ──
 
@@ -46,6 +48,7 @@ export function useOperators(
   port: chrome.runtime.Port | null,
   chainId: number,
   moduleType: ModuleType,
+  addressLabels: Record<string, string> = {},
 ) {
   const [operators, setOperators] = useState<CachedOperator[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,7 +105,7 @@ export function useOperators(
     } satisfies PopupCommand);
   }, [port, chainId, moduleType]);
 
-  const filtered = useMemo(() => filterOperators(operators, search), [operators, search]);
+  const filtered = useMemo(() => filterOperators(operators, search, addressLabels), [operators, search, addressLabels]);
 
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
 }
@@ -128,13 +131,41 @@ export function useModuleAvailability(port: chrome.runtime.Port | null) {
   return modules;
 }
 
+// ── useAnvilStatus ──
+
+export type AnvilStatus = {
+  forkedFrom: SupportedChainId | null;
+  accounts: Address[];
+};
+
+export function useAnvilStatus(port: chrome.runtime.Port | null) {
+  const [status, setStatus] = useState<AnvilStatus>({ forkedFrom: null, accounts: [] });
+
+  useEffect(() => {
+    if (!port) return;
+    const handler = (event: PopupEvent) => {
+      if (event.type === 'anvil-status') {
+        setStatus({ forkedFrom: event.forkedFrom, accounts: event.accounts });
+      }
+    };
+    port.onMessage.addListener(handler);
+    return () => port.onMessage.removeListener(handler);
+  }, [port]);
+
+  return status;
+}
+
 // ── useFavorites ──
 
 export function useFavorites(
   state: WalletState,
   send: (cmd: PopupCommand) => void,
+  forkedFrom?: SupportedChainId | null,
 ) {
-  const prefix = `${state.moduleType}:${state.chainId}:`;
+  const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
+    ? forkedFrom
+    : state.chainId;
+  const prefix = `${state.moduleType}:${chainIdForPrefix}:`;
 
   const toggle = useCallback(
     (operatorId: string) => send({ type: 'toggle-favorite', operatorId }),
@@ -151,9 +182,39 @@ export function useFavorites(
   return { toggle, isFavorite };
 }
 
+// ── useCopyAddress ──
+
+export function useCopyAddress() {
+  const [copiedAddr, setCopiedAddr] = useState<string | null>(null);
+  const timerRef: RefObject<ReturnType<typeof setTimeout> | null> = useRef(null);
+
+  const copy = useCallback((address: string) => {
+    navigator.clipboard.writeText(address).then(() => {
+      setCopiedAddr(address.toLowerCase());
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopiedAddr(null), 1500);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  const isCopied = useCallback(
+    (address: string) => copiedAddr === address.toLowerCase(),
+    [copiedAddr],
+  );
+
+  return { copy, isCopied };
+}
+
 // ── filterOperators ──
 
-export function filterOperators(operators: CachedOperator[], search: string): CachedOperator[] {
+export function filterOperators(
+  operators: CachedOperator[],
+  search: string,
+  addressLabels: Record<string, string> = {},
+): CachedOperator[] {
   if (!search) return operators;
   const raw = search.trim();
   if (!raw) return operators;
@@ -172,6 +233,10 @@ export function filterOperators(operators: CachedOperator[], search: string): Ca
       op.managerAddress.toLowerCase().includes(q) ||
       op.rewardsAddress.toLowerCase().includes(q) ||
       op.proposedManagerAddress?.toLowerCase().includes(q) ||
-      op.proposedRewardsAddress?.toLowerCase().includes(q),
+      op.proposedRewardsAddress?.toLowerCase().includes(q) ||
+      (addressLabels[op.managerAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
+      (addressLabels[op.rewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
+      (op.proposedManagerAddress && (addressLabels[op.proposedManagerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||
+      (op.proposedRewardsAddress && (addressLabels[op.proposedRewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q)),
   );
 }

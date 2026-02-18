@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
-
+import { useCopyAddress } from '../../lib/popup/hooks.js';
 type Props = {
   operators: CachedOperator[];
   allOperatorsCount: number;
@@ -88,12 +88,6 @@ function groupAddresses(op: CachedOperator): AddressGroup[] {
   return Array.from(grouped.values());
 }
 
-function roleBadgeClass(role: AddressRole): string {
-  if (role === 'manager') return 'manager';
-  if (role === 'rewards') return 'rewards';
-  return 'proposed';
-}
-
 function OperatorRow({
   operator: op,
   selectedAddress,
@@ -108,6 +102,7 @@ function OperatorRow({
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
 }) {
   const groups = groupAddresses(op);
+  const { copy, isCopied } = useCopyAddress();
 
   return (
     <div className="operator-row">
@@ -133,12 +128,19 @@ function OperatorRow({
             onClick={() => onSelect(group.address, op.id, group.roles[0].role)}
           >
             {group.roles.map(({ role, label }) => (
-              <span key={role} className={`role-badge ${roleBadgeClass(role)}`}>
+              <span key={role} className={`role-badge ${role.startsWith('proposed') ? 'proposed' : role}`}>
                 {label}
               </span>
             ))}
             {group.isOwner && <span className="role-badge owner">owner</span>}
             <span className="address-mono">{truncateAddress(group.address)}</span>
+            <button
+              className="btn-copy"
+              onClick={(e) => { e.stopPropagation(); copy(group.address); }}
+              title="Copy address"
+            >
+              {isCopied(group.address) ? 'Copied!' : '\u2398'}
+            </button>
           </div>
         );
       })}

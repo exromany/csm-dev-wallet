@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useWalletState, useOperators, useFavorites, useModuleAvailability } from '../../lib/popup/hooks.js';
+import { useWalletState, useOperators, useFavorites, useModuleAvailability, useAnvilStatus } from '../../lib/popup/hooks.js';
+import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 import { formatTimeAgo } from '../../lib/popup/utils.js';
 import { NetworkSelector } from './NetworkSelector.js';
 import { ModuleSelector } from './ModuleSelector.js';
@@ -16,8 +17,10 @@ export function App() {
     port,
     state.chainId,
     state.moduleType,
+    state.addressLabels,
   );
-  const favorites = useFavorites(state, send);
+  const anvilStatus = useAnvilStatus(port);
+  const favorites = useFavorites(state, send, anvilStatus.forkedFrom);
   const availableModules = useModuleAvailability(port);
   const [tab, setTab] = useState<Tab>('operators');
 
@@ -43,6 +46,7 @@ export function App() {
         <h1>CSM Dev Wallet</h1>
         <NetworkSelector
           chainId={state.chainId}
+          forkedFrom={anvilStatus.forkedFrom}
           onSwitch={(chainId) => send({ type: 'switch-network', chainId })}
         />
       </div>
@@ -57,6 +61,7 @@ export function App() {
         <ConnectedBar
           address={state.selectedAddress}
           chainId={state.chainId}
+          label={state.addressLabels[state.selectedAddress.address.toLowerCase()] ?? ''}
           onDisconnect={() => send({ type: 'disconnect' })}
         />
       )}
@@ -78,12 +83,17 @@ export function App() {
       <div className="content">
         {tab === 'operators' && (
           <>
-            <input
-              className="search-bar"
-              placeholder="Search by #ID, address, or type..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="search-wrapper">
+              <input
+                className="search-bar"
+                placeholder="Search by #ID, address, label, or type..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="search-clear" onClick={() => setSearch('')}>×</button>
+              )}
+            </div>
             <div className="filter-bar">
               <button
                 className={`filter-btn ${!showFavoritesOnly ? 'active' : ''}`}
@@ -107,6 +117,12 @@ export function App() {
                 {loading ? 'Loading...' : 'Refresh'}
               </button>
             </div>
+            {state.chainId === ANVIL_CHAIN_ID && !anvilStatus.forkedFrom && !loading && (
+              <div className="empty-state">
+                Anvil not detected.<br />
+                Start a local fork to browse operators.
+              </div>
+            )}
             <OperatorList
               operators={displayOperators}
               allOperatorsCount={allOperators.length}
@@ -127,7 +143,12 @@ export function App() {
         {tab === 'manual' && (
           <ManualAddresses
             addresses={state.manualAddresses}
+            anvilAccounts={state.chainId === ANVIL_CHAIN_ID ? anvilStatus.accounts : []}
             selectedAddress={state.selectedAddress?.address}
+            addressLabels={state.addressLabels}
+            onSetLabel={(address, label) =>
+              send({ type: 'set-address-label', address, label })
+            }
             onAdd={(address) => send({ type: 'add-manual-address', address })}
             onRemove={(address) =>
               send({ type: 'remove-manual-address', address })
@@ -139,6 +160,13 @@ export function App() {
                 source: { type: 'manual' },
               })
             }
+            onSelectAnvil={(address, index) =>
+              send({
+                type: 'select-address',
+                address,
+                source: { type: 'anvil', index },
+              })
+            }
           />
         )}
 
@@ -147,6 +175,9 @@ export function App() {
             state={state}
             onSetRpc={(chainId, rpcUrl) =>
               send({ type: 'set-custom-rpc', chainId, rpcUrl })
+            }
+            onSetRequireApproval={(enabled) =>
+              send({ type: 'set-require-approval', enabled })
             }
           />
         )}

@@ -10,7 +10,7 @@ let cached: WalletState | null = null;
 let writeLock: Promise<WalletState> = Promise.resolve(DEFAULT_WALLET_STATE);
 
 /** Migrate legacy state to current shape — returns new object when changed */
-function migrateState(raw: WalletState): { state: WalletState; changed: boolean } {
+export function migrateState(raw: WalletState): { state: WalletState; changed: boolean } {
   let changed = false;
   let state = raw;
 
@@ -31,6 +31,18 @@ function migrateState(raw: WalletState): { state: WalletState; changed: boolean 
 
   if (changed) {
     state = { ...state, favorites: migrated };
+  }
+
+  // Add addressLabels if missing
+  if (!state.addressLabels) {
+    state = { ...state, addressLabels: {} };
+    changed = true;
+  }
+
+  // Add requireApproval if missing
+  if (state.requireApproval === undefined) {
+    state = { ...state, requireApproval: false };
+    changed = true;
   }
 
   return { state, changed };

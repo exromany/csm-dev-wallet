@@ -6,7 +6,7 @@ import { makeState } from '../fixtures.js';
 describe('Settings', () => {
   it('renders 3 RPC inputs', () => {
     const onSetRpc = vi.fn();
-    render(<Settings state={makeState()} onSetRpc={onSetRpc} />);
+    render(<Settings state={makeState()} onSetRpc={onSetRpc} onSetRequireApproval={vi.fn()} />);
 
     expect(screen.getByText('Mainnet RPC')).toBeInTheDocument();
     expect(screen.getByText('Hoodi RPC')).toBeInTheDocument();
@@ -15,7 +15,7 @@ describe('Settings', () => {
 
   it('fires onSetRpc on blur when value changed', () => {
     const onSetRpc = vi.fn();
-    render(<Settings state={makeState()} onSetRpc={onSetRpc} />);
+    render(<Settings state={makeState()} onSetRpc={onSetRpc} onSetRequireApproval={vi.fn()} />);
 
     const inputs = screen.getAllByRole('textbox');
     const mainnetInput = inputs[0];
@@ -28,7 +28,7 @@ describe('Settings', () => {
 
   it('fires onSetRpc on Enter when value changed', () => {
     const onSetRpc = vi.fn();
-    render(<Settings state={makeState()} onSetRpc={onSetRpc} />);
+    render(<Settings state={makeState()} onSetRpc={onSetRpc} onSetRequireApproval={vi.fn()} />);
 
     const inputs = screen.getAllByRole('textbox');
     fireEvent.change(inputs[0], { target: { value: 'https://new-rpc.io' } });
@@ -39,7 +39,7 @@ describe('Settings', () => {
 
   it('does NOT fire onSetRpc on blur when value unchanged', () => {
     const onSetRpc = vi.fn();
-    render(<Settings state={makeState()} onSetRpc={onSetRpc} />);
+    render(<Settings state={makeState()} onSetRpc={onSetRpc} onSetRequireApproval={vi.fn()} />);
 
     const inputs = screen.getAllByRole('textbox');
     fireEvent.blur(inputs[0]);
@@ -50,7 +50,7 @@ describe('Settings', () => {
   it('shows current custom RPC in input value', () => {
     const onSetRpc = vi.fn();
     const state = makeState({ customRpcUrls: { 1: 'https://custom.io' } });
-    render(<Settings state={state} onSetRpc={onSetRpc} />);
+    render(<Settings state={state} onSetRpc={onSetRpc} onSetRequireApproval={vi.fn()} />);
 
     const inputs = screen.getAllByRole('textbox');
     expect(inputs[0]).toHaveValue('https://custom.io');
@@ -59,7 +59,7 @@ describe('Settings', () => {
   it('syncs input value when currentUrl changes externally', () => {
     const onSetRpc = vi.fn();
     const { rerender } = render(
-      <Settings state={makeState()} onSetRpc={onSetRpc} />,
+      <Settings state={makeState()} onSetRpc={onSetRpc} onSetRequireApproval={vi.fn()} />,
     );
 
     const inputs = screen.getAllByRole('textbox');
@@ -69,6 +69,7 @@ describe('Settings', () => {
       <Settings
         state={makeState({ customRpcUrls: { 1: 'https://updated.io' } })}
         onSetRpc={onSetRpc}
+        onSetRequireApproval={vi.fn()}
       />,
     );
 

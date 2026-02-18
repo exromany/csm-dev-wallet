@@ -10,6 +10,8 @@ describe('ManualAddresses', () => {
   const defaultProps = {
     addresses: [] as `0x${string}`[],
     selectedAddress: undefined,
+    addressLabels: {} as Record<string, string>,
+    onSetLabel: vi.fn(),
     onAdd: vi.fn(),
     onRemove: vi.fn(),
     onSelect: vi.fn(),

@@ -5,6 +5,7 @@ import { makeOperator, ADDR_A } from '../fixtures.js';
 
 const noopFavorites = { toggle: vi.fn(), isFavorite: () => false };
 const noopSelect = vi.fn();
+const defaultLabelProps = { addressLabels: {} as Record<string, string>, onSetLabel: vi.fn() };
 
 describe('OperatorList', () => {
   it('shows spinner when loading with no operators', () => {
@@ -14,6 +15,7 @@ describe('OperatorList', () => {
         loading={true}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('Loading operators...')).toBeInTheDocument();
@@ -27,6 +29,7 @@ describe('OperatorList', () => {
         loading={true}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.queryByText('Loading operators...')).not.toBeInTheDocument();
@@ -40,6 +43,7 @@ describe('OperatorList', () => {
         loading={false}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('No operators found')).toBeInTheDocument();
@@ -53,6 +57,7 @@ describe('OperatorList', () => {
         loading={false}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('#42')).toBeInTheDocument();
@@ -67,6 +72,7 @@ describe('OperatorList', () => {
         loading={false}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('MGR')).toBeInTheDocument();
@@ -84,6 +90,7 @@ describe('OperatorList', () => {
         loading={false}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('owner')).toBeInTheDocument();
@@ -98,6 +105,7 @@ describe('OperatorList', () => {
         loading={false}
         favorites={favorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('\u2605')).toBeInTheDocument(); // ★
@@ -111,6 +119,7 @@ describe('OperatorList', () => {
         loading={false}
         favorites={noopFavorites}
         onSelect={noopSelect}
+        {...defaultLabelProps}
       />,
     );
     expect(screen.getByText('\u2606')).toBeInTheDocument(); // ☆

@@ -25,6 +25,8 @@ export function makeState(overrides: Partial<WalletState> = {}): WalletState {
     customRpcUrls: {},
     favorites: [],
     manualAddresses: [],
+    addressLabels: {},
+    requireApproval: false,
     ...overrides,
   };
 }

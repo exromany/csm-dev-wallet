@@ -8,7 +8,7 @@ import {
   type OperatorType,
 } from '@lidofinance/lido-csm-sdk/common';
 import { SMDiscoveryAbi } from '@lidofinance/lido-csm-sdk/abi';
-import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
+import { DEFAULT_NETWORKS, ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, ModuleType, OperatorCacheEntry } from '../shared/types.js';
 
 const STALE_MS = 30 * 60 * 1000; // 30 minutes
@@ -38,7 +38,9 @@ function getClient(chainId: SupportedChainId, customRpcUrl?: string): PublicClie
   if (!client) {
     client = createPublicClient({
       chain: network.viemChain as Chain,
-      transport: http(rpcUrl),
+      transport: http(rpcUrl, {
+        timeout: customRpcUrl ? 120_000 : 10_000,
+      }),
     });
     clientCache.set(key, client);
   }
@@ -80,7 +82,7 @@ function resolveOperatorType(moduleType: ModuleType, curveId: bigint): OperatorT
   return (entry?.[0] ?? 'CC') as OperatorType;
 }
 
-function storageKey(moduleType: ModuleType, chainId: number): string {
+export function storageKey(moduleType: ModuleType, chainId: number): string {
   return `operators_${moduleType}_${chainId}`;
 }
 
@@ -127,7 +129,7 @@ export async function isModuleAvailable(
   }
 }
 
-export async function fetchAllOperators(
+async function doFetchOperators(
   moduleType: ModuleType,
   chainId: SupportedChainId,
   customRpcUrl?: string,
@@ -172,12 +174,27 @@ export async function fetchAllOperators(
     };
   });
 
-  const entry: OperatorCacheEntry = {
-    operators,
-    lastFetchedAt: Date.now(),
-  };
+  return { operators, lastFetchedAt: Date.now() };
+}
 
+export async function fetchAllOperators(
+  moduleType: ModuleType,
+  chainId: SupportedChainId,
+  customRpcUrl?: string,
+): Promise<OperatorCacheEntry> {
+  const entry = await doFetchOperators(moduleType, chainId, customRpcUrl);
   await chrome.storage.local.set({ [storageKey(moduleType, chainId)]: entry });
+  return entry;
+}
+
+/** Fetch operators from Anvil using forked chain's contracts, cache under Anvil key only */
+export async function fetchAnvilOperators(
+  moduleType: ModuleType,
+  forkedFrom: SupportedChainId,
+  anvilRpcUrl: string,
+): Promise<OperatorCacheEntry> {
+  const entry = await doFetchOperators(moduleType, forkedFrom, anvilRpcUrl);
+  await chrome.storage.local.set({ [storageKey(moduleType, ANVIL_CHAIN_ID)]: entry });
   return entry;
 }
 

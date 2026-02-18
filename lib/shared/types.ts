@@ -43,6 +43,8 @@ export type WalletState = {
   customRpcUrls: Partial<Record<number, string>>;
   favorites: string[]; // scoped: "csm:1:42"
   manualAddresses: Address[];
+  addressLabels: Record<string, string>; // lowercase address → label
+  requireApproval: boolean;
 };
 
 export const DEFAULT_WALLET_STATE: WalletState = {
@@ -53,4 +55,6 @@ export const DEFAULT_WALLET_STATE: WalletState = {
   customRpcUrls: {},
   favorites: [],
   manualAddresses: [],
+  addressLabels: {},
+  requireApproval: false,
 };

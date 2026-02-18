@@ -52,4 +52,31 @@ describe('useFavorites', () => {
       operatorId: '42',
     });
   });
+
+  it('isFavorite returns false after favorite removed from state', () => {
+    const send = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ state }) => useFavorites(state, send),
+      { initialProps: { state: makeState({ chainId: 1, moduleType: 'csm', favorites: ['csm:1:42'] }) } },
+    );
+
+    expect(result.current.isFavorite('42')).toBe(true);
+
+    rerender({ state: makeState({ chainId: 1, moduleType: 'csm', favorites: [] }) });
+    expect(result.current.isFavorite('42')).toBe(false);
+  });
+
+  it('multiple favorites: only matching IDs return true', () => {
+    const state = makeState({
+      chainId: 1,
+      moduleType: 'csm',
+      favorites: ['csm:1:1', 'csm:1:3'],
+    });
+    const send = vi.fn();
+
+    const { result } = renderHook(() => useFavorites(state, send));
+    expect(result.current.isFavorite('1')).toBe(true);
+    expect(result.current.isFavorite('2')).toBe(false);
+    expect(result.current.isFavorite('3')).toBe(true);
+  });
 });

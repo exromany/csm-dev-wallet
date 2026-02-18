@@ -5,6 +5,7 @@ import { CHAIN_ID, DEFAULT_NETWORKS, ANVIL_NETWORK } from '../../lib/shared/netw
 type Props = {
   state: WalletState;
   onSetRpc: (chainId: number, rpcUrl: string) => void;
+  onSetRequireApproval: (enabled: boolean) => void;
 };
 
 const CONFIGURABLE_NETWORKS = [
@@ -13,7 +14,7 @@ const CONFIGURABLE_NETWORKS = [
   { chainId: ANVIL_NETWORK.chainId, label: 'Anvil RPC', defaultUrl: ANVIL_NETWORK.rpcUrl },
 ];
 
-export function Settings({ state, onSetRpc }: Props) {
+export function Settings({ state, onSetRpc, onSetRequireApproval }: Props) {
   return (
     <>
       <h3 style={{ marginBottom: 12, fontSize: 13 }}>RPC Endpoints</h3>
@@ -28,6 +29,18 @@ export function Settings({ state, onSetRpc }: Props) {
           onSave={(url) => onSetRpc(chainId, url)}
         />
       ))}
+
+      <h3 style={{ marginBottom: 12, marginTop: 20, fontSize: 13 }}>Signing</h3>
+      <div className="settings-group">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={state.requireApproval}
+            onChange={(e) => onSetRequireApproval(e.target.checked)}
+          />
+          Require approval for signing (Anvil only)
+        </label>
+      </div>
     </>
   );
 }

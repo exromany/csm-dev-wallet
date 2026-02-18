@@ -51,7 +51,9 @@ export type PopupCommand =
   | { type: 'toggle-favorite'; operatorId: string }
   | { type: 'add-manual-address'; address: string }
   | { type: 'remove-manual-address'; address: string }
-  | { type: 'set-custom-rpc'; chainId: number; rpcUrl: string };
+  | { type: 'set-custom-rpc'; chainId: number; rpcUrl: string }
+  | { type: 'set-address-label'; address: string; label: string }
+  | { type: 'set-require-approval'; enabled: boolean };
 
 export type ModuleAvailability = Partial<Record<ModuleType, boolean>>;
 
@@ -60,7 +62,16 @@ export type PopupEvent =
   | { type: 'operators-update'; chainId: number; moduleType: ModuleType; operators: import('./types.js').CachedOperator[]; lastFetchedAt: number }
   | { type: 'operators-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
   | { type: 'module-availability'; modules: ModuleAvailability }
+  | { type: 'anvil-status'; forkedFrom: import('./networks.js').SupportedChainId | null; accounts: import('viem').Address[] }
   | { type: 'error'; message: string };
+
+// ── Approval window ↔ Service Worker (chrome.runtime.sendMessage) ────
+
+export type ApprovalResponse = {
+  type: 'approval-response';
+  id: string;
+  approved: boolean;
+};
 
 // ── Service Worker → Content Script (broadcast) ──────────────────────
 

@@ -1,35 +1,45 @@
 import { CSM_CONTRACT_ADDRESSES } from '@lidofinance/lido-csm-sdk/common';
 import type { Address } from 'viem';
-import { CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
+import { CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
 import { rawJsonRpc } from './rpc.js';
 
-/** Detect which chain an Anvil fork is based on by probing CSM contracts */
+/** Detect which chain an Anvil fork is based on via anvil_nodeInfo */
 export async function detectAnvilFork(
   rpcUrl: string,
 ): Promise<SupportedChainId | null> {
   try {
-    const { result: chainIdHex } = await rawJsonRpc(rpcUrl, 'eth_chainId');
-    const chainId = parseInt(chainIdHex as string, 16);
+    // anvil_nodeInfo is Anvil-specific — errors on real nodes
+    const { result: nodeInfo, error } = await rawJsonRpc(rpcUrl, 'anvil_nodeInfo');
+    if (error || !nodeInfo) return null;
 
-    // If not Anvil's default chain ID, it's not a local fork
-    if (chainId !== 31337) return null;
+    const info = nodeInfo as { environment?: { chainId?: number } };
+    const chainId = info.environment?.chainId;
 
-    // Probe mainnet CSM module contract
-    const mainnetCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Mainnet].csModule;
-    if (mainnetCsm && (await hasCode(rpcUrl, mainnetCsm))) {
-      return CHAIN_ID.Mainnet;
+    // Anvil preserving forked chain's ID (e.g. 1 or 560048)
+    if (typeof chainId === 'number' && SUPPORTED_CHAIN_IDS.includes(chainId as SupportedChainId)) {
+      return chainId as SupportedChainId;
     }
 
-    // Probe Hoodi CSM module contract
-    const hoodiCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Hoodi].csModule;
-    if (hoodiCsm && (await hasCode(rpcUrl, hoodiCsm))) {
-      return CHAIN_ID.Hoodi;
+    // Explicit --chain-id 31337 override — fall back to contract probing
+    if (chainId === 31337) {
+      return await probeContracts(rpcUrl);
     }
 
     return null;
   } catch {
     return null;
   }
+}
+
+/** Probe CSM contracts to determine which chain was forked */
+async function probeContracts(rpcUrl: string): Promise<SupportedChainId | null> {
+  const mainnetCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Mainnet].csModule;
+  if (mainnetCsm && (await hasCode(rpcUrl, mainnetCsm))) return CHAIN_ID.Mainnet;
+
+  const hoodiCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Hoodi].csModule;
+  if (hoodiCsm && (await hasCode(rpcUrl, hoodiCsm))) return CHAIN_ID.Hoodi;
+
+  return null;
 }
 
 /** Get Anvil's pre-funded accounts */
