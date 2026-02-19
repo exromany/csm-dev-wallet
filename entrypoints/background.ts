@@ -16,7 +16,7 @@ import {
   setModuleAvailabilityCache,
 } from '../lib/background/operator-cache.js';
 import { detectAnvilFork, getAnvilAccounts } from '../lib/background/anvil.js';
-import { SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, type SupportedChainId } from '../lib/shared/networks.js';
+import { CHAIN_ID, SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, type SupportedChainId } from '../lib/shared/networks.js';
 import { errorMessage } from '../lib/shared/errors.js';
 import { toggleFavorite } from '../lib/shared/favorites.js';
 import type { ModuleType, WalletState } from '../lib/shared/types.js';
@@ -57,7 +57,7 @@ export default defineBackground(() => {
         }
       }
     }
-    return handleRpcRequest(method, params);
+    return handleRpcRequest(method, params, anvilForkedFrom);
   }
 
   // ── RPC requests from content scripts ──
@@ -257,7 +257,7 @@ export default defineBackground(() => {
   ) {
     switch (command.type) {
       case 'get-state': {
-        const state = await getState();
+        let state = await getState();
         sendToPort(port, { type: 'state-update', state });
 
         if (state.chainId === ANVIL_CHAIN_ID) {
@@ -266,6 +266,11 @@ export default defineBackground(() => {
             await sendPersistedAvailability(forkedFrom, port);
             checkModuleAvailability(forkedFrom, rpcUrl).catch(() => {});
             await triggerAnvilRefresh(state.moduleType, forkedFrom, rpcUrl);
+          } else {
+            // Anvil selected but fork detection failed — switch to Mainnet
+            state = await setState({ chainId: CHAIN_ID.Mainnet });
+            sendToPort(port, { type: 'state-update', state });
+            await notifyChainChanged(CHAIN_ID.Mainnet);
           }
           // Probe Anvil availability so dropdown knows before user selects it
           handleAnvilInit(port).catch(() => {});
@@ -309,15 +314,16 @@ export default defineBackground(() => {
       case 'switch-network': {
         const state = await setState({ chainId: command.chainId });
         broadcastToPopups({ type: 'state-update', state });
-        await notifyChainChanged(command.chainId);
 
         if (command.chainId === ANVIL_CHAIN_ID) {
           const { forkedFrom, rpcUrl } = await handleAnvilInit();
           if (forkedFrom) {
+            await notifyChainChanged(forkedFrom);
             await sendPersistedAvailability(forkedFrom);
             checkModuleAvailability(forkedFrom, rpcUrl).catch(() => {});
           }
         } else {
+          await notifyChainChanged(command.chainId);
           const chainId = command.chainId as SupportedChainId;
           if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
             await sendPersistedAvailability(chainId);

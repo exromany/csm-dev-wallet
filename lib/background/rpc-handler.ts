@@ -17,9 +17,14 @@ const NOT_CONNECTED_ERROR = {
 
 const BLOCKED_METHODS = /^(anvil_|hardhat_|evm_)/i;
 
+function effectiveChainId(chainId: number, anvilForkedFrom: number | null): number {
+  return (chainId === ANVIL_CHAIN_ID && anvilForkedFrom) ? anvilForkedFrom : chainId;
+}
+
 export async function handleRpcRequest(
   method: string,
-  params?: unknown[],
+  params: unknown[] | undefined,
+  anvilForkedFrom: number | null,
 ): Promise<{ result?: unknown; error?: { code: number; message: string } }> {
   const state = await getState();
 
@@ -33,11 +38,13 @@ export async function handleRpcRequest(
     }
 
     case 'eth_chainId': {
-      return { result: `0x${state.chainId.toString(16)}` };
+      const id = effectiveChainId(state.chainId, anvilForkedFrom);
+      return { result: `0x${id.toString(16)}` };
     }
 
     case 'net_version': {
-      return { result: state.chainId.toString() };
+      const id = effectiveChainId(state.chainId, anvilForkedFrom);
+      return { result: id.toString() };
     }
 
     case 'wallet_switchEthereumChain': {
@@ -46,6 +53,13 @@ export async function handleRpcRequest(
         return { error: { code: -32602, message: 'Invalid params' } };
       }
       const requestedChainId = Number(switchParam.chainId);
+
+      // Already on the requested chain (including spoofed Anvil)
+      const currentEffective = effectiveChainId(state.chainId, anvilForkedFrom);
+      if (requestedChainId === currentEffective) {
+        return { result: null };
+      }
+
       const isSupported =
         (SUPPORTED_CHAIN_IDS as number[]).includes(requestedChainId) ||
         requestedChainId === ANVIL_NETWORK.chainId;
