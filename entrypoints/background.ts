@@ -7,19 +7,24 @@ import {
   notifyChainChanged,
 } from '../lib/background/state.js';
 import {
-  fetchAllOperators,
-  fetchAnvilOperators,
+  fetchOperators,
   getCachedOperators,
   isStale,
   isModuleAvailable,
   getModuleAvailabilityCache,
   setModuleAvailabilityCache,
 } from '../lib/background/operator-cache.js';
-import { detectAnvilFork, getAnvilAccounts } from '../lib/background/anvil.js';
-import { CHAIN_ID, SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, type SupportedChainId } from '../lib/shared/networks.js';
+import {
+  detectAnvilFork,
+  getAnvilAccounts,
+  getForkedFrom,
+  setForkedFrom,
+  clearForkedFrom,
+} from '../lib/background/anvil.js';
+import { CHAIN_ID, SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, DEFAULT_NETWORKS, type SupportedChainId } from '../lib/shared/networks.js';
 import { errorMessage } from '../lib/shared/errors.js';
 import { toggleFavorite } from '../lib/shared/favorites.js';
-import type { ModuleType, WalletState } from '../lib/shared/types.js';
+import type { CacheContext, WalletState } from '../lib/shared/types.js';
 import {
   PORT_NAME,
   type RpcRequestMessage,
@@ -33,6 +38,24 @@ import { isAddress, getAddress, type Address } from 'viem';
 
 function assertAddress(value: string): asserts value is Address {
   if (!isAddress(value)) throw new Error(`Invalid address: ${value}`);
+}
+
+function buildContext(
+  state: WalletState,
+  forkedFrom: SupportedChainId | null,
+): CacheContext {
+  const isAnvil = state.chainId === ANVIL_CHAIN_ID;
+  const chainId = isAnvil ? ANVIL_CHAIN_ID : state.chainId;
+  const rpcUrl = isAnvil
+    ? (state.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl)
+    : (state.customRpcUrls[state.chainId] ?? DEFAULT_NETWORKS[state.chainId as SupportedChainId]?.rpcUrl ?? DEFAULT_NETWORKS[1 as SupportedChainId].rpcUrl);
+
+  return {
+    chainId,
+    moduleType: state.moduleType,
+    rpcUrl,
+    ...(isAnvil && forkedFrom ? { forkedFrom } : {}),
+  };
 }
 
 export default defineBackground(() => {
@@ -57,7 +80,7 @@ export default defineBackground(() => {
         }
       }
     }
-    return handleRpcRequest(method, params, anvilForkedFrom);
+    return handleRpcRequest(method, params);
   }
 
   // ── RPC requests from content scripts ──
@@ -133,93 +156,45 @@ export default defineBackground(() => {
     }
   }
 
-  // ── Anvil fork state ──
-  let anvilForkedFrom: SupportedChainId | null = null;
-
   async function handleAnvilInit(port?: chrome.runtime.Port) {
     const state = await getState();
     const rpcUrl = state.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
 
     const forkedFrom = await detectAnvilFork(rpcUrl);
-    anvilForkedFrom = forkedFrom;
+    if (forkedFrom) {
+      await setForkedFrom(forkedFrom);
+    } else {
+      await clearForkedFrom();
+    }
     const accounts = forkedFrom ? await getAnvilAccounts(rpcUrl) : [];
 
     const event: PopupEvent = { type: 'anvil-status', forkedFrom, accounts };
     if (port) sendToPort(port, event); else broadcastToPopups(event);
 
-    return { forkedFrom, rpcUrl };
-  }
-
-  async function triggerAnvilRefresh(
-    moduleType: ModuleType,
-    forkedFrom: SupportedChainId,
-    anvilRpcUrl: string,
-    force = false,
-  ) {
-    const cached = await getCachedOperators(moduleType, ANVIL_CHAIN_ID);
-    if (cached) {
-      broadcastToPopups({
-        type: 'operators-update',
-        chainId: ANVIL_CHAIN_ID,
-        moduleType,
-        operators: cached.operators,
-        lastFetchedAt: cached.lastFetchedAt,
-      });
-      if (!force && !isStale(cached)) return;
-    }
-
-    broadcastToPopups({ type: 'operators-loading', chainId: ANVIL_CHAIN_ID, moduleType, loading: true });
-    try {
-      const entry = await fetchAnvilOperators(moduleType, forkedFrom, anvilRpcUrl);
-      broadcastToPopups({
-        type: 'operators-update',
-        chainId: ANVIL_CHAIN_ID,
-        moduleType,
-        operators: entry.operators,
-        lastFetchedAt: entry.lastFetchedAt,
-      });
-    } catch (err: unknown) {
-      broadcastToPopups({
-        type: 'error',
-        message: `Failed to fetch operators: ${errorMessage(err)}`,
-      });
-    } finally {
-      broadcastToPopups({ type: 'operators-loading', chainId: ANVIL_CHAIN_ID, moduleType, loading: false });
-    }
+    return { forkedFrom };
   }
 
   /** Send cached operators and auto-refresh if stale (or forced) */
-  async function triggerRefresh(
-    moduleType: ModuleType,
-    chainId: SupportedChainId,
-    state: WalletState,
-    force = false,
-  ) {
-    const cached = await getCachedOperators(moduleType, chainId);
+  async function triggerRefresh(ctx: CacheContext, force = false) {
+    const cached = await getCachedOperators(ctx);
     if (cached) {
       broadcastToPopups({
         type: 'operators-update',
-        chainId,
-        moduleType,
+        chainId: ctx.chainId,
+        moduleType: ctx.moduleType,
         operators: cached.operators,
         lastFetchedAt: cached.lastFetchedAt,
       });
-
       if (!force && !isStale(cached)) return;
     }
 
-    // Fetch fresh data
-    broadcastToPopups({ type: 'operators-loading', chainId, moduleType, loading: true });
+    broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: true });
     try {
-      const entry = await fetchAllOperators(
-        moduleType,
-        chainId,
-        state.customRpcUrls[chainId],
-      );
+      const entry = await fetchOperators(ctx);
       broadcastToPopups({
         type: 'operators-update',
-        chainId,
-        moduleType,
+        chainId: ctx.chainId,
+        moduleType: ctx.moduleType,
         operators: entry.operators,
         lastFetchedAt: entry.lastFetchedAt,
       });
@@ -229,12 +204,12 @@ export default defineBackground(() => {
         message: `Failed to fetch operators: ${errorMessage(err)}`,
       });
     } finally {
-      broadcastToPopups({ type: 'operators-loading', chainId, moduleType, loading: false });
+      broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: false });
     }
   }
 
   /** Send persisted module availability immediately, then recheck via RPC. */
-  async function sendPersistedAvailability(chainId: SupportedChainId, port?: chrome.runtime.Port) {
+  async function sendPersistedAvailability(chainId: number, port?: chrome.runtime.Port) {
     const cached = await getModuleAvailabilityCache(chainId);
     if (cached) {
       const event: PopupEvent = { type: 'module-availability', modules: cached };
@@ -243,10 +218,11 @@ export default defineBackground(() => {
   }
 
   /** Check CM availability via RPC, persist result, and broadcast. */
-  async function checkModuleAvailability(chainId: SupportedChainId, customRpcUrl?: string) {
-    const cmAvailable = await isModuleAvailable('cm', chainId, customRpcUrl);
+  async function checkModuleAvailability(ctx: CacheContext) {
+    const cmCtx: CacheContext = { ...ctx, moduleType: 'cm' };
+    const cmAvailable = await isModuleAvailable(cmCtx);
     const modules = { csm: true, cm: cmAvailable };
-    await setModuleAvailabilityCache(chainId, modules);
+    await setModuleAvailabilityCache(ctx.chainId, modules);
     broadcastToPopups({ type: 'module-availability', modules });
     return cmAvailable;
   }
@@ -261,11 +237,12 @@ export default defineBackground(() => {
         sendToPort(port, { type: 'state-update', state });
 
         if (state.chainId === ANVIL_CHAIN_ID) {
-          const { forkedFrom, rpcUrl } = await handleAnvilInit(port);
+          const { forkedFrom } = await handleAnvilInit(port);
           if (forkedFrom) {
-            await sendPersistedAvailability(forkedFrom, port);
-            checkModuleAvailability(forkedFrom, rpcUrl).catch(() => {});
-            await triggerAnvilRefresh(state.moduleType, forkedFrom, rpcUrl);
+            const ctx = buildContext(state, forkedFrom);
+            await sendPersistedAvailability(ctx.chainId, port);
+            checkModuleAvailability(ctx).catch(() => {});
+            await triggerRefresh(ctx);
           } else {
             // Anvil selected but fork detection failed — switch to Mainnet
             state = await setState({ chainId: CHAIN_ID.Mainnet });
@@ -277,9 +254,10 @@ export default defineBackground(() => {
         } else {
           const chainId = state.chainId as SupportedChainId;
           if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
-            await sendPersistedAvailability(chainId, port);
-            checkModuleAvailability(chainId, state.customRpcUrls[chainId]).catch(() => {});
-            await triggerRefresh(state.moduleType, chainId, state);
+            const ctx = buildContext(state, null);
+            await sendPersistedAvailability(ctx.chainId, port);
+            checkModuleAvailability(ctx).catch(() => {});
+            await triggerRefresh(ctx);
           }
           // Probe Anvil availability so dropdown knows before user selects it
           handleAnvilInit(port).catch(() => {});
@@ -316,18 +294,21 @@ export default defineBackground(() => {
         broadcastToPopups({ type: 'state-update', state });
 
         if (command.chainId === ANVIL_CHAIN_ID) {
-          const { forkedFrom, rpcUrl } = await handleAnvilInit();
+          const { forkedFrom } = await handleAnvilInit();
           if (forkedFrom) {
             await notifyChainChanged(forkedFrom);
-            await sendPersistedAvailability(forkedFrom);
-            checkModuleAvailability(forkedFrom, rpcUrl).catch(() => {});
+            const ctx = buildContext(state, forkedFrom);
+            await sendPersistedAvailability(ctx.chainId);
+            checkModuleAvailability(ctx).catch(() => {});
           }
         } else {
+          await clearForkedFrom();
           await notifyChainChanged(command.chainId);
           const chainId = command.chainId as SupportedChainId;
           if (SUPPORTED_CHAIN_IDS.includes(chainId)) {
-            await sendPersistedAvailability(chainId);
-            checkModuleAvailability(chainId, state.customRpcUrls[chainId]).catch(() => {});
+            const ctx = buildContext(state, null);
+            await sendPersistedAvailability(ctx.chainId);
+            checkModuleAvailability(ctx).catch(() => {});
           }
           // Probe Anvil availability so dropdown knows before user selects it
           handleAnvilInit().catch(() => {});
@@ -338,50 +319,60 @@ export default defineBackground(() => {
       case 'switch-module': {
         const state = await setState({
           moduleType: command.moduleType,
-          selectedAddress: null,
-          isConnected: false,
         });
         broadcastToPopups({ type: 'state-update', state });
-        await notifyAccountsChanged([]);
         break;
       }
 
       case 'request-operators': {
+        const currentState = await getState();
         if (command.chainId === ANVIL_CHAIN_ID) {
-          const currentState = await getState();
           const rpcUrl = currentState.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
-          const forkedFrom = anvilForkedFrom ?? await detectAnvilFork(rpcUrl);
-          anvilForkedFrom = forkedFrom;
-          if (forkedFrom) await triggerAnvilRefresh(command.moduleType, forkedFrom, rpcUrl);
+          let forkedFrom = await getForkedFrom();
+          if (!forkedFrom) {
+            forkedFrom = await detectAnvilFork(rpcUrl);
+            if (forkedFrom) await setForkedFrom(forkedFrom);
+          }
+          if (forkedFrom) {
+            const ctx = buildContext(currentState, forkedFrom);
+            await triggerRefresh({ ...ctx, moduleType: command.moduleType });
+          }
           break;
         }
         const chainId = command.chainId as SupportedChainId;
         if (!SUPPORTED_CHAIN_IDS.includes(chainId)) break;
-        const currentState = await getState();
-        await triggerRefresh(command.moduleType, chainId, currentState);
+        const ctx = buildContext(currentState, null);
+        await triggerRefresh({ ...ctx, moduleType: command.moduleType });
         break;
       }
 
       case 'refresh-operators': {
+        const currentState = await getState();
         if (command.chainId === ANVIL_CHAIN_ID) {
-          const currentState = await getState();
           const rpcUrl = currentState.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
-          const forkedFrom = anvilForkedFrom ?? await detectAnvilFork(rpcUrl);
-          anvilForkedFrom = forkedFrom;
-          if (forkedFrom) await triggerAnvilRefresh(command.moduleType, forkedFrom, rpcUrl, true);
+          let forkedFrom = await getForkedFrom();
+          if (!forkedFrom) {
+            forkedFrom = await detectAnvilFork(rpcUrl);
+            if (forkedFrom) await setForkedFrom(forkedFrom);
+          }
+          if (forkedFrom) {
+            const ctx = buildContext(currentState, forkedFrom);
+            await triggerRefresh({ ...ctx, moduleType: command.moduleType }, true);
+          }
           break;
         }
         const chainId = command.chainId as SupportedChainId;
         if (!SUPPORTED_CHAIN_IDS.includes(chainId)) break;
-        const currentState = await getState();
-        await triggerRefresh(command.moduleType, chainId, currentState, true);
+        const ctx = buildContext(currentState, null);
+        await triggerRefresh({ ...ctx, moduleType: command.moduleType }, true);
         break;
       }
 
       case 'toggle-favorite': {
         const state = await getState();
-        const chainIdForFavorites = (state.chainId === ANVIL_CHAIN_ID && anvilForkedFrom)
-          ? anvilForkedFrom
+        const forkedFrom = await getForkedFrom();
+        const chainIdForFavorites = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
+          ? forkedFrom
           : state.chainId;
         const favorites = toggleFavorite(state.favorites, state.moduleType, chainIdForFavorites, command.operatorId);
         const updated = await setState({ favorites });

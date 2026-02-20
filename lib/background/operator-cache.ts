@@ -8,8 +8,8 @@ import {
   type OperatorType,
 } from '@lidofinance/lido-csm-sdk/common';
 import { SMDiscoveryAbi } from '@lidofinance/lido-csm-sdk/abi';
-import { DEFAULT_NETWORKS, ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
-import type { CachedOperator, ModuleType, OperatorCacheEntry } from '../shared/types.js';
+import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
+import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
 
 const STALE_MS = 30 * 60 * 1000; // 30 minutes
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -25,21 +25,27 @@ const CURVE_ID_MAPS = {
   cm: CM_OPERATOR_TYPE_CURVE_ID,
 } as const;
 
+/** The chain whose contracts/ABIs to use — forkedFrom for Anvil, chainId otherwise */
+function contractChainId(ctx: CacheContext): SupportedChainId {
+  return (ctx.forkedFrom ?? ctx.chainId) as SupportedChainId;
+}
+
 // ── Client cache ──
 
 const clientCache = new Map<string, PublicClient>();
 
-function getClient(chainId: SupportedChainId, customRpcUrl?: string): PublicClient {
-  const network = DEFAULT_NETWORKS[chainId];
-  const rpcUrl = customRpcUrl ?? network.rpcUrl;
-  const key = `${chainId}:${rpcUrl}`;
+function getClient(ctx: CacheContext): PublicClient {
+  const ccid = contractChainId(ctx);
+  const network = DEFAULT_NETWORKS[ccid];
+  const key = `${ccid}:${ctx.rpcUrl}`;
 
   let client = clientCache.get(key);
   if (!client) {
+    const isCustom = ctx.rpcUrl !== network.rpcUrl;
     client = createPublicClient({
       chain: network.viemChain as Chain,
-      transport: http(rpcUrl, {
-        timeout: customRpcUrl ? 120_000 : 10_000,
+      transport: http(ctx.rpcUrl, {
+        timeout: isCustom ? 120_000 : 10_000,
       }),
     });
     clientCache.set(key, client);
@@ -82,8 +88,8 @@ function resolveOperatorType(moduleType: ModuleType, curveId: bigint): OperatorT
   return (entry?.[0] ?? 'CC') as OperatorType;
 }
 
-export function storageKey(moduleType: ModuleType, chainId: number): string {
-  return `operators_${moduleType}_${chainId}`;
+export function storageKey(ctx: CacheContext): string {
+  return `operators_${ctx.moduleType}_${ctx.chainId}`;
 }
 
 function getDiscoveryAddress(chainId: SupportedChainId): Address {
@@ -93,27 +99,24 @@ function getDiscoveryAddress(chainId: SupportedChainId): Address {
   return addr;
 }
 
-export async function isModuleAvailable(
-  moduleType: ModuleType,
-  chainId: SupportedChainId,
-  customRpcUrl?: string,
-): Promise<boolean> {
-  const key = `${moduleType}:${chainId}`;
-  const hit = availabilityCache.get(key);
+export async function isModuleAvailable(ctx: CacheContext): Promise<boolean> {
+  const ccid = contractChainId(ctx);
+  const memKey = `${ctx.moduleType}:${ctx.chainId}`;
+  const hit = availabilityCache.get(memKey);
   if (hit && Date.now() - hit.checkedAt < AVAILABILITY_TTL_MS) return hit.available;
 
-  // Check persistent cache — if already confirmed available, skip RPC
-  const persisted = await getModuleAvailabilityCache(chainId);
-  if (persisted && moduleType === 'cm' && persisted.cm) {
-    availabilityCache.set(key, { available: true, checkedAt: Date.now() });
+  // Check persistent cache — uses ctx.chainId (fixes Anvil/Hoodi sharing bug)
+  const persisted = await getModuleAvailabilityCache(ctx.chainId);
+  if (persisted && ctx.moduleType === 'cm' && persisted.cm) {
+    availabilityCache.set(memKey, { available: true, checkedAt: Date.now() });
     return true;
   }
 
-  const client = getClient(chainId, customRpcUrl);
+  const client = getClient(ctx);
 
   try {
-    const discoveryAddress = getDiscoveryAddress(chainId);
-    const moduleId = BigInt(MODULE_IDS[moduleType][chainId]);
+    const discoveryAddress = getDiscoveryAddress(ccid);
+    const moduleId = BigInt(MODULE_IDS[ctx.moduleType][ccid]);
     const [moduleAddress] = await client.readContract({
       address: discoveryAddress,
       abi: SMDiscoveryAbi,
@@ -121,22 +124,20 @@ export async function isModuleAvailable(
       args: [moduleId],
     });
     const available = moduleAddress !== zeroAddress;
-    availabilityCache.set(key, { available, checkedAt: Date.now() });
+    availabilityCache.set(memKey, { available, checkedAt: Date.now() });
     return available;
   } catch {
-    availabilityCache.set(key, { available: false, checkedAt: Date.now() });
+    availabilityCache.set(memKey, { available: false, checkedAt: Date.now() });
     return false;
   }
 }
 
-async function doFetchOperators(
-  moduleType: ModuleType,
-  chainId: SupportedChainId,
-  customRpcUrl?: string,
-): Promise<OperatorCacheEntry> {
-  const client = getClient(chainId, customRpcUrl);
-  const discoveryAddress = getDiscoveryAddress(chainId);
-  const moduleId = BigInt(MODULE_IDS[moduleType][chainId]);
+/** Fetch all operators via RPC, cache under ctx.chainId namespace */
+export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEntry> {
+  const ccid = contractChainId(ctx);
+  const client = getClient(ctx);
+  const discoveryAddress = getDiscoveryAddress(ccid);
+  const moduleId = BigInt(MODULE_IDS[ctx.moduleType][ccid]);
 
   // Paginate through all operators
   const allRaw: Awaited<ReturnType<typeof readOperatorBatch>>[number][] = [];
@@ -170,31 +171,12 @@ async function doFetchOperators(
       extendedManagerPermissions: info.extendedManagerPermissions,
       ownerAddress,
       curveId: curveId.toString(),
-      operatorType: resolveOperatorType(moduleType, curveId),
+      operatorType: resolveOperatorType(ctx.moduleType, curveId),
     };
   });
 
-  return { operators, lastFetchedAt: Date.now() };
-}
-
-export async function fetchAllOperators(
-  moduleType: ModuleType,
-  chainId: SupportedChainId,
-  customRpcUrl?: string,
-): Promise<OperatorCacheEntry> {
-  const entry = await doFetchOperators(moduleType, chainId, customRpcUrl);
-  await chrome.storage.local.set({ [storageKey(moduleType, chainId)]: entry });
-  return entry;
-}
-
-/** Fetch operators from Anvil using forked chain's contracts, cache under Anvil key only */
-export async function fetchAnvilOperators(
-  moduleType: ModuleType,
-  forkedFrom: SupportedChainId,
-  anvilRpcUrl: string,
-): Promise<OperatorCacheEntry> {
-  const entry = await doFetchOperators(moduleType, forkedFrom, anvilRpcUrl);
-  await chrome.storage.local.set({ [storageKey(moduleType, ANVIL_CHAIN_ID)]: entry });
+  const entry = { operators, lastFetchedAt: Date.now() };
+  await chrome.storage.local.set({ [storageKey(ctx)]: entry });
   return entry;
 }
 
@@ -212,11 +194,8 @@ async function readOperatorBatch(
   });
 }
 
-export async function getCachedOperators(
-  moduleType: ModuleType,
-  chainId: number,
-): Promise<OperatorCacheEntry | null> {
-  const key = storageKey(moduleType, chainId);
+export async function getCachedOperators(ctx: CacheContext): Promise<OperatorCacheEntry | null> {
+  const key = storageKey(ctx);
   const data = await chrome.storage.local.get(key);
   return (data[key] as OperatorCacheEntry | undefined) ?? null;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { makeState } from '../fixtures.js';
+import { makeState, ADDR_A } from '../fixtures.js';
 
 // ── Capture the callback passed to defineBackground ──
 let backgroundFn: () => void;
@@ -7,7 +7,7 @@ vi.mock('wxt/utils/define-background', () => ({
   defineBackground: (fn: () => void) => { backgroundFn = fn; },
 }));
 
-// ── Module mocks (use .ts paths — vitest resolves before matching) ──
+// ── Module mocks ──
 const getState = vi.fn();
 const setState = vi.fn();
 const notifyChainChanged = vi.fn().mockResolvedValue(undefined);
@@ -20,11 +20,9 @@ vi.mock('../../lib/background/state.ts', () => ({
   notifyChainChanged,
 }));
 
-const detectAnvilFork = vi.fn();
-const getAnvilAccounts = vi.fn();
 vi.mock('../../lib/background/anvil.ts', () => ({
-  detectAnvilFork,
-  getAnvilAccounts,
+  detectAnvilFork: vi.fn(),
+  getAnvilAccounts: vi.fn(),
   withImpersonation: vi.fn(),
   getForkedFrom: vi.fn().mockResolvedValue(null),
   setForkedFrom: vi.fn().mockResolvedValue(undefined),
@@ -96,57 +94,75 @@ function simulatePort() {
   return port;
 }
 
-describe('switch-network', () => {
-  it('probes Anvil availability when switching to non-anvil network', async () => {
-    const state = makeState({ chainId: 1 });
+describe('switch-module', () => {
+  it('preserves connected address when switching modules', async () => {
+    const state = makeState({
+      moduleType: 'csm',
+      selectedAddress: ADDR_A,
+      isConnected: true,
+    });
     getState.mockResolvedValue(state);
     setState.mockImplementation(async (update: Partial<typeof state>) => ({ ...state, ...update }));
-    detectAnvilFork.mockResolvedValue(560048); // Hoodi fork running
-    getAnvilAccounts.mockResolvedValue([]);
 
     await setupBackground();
     const port = simulatePort();
 
-    // Switch to Hoodi (non-anvil)
-    port._emit({ type: 'switch-network', chainId: 560048 });
+    port._emit({ type: 'switch-module', moduleType: 'cm' });
 
-    // Let async handlers settle
     await vi.waitFor(() => {
-      expect(detectAnvilFork).toHaveBeenCalled();
+      expect(setState).toHaveBeenCalledWith({ moduleType: 'cm' });
     });
 
-    // Should broadcast anvil-status with forkedFrom (not null)
-    const anvilMessages = port.postMessage.mock.calls
-      .map(([msg]) => msg)
-      .filter((msg: { type: string }) => msg.type === 'anvil-status');
-
-    expect(anvilMessages).toContainEqual(
-      expect.objectContaining({ type: 'anvil-status', forkedFrom: 560048 }),
+    // Must NOT reset address or connection
+    expect(setState).not.toHaveBeenCalledWith(
+      expect.objectContaining({ selectedAddress: null }),
+    );
+    expect(setState).not.toHaveBeenCalledWith(
+      expect.objectContaining({ isConnected: false }),
     );
   });
 
-  it('broadcasts anvil disabled when Anvil is down', async () => {
-    const state = makeState({ chainId: 1 });
+  it('does not emit accountsChanged on module switch', async () => {
+    const state = makeState({
+      moduleType: 'csm',
+      selectedAddress: ADDR_A,
+      isConnected: true,
+    });
     getState.mockResolvedValue(state);
     setState.mockImplementation(async (update: Partial<typeof state>) => ({ ...state, ...update }));
-    detectAnvilFork.mockResolvedValue(null); // Anvil not running
-    getAnvilAccounts.mockResolvedValue([]);
 
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-network', chainId: 560048 });
+    port._emit({ type: 'switch-module', moduleType: 'cm' });
 
     await vi.waitFor(() => {
-      expect(detectAnvilFork).toHaveBeenCalled();
+      expect(setState).toHaveBeenCalled();
     });
 
-    const anvilMessages = port.postMessage.mock.calls
-      .map(([msg]) => msg)
-      .filter((msg: { type: string }) => msg.type === 'anvil-status');
+    expect(notifyAccountsChanged).not.toHaveBeenCalled();
+  });
 
-    expect(anvilMessages).toContainEqual(
-      expect.objectContaining({ type: 'anvil-status', forkedFrom: null }),
-    );
+  it('broadcasts updated state to popups', async () => {
+    const state = makeState({
+      moduleType: 'csm',
+      selectedAddress: ADDR_A,
+      isConnected: true,
+    });
+    const updatedState = { ...state, moduleType: 'cm' as const };
+    getState.mockResolvedValue(state);
+    setState.mockResolvedValue(updatedState);
+
+    await setupBackground();
+    const port = simulatePort();
+
+    port._emit({ type: 'switch-module', moduleType: 'cm' });
+
+    await vi.waitFor(() => {
+      expect(port.postMessage).toHaveBeenCalledWith({
+        type: 'state-update',
+        state: updatedState,
+      });
+    });
   });
 });

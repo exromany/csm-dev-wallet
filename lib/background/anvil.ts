@@ -3,6 +3,27 @@ import type { Address } from 'viem';
 import { CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
 import { rawJsonRpc } from './rpc.js';
 
+// ── Anvil fork state ──
+// In-memory cache; restored from chrome.storage.session on cold start
+let anvilForkedFrom: SupportedChainId | null = null;
+
+export async function getForkedFrom(): Promise<SupportedChainId | null> {
+  if (anvilForkedFrom !== null) return anvilForkedFrom;
+  const data = await chrome.storage.session.get('anvilForkedFrom');
+  anvilForkedFrom = (data.anvilForkedFrom as SupportedChainId) ?? null;
+  return anvilForkedFrom;
+}
+
+export async function setForkedFrom(chainId: SupportedChainId): Promise<void> {
+  anvilForkedFrom = chainId;
+  await chrome.storage.session.set({ anvilForkedFrom: chainId });
+}
+
+export async function clearForkedFrom(): Promise<void> {
+  anvilForkedFrom = null;
+  await chrome.storage.session.remove('anvilForkedFrom');
+}
+
 /** Detect which chain an Anvil fork is based on via anvil_nodeInfo */
 export async function detectAnvilFork(
   rpcUrl: string,

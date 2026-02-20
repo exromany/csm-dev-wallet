@@ -1,6 +1,14 @@
 import type { Address } from 'viem';
+import type { SupportedChainId } from './networks.js';
 
 export type ModuleType = 'csm' | 'cm';
+
+export type CacheContext = {
+  chainId: number;                  // always the cache namespace (31337 for Anvil)
+  moduleType: ModuleType;
+  rpcUrl: string;
+  forkedFrom?: SupportedChainId;    // Anvil only — which chain's contracts to use
+};
 
 export type AddressRole =
   | 'manager'

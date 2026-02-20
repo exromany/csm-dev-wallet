@@ -1,6 +1,6 @@
 import type { Address } from 'viem';
 import { getState, setState, notifyChainChanged } from './state.js';
-import { withImpersonation } from './anvil.js';
+import { withImpersonation, getForkedFrom } from './anvil.js';
 import { rawJsonRpc } from './rpc.js';
 import { errorMessage } from '../shared/errors.js';
 import { DEFAULT_NETWORKS, ANVIL_NETWORK, ANVIL_CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
@@ -24,9 +24,9 @@ function effectiveChainId(chainId: number, anvilForkedFrom: number | null): numb
 export async function handleRpcRequest(
   method: string,
   params: unknown[] | undefined,
-  anvilForkedFrom: number | null,
 ): Promise<{ result?: unknown; error?: { code: number; message: string } }> {
   const state = await getState();
+  const anvilForkedFrom = await getForkedFrom();
 
   switch (method) {
     case 'eth_requestAccounts':
