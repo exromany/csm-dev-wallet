@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeState } from '../fixtures.js';
 
+const TEST_ORIGIN = 'https://stake.lido.fi';
+
 // ── Capture the callback passed to defineBackground ──
 let backgroundFn: () => void;
 vi.mock('wxt/utils/define-background', () => ({
@@ -8,16 +10,23 @@ vi.mock('wxt/utils/define-background', () => ({
 }));
 
 // ── Module mocks (use .ts paths — vitest resolves before matching) ──
-const getState = vi.fn();
-const setState = vi.fn();
+const getSiteState = vi.fn();
+const setSiteState = vi.fn();
+const getGlobalSettings = vi.fn();
+const setGlobalSettings = vi.fn();
+const getComposedState = vi.fn();
 const notifyChainChanged = vi.fn().mockResolvedValue(undefined);
 const notifyAccountsChanged = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../lib/background/state.ts', () => ({
-  getState,
-  setState,
+  getSiteState,
+  setSiteState,
+  getGlobalSettings,
+  setGlobalSettings,
+  getComposedState,
   notifyAccountsChanged,
   notifyChainChanged,
+  resetCaches: vi.fn(),
 }));
 
 const detectAnvilFork = vi.fn();
@@ -62,6 +71,15 @@ let connectListener: (port: chrome.runtime.Port) => void;
 beforeEach(() => {
   vi.clearAllMocks();
 
+  const state = makeState({ chainId: 1 });
+  getSiteState.mockResolvedValue({ chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected });
+  setSiteState.mockImplementation(async (_origin: string, update: Record<string, unknown>) => {
+    const current = await getSiteState(_origin);
+    return { ...current, ...update };
+  });
+  getGlobalSettings.mockResolvedValue({ customRpcUrls: state.customRpcUrls, favorites: state.favorites, manualAddresses: state.manualAddresses, addressLabels: state.addressLabels, requireApproval: state.requireApproval });
+  getComposedState.mockResolvedValue(state);
+
   chrome.runtime.onConnect = {
     addListener: vi.fn((fn) => { connectListener = fn; }),
     removeListener: vi.fn(),
@@ -98,17 +116,14 @@ function simulatePort() {
 
 describe('switch-network', () => {
   it('probes Anvil availability when switching to non-anvil network', async () => {
-    const state = makeState({ chainId: 1 });
-    getState.mockResolvedValue(state);
-    setState.mockImplementation(async (update: Partial<typeof state>) => ({ ...state, ...update }));
     detectAnvilFork.mockResolvedValue(560048); // Hoodi fork running
     getAnvilAccounts.mockResolvedValue([]);
 
     await setupBackground();
     const port = simulatePort();
 
-    // Switch to Hoodi (non-anvil)
-    port._emit({ type: 'switch-network', chainId: 560048 });
+    // Switch to Hoodi (non-anvil) — include origin
+    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
 
     // Let async handlers settle
     await vi.waitFor(() => {
@@ -126,16 +141,13 @@ describe('switch-network', () => {
   });
 
   it('broadcasts anvil disabled when Anvil is down', async () => {
-    const state = makeState({ chainId: 1 });
-    getState.mockResolvedValue(state);
-    setState.mockImplementation(async (update: Partial<typeof state>) => ({ ...state, ...update }));
     detectAnvilFork.mockResolvedValue(null); // Anvil not running
     getAnvilAccounts.mockResolvedValue([]);
 
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-network', chainId: 560048 });
+    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
 
     await vi.waitFor(() => {
       expect(detectAnvilFork).toHaveBeenCalled();

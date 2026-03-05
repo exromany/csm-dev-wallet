@@ -44,9 +44,10 @@ async function testUrlPersistence(
 async function resetAllRpcs(context: BrowserContext, extensionId: string) {
   const page = await openPopup(context, extensionId);
   await goToSettings(page);
-  const count = await page.locator('.settings-group input').count();
+  const inputs = page.locator('.settings-group input:not([type="checkbox"])');
+  const count = await inputs.count();
   for (let i = 0; i < count; i++) {
-    const input = page.locator('.settings-group input').nth(i);
+    const input = inputs.nth(i);
     await input.fill('');
     await input.blur();
     await page.waitForTimeout(200);

@@ -32,7 +32,14 @@ globalThis.chrome = {
     connect: vi.fn(() => defaultPort),
   },
   storage: {
-    local: { get: vi.fn(), set: vi.fn() },
+    local: { get: vi.fn(), set: vi.fn(), remove: vi.fn() },
     session: { get: vi.fn(), set: vi.fn(), remove: vi.fn() },
+  },
+  tabs: {
+    query: vi.fn((_opts: unknown, cb?: (tabs: Array<{ url: string }>) => void) => {
+      const tabs = [{ url: 'https://stake.lido.fi/csm' }];
+      if (cb) cb(tabs);
+      return Promise.resolve(tabs);
+    }),
   },
 } as unknown as typeof chrome;

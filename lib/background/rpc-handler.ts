@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import { getState, setState, notifyChainChanged } from './state.js';
+import { getSiteState, setSiteState, getGlobalSettings, notifyChainChanged } from './state.js';
 import { withImpersonation, getForkedFrom } from './anvil.js';
 import { rawJsonRpc } from './rpc.js';
 import { errorMessage } from '../shared/errors.js';
@@ -24,26 +24,28 @@ function effectiveChainId(chainId: number, anvilForkedFrom: number | null): numb
 export async function handleRpcRequest(
   method: string,
   params: unknown[] | undefined,
+  origin: string,
 ): Promise<{ result?: unknown; error?: { code: number; message: string } }> {
-  const state = await getState();
+  const siteState = await getSiteState(origin);
+  const globalSettings = await getGlobalSettings();
   const anvilForkedFrom = await getForkedFrom();
 
   switch (method) {
     case 'eth_requestAccounts':
     case 'eth_accounts': {
-      const accounts = state.selectedAddress
-        ? [state.selectedAddress.address]
+      const accounts = siteState.selectedAddress
+        ? [siteState.selectedAddress.address]
         : [];
       return { result: accounts };
     }
 
     case 'eth_chainId': {
-      const id = effectiveChainId(state.chainId, anvilForkedFrom);
+      const id = effectiveChainId(siteState.chainId, anvilForkedFrom);
       return { result: `0x${id.toString(16)}` };
     }
 
     case 'net_version': {
-      const id = effectiveChainId(state.chainId, anvilForkedFrom);
+      const id = effectiveChainId(siteState.chainId, anvilForkedFrom);
       return { result: id.toString() };
     }
 
@@ -54,8 +56,7 @@ export async function handleRpcRequest(
       }
       const requestedChainId = Number(switchParam.chainId);
 
-      // Already on the requested chain (including spoofed Anvil)
-      const currentEffective = effectiveChainId(state.chainId, anvilForkedFrom);
+      const currentEffective = effectiveChainId(siteState.chainId, anvilForkedFrom);
       if (requestedChainId === currentEffective) {
         return { result: null };
       }
@@ -66,8 +67,8 @@ export async function handleRpcRequest(
       if (!isSupported) {
         return { error: { code: 4902, message: 'Unrecognized chain ID' } };
       }
-      await setState({ chainId: requestedChainId });
-      await notifyChainChanged(requestedChainId);
+      await setSiteState(origin, { chainId: requestedChainId });
+      await notifyChainChanged(origin, requestedChainId);
       return { result: null };
     }
 
@@ -79,28 +80,26 @@ export async function handleRpcRequest(
       return { result: [{ parentCapability: 'eth_accounts' }] };
     }
 
-    // Signing methods — Anvil impersonation or watch-only error
     case 'eth_sendTransaction':
     case 'eth_signTypedData_v4':
     case 'eth_signTypedData':
     case 'personal_sign':
     case 'eth_sign': {
-      if (!state.selectedAddress) {
+      if (!siteState.selectedAddress) {
         return { error: NOT_CONNECTED_ERROR };
       }
-      if (state.chainId !== ANVIL_CHAIN_ID) {
+      if (siteState.chainId !== ANVIL_CHAIN_ID) {
         return { error: WATCH_ONLY_ERROR };
       }
-      const rpcUrl = state.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
-      return handleAnvilSigning(method, params, state.selectedAddress.address, rpcUrl);
+      const rpcUrl = globalSettings.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
+      return handleAnvilSigning(method, params, siteState.selectedAddress.address, rpcUrl);
     }
 
-    // Everything else — proxy to RPC (block dangerous methods)
     default: {
       if (BLOCKED_METHODS.test(method)) {
         return { error: { code: 4200, message: `Method ${method} is not available` } };
       }
-      return proxyToRpc(method, params, state.chainId, state.customRpcUrls);
+      return proxyToRpc(method, params, siteState.chainId, globalSettings.customRpcUrls);
     }
   }
 }

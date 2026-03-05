@@ -3,7 +3,7 @@
  */
 import { chromium, type BrowserContext, type Page, type Worker } from 'playwright';
 import { resolve } from 'node:path';
-import type { CachedOperator, WalletState, ModuleType, OperatorCacheEntry } from '../../lib/shared/types.js';
+import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry } from '../../lib/shared/types.js';
 
 const EXTENSION_PATH = resolve(import.meta.dirname, '../../.output/chrome-mv3');
 const HEADED = !!process.env.HEADED;
@@ -52,21 +52,48 @@ export async function goToTab(page: Page, tab: TabName) {
 
 // ── Storage seeding via service worker ──
 
-export async function seedState(sw: Worker, state: Partial<WalletState>) {
+export async function resetStateCaches(sw: Worker) {
+  await sw.evaluate(() => {
+    (self as any).__resetStateCaches?.();
+  });
+}
+
+const SITE_KEYS: (keyof SiteState)[] = ['chainId', 'moduleType', 'selectedAddress', 'isConnected'];
+
+export async function seedSiteState(sw: Worker, extensionId: string, state: Partial<SiteState>) {
+  const origin = `chrome-extension://${extensionId}`;
+  await resetStateCaches(sw);
+  await sw.evaluate(async ([o, patch]) => {
+    const defaults = { chainId: 1, moduleType: 'csm', selectedAddress: null, isConnected: false };
+    const data = await chrome.storage.local.get('site_states');
+    const sites = data.site_states ?? {};
+    const current = sites[o] ?? defaults;
+    await chrome.storage.local.set({ site_states: { ...sites, [o]: { ...current, ...patch } } });
+  }, [origin, state] as const);
+}
+
+export async function seedGlobalSettings(sw: Worker, settings: Partial<GlobalSettings>) {
+  await resetStateCaches(sw);
   await sw.evaluate(async (patch) => {
-    const defaults = {
-      chainId: 1,
-      moduleType: 'csm',
-      selectedAddress: null,
-      isConnected: false,
-      customRpcUrls: {},
-      favorites: [],
-      manualAddresses: [],
-    };
-    const data = await chrome.storage.local.get('wallet_state');
-    const current = data.wallet_state ?? defaults;
-    await chrome.storage.local.set({ wallet_state: { ...current, ...patch } });
-  }, state);
+    const defaults = { customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, requireApproval: false };
+    const data = await chrome.storage.local.get('global_settings');
+    const current = data.global_settings ?? defaults;
+    await chrome.storage.local.set({ global_settings: { ...current, ...patch } });
+  }, settings);
+}
+
+/** Convenience wrapper — splits WalletState into site/global parts and seeds both. */
+export async function seedState(sw: Worker, extensionId: string, state: Partial<WalletState>) {
+  const sitePatch: Record<string, unknown> = {};
+  const globalPatch: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(state)) {
+    if (SITE_KEYS.includes(k as keyof SiteState)) sitePatch[k] = v;
+    else globalPatch[k] = v;
+  }
+  await Promise.all([
+    Object.keys(sitePatch).length > 0 ? seedSiteState(sw, extensionId, sitePatch as Partial<SiteState>) : Promise.resolve(),
+    Object.keys(globalPatch).length > 0 ? seedGlobalSettings(sw, globalPatch as Partial<GlobalSettings>) : Promise.resolve(),
+  ]);
 }
 
 export async function seedOperators(
@@ -100,6 +127,7 @@ export async function seedModuleAvailability(
 }
 
 export async function clearStorage(sw: Worker) {
+  await resetStateCaches(sw);
   await sw.evaluate(async () => {
     await chrome.storage.local.clear();
   });

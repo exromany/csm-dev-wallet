@@ -17,6 +17,8 @@ export default defineContentScript({
     // Inject the inpage script into MAIN world
     await injectScript('/inpage.js', { keepInDom: true });
 
+    const pageOrigin = window.location.origin;
+
     // ── Bridge: Inpage → Content → Service Worker ──
 
     const SW_TIMEOUT_MS = 30_000;
@@ -38,6 +40,7 @@ export default defineContentScript({
       if (msg.type === 'rpc-request') {
         const request: RpcRequestMessage = {
           type: 'rpc-request',
+          origin: pageOrigin,
           method: msg.method,
           params: msg.params,
         };
@@ -76,6 +79,8 @@ export default defineContentScript({
     chrome.runtime.onMessage.addListener(
       (message: BroadcastMessage) => {
         if (message.type !== 'state-changed') return;
+        // Only forward broadcasts for this page's origin
+        if (message.origin !== pageOrigin) return;
 
         window.postMessage(
           {

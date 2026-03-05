@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeState, ADDR_A } from '../fixtures.js';
 
+const TEST_ORIGIN = 'https://stake.lido.fi';
+
 // ── Capture the callback passed to defineBackground ──
 let backgroundFn: () => void;
 vi.mock('wxt/utils/define-background', () => ({
@@ -8,16 +10,23 @@ vi.mock('wxt/utils/define-background', () => ({
 }));
 
 // ── Module mocks ──
-const getState = vi.fn();
-const setState = vi.fn();
+const getSiteState = vi.fn();
+const setSiteState = vi.fn();
+const getGlobalSettings = vi.fn();
+const setGlobalSettings = vi.fn();
+const getComposedState = vi.fn();
 const notifyChainChanged = vi.fn().mockResolvedValue(undefined);
 const notifyAccountsChanged = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../lib/background/state.ts', () => ({
-  getState,
-  setState,
+  getSiteState,
+  setSiteState,
+  getGlobalSettings,
+  setGlobalSettings,
+  getComposedState,
   notifyAccountsChanged,
   notifyChainChanged,
+  resetCaches: vi.fn(),
 }));
 
 vi.mock('../../lib/background/anvil.ts', () => ({
@@ -101,23 +110,28 @@ describe('switch-module', () => {
       selectedAddress: ADDR_A,
       isConnected: true,
     });
-    getState.mockResolvedValue(state);
-    setState.mockImplementation(async (update: Partial<typeof state>) => ({ ...state, ...update }));
+    const siteState = { chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected };
+    getSiteState.mockResolvedValue(siteState);
+    setSiteState.mockImplementation(async (_origin: string, update: Record<string, unknown>) => ({ ...siteState, ...update }));
+    getGlobalSettings.mockResolvedValue({ customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, requireApproval: false });
+    getComposedState.mockImplementation(async () => ({ ...siteState, ...await getGlobalSettings() }));
 
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-module', moduleType: 'cm' });
+    port._emit({ type: 'switch-module', origin: TEST_ORIGIN, moduleType: 'cm' });
 
     await vi.waitFor(() => {
-      expect(setState).toHaveBeenCalledWith({ moduleType: 'cm' });
+      expect(setSiteState).toHaveBeenCalledWith(TEST_ORIGIN, { moduleType: 'cm' });
     });
 
     // Must NOT reset address or connection
-    expect(setState).not.toHaveBeenCalledWith(
+    expect(setSiteState).not.toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ selectedAddress: null }),
     );
-    expect(setState).not.toHaveBeenCalledWith(
+    expect(setSiteState).not.toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ isConnected: false }),
     );
   });
@@ -128,16 +142,19 @@ describe('switch-module', () => {
       selectedAddress: ADDR_A,
       isConnected: true,
     });
-    getState.mockResolvedValue(state);
-    setState.mockImplementation(async (update: Partial<typeof state>) => ({ ...state, ...update }));
+    const siteState = { chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected };
+    getSiteState.mockResolvedValue(siteState);
+    setSiteState.mockImplementation(async (_origin: string, update: Record<string, unknown>) => ({ ...siteState, ...update }));
+    getGlobalSettings.mockResolvedValue({ customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, requireApproval: false });
+    getComposedState.mockImplementation(async () => ({ ...siteState, ...await getGlobalSettings() }));
 
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-module', moduleType: 'cm' });
+    port._emit({ type: 'switch-module', origin: TEST_ORIGIN, moduleType: 'cm' });
 
     await vi.waitFor(() => {
-      expect(setState).toHaveBeenCalled();
+      expect(setSiteState).toHaveBeenCalled();
     });
 
     expect(notifyAccountsChanged).not.toHaveBeenCalled();
@@ -150,13 +167,16 @@ describe('switch-module', () => {
       isConnected: true,
     });
     const updatedState = { ...state, moduleType: 'cm' as const };
-    getState.mockResolvedValue(state);
-    setState.mockResolvedValue(updatedState);
+    const siteState = { chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected };
+    getSiteState.mockResolvedValue(siteState);
+    setSiteState.mockResolvedValue({ ...siteState, moduleType: 'cm' });
+    getGlobalSettings.mockResolvedValue({ customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, requireApproval: false });
+    getComposedState.mockResolvedValue(updatedState);
 
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-module', moduleType: 'cm' });
+    port._emit({ type: 'switch-module', origin: TEST_ORIGIN, moduleType: 'cm' });
 
     await vi.waitFor(() => {
       expect(port.postMessage).toHaveBeenCalledWith({

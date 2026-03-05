@@ -23,7 +23,7 @@ async function main() {
   const operators = makeTestOperators(5);
 
   async function seedFresh(favorites: string[] = []) {
-    await seedState(sw, { chainId: 1, moduleType: 'csm', favorites });
+    await seedState(sw, extensionId, { chainId: 1, moduleType: 'csm', favorites });
     await seedOperators(sw, operators, 1, 'csm');
     await seedModuleAvailability(sw, 1, { csm: true, cm: false });
   }

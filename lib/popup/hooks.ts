@@ -5,14 +5,47 @@ import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability 
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
 import type { Address } from 'viem';
 
+// Strip `origin` from PopupCommand — the hook injects it automatically
+type WithoutOrigin<T> = T extends { origin: string }
+  ? Omit<T, 'origin'>
+  : T;
+export type PopupCommandInput = WithoutOrigin<PopupCommand>;
+
+// ── useActiveTabOrigin ──
+
+function useActiveTabOrigin() {
+  const [origin, setOrigin] = useState<string | null>(null);
+
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const url = tabs[0]?.url;
+      if (url) {
+        try {
+          setOrigin(new URL(url).origin);
+        } catch {
+          setOrigin(location.origin);
+        }
+      } else {
+        // activeTab not granted (e.g. popup opened as a tab in e2e tests)
+        setOrigin(location.origin);
+      }
+    });
+  }, []);
+
+  return origin;
+}
+
 // ── useWalletState ──
 
 export function useWalletState() {
   const [state, setLocalState] = useState<WalletState>(DEFAULT_WALLET_STATE);
   const [error, setError] = useState<string | null>(null);
   const [port, setPort] = useState<chrome.runtime.Port | null>(null);
+  const origin = useActiveTabOrigin();
 
   useEffect(() => {
+    if (!origin) return;
+
     const p = chrome.runtime.connect({ name: PORT_NAME });
     setPort(p);
 
@@ -26,26 +59,34 @@ export function useWalletState() {
       }
     });
 
-    // Request initial state
-    p.postMessage({ type: 'get-state' } satisfies PopupCommand);
+    // Request initial state for this origin
+    p.postMessage({ type: 'get-state', origin } satisfies PopupCommand);
 
-    return () => p.disconnect();
-  }, []);
+    return () => {
+      p.disconnect();
+      setPort(null);
+    };
+  }, [origin]);
 
   const send = useCallback(
-    (command: PopupCommand) => port?.postMessage(command),
-    [port],
+    (command: PopupCommandInput) => {
+      if (!port || !origin) return;
+      // Inject origin into every command
+      port.postMessage({ ...command, origin } as PopupCommand);
+    },
+    [port, origin],
   );
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { state, send, port, error, clearError };
+  return { state, send, port, origin, error, clearError };
 }
 
 // ── useOperators ──
 
 export function useOperators(
   port: chrome.runtime.Port | null,
+  origin: string | null,
   chainId: number,
   moduleType: ModuleType,
   addressLabels: Record<string, string> = {},
@@ -60,7 +101,7 @@ export function useOperators(
   moduleTypeRef.current = moduleType;
 
   useEffect(() => {
-    if (!port) return;
+    if (!port || !origin) return;
 
     // Reset state on chain/module change
     setOperators([]);
@@ -91,19 +132,22 @@ export function useOperators(
     port.onMessage.addListener(handler);
     port.postMessage({
       type: 'request-operators',
+      origin,
       chainId,
       moduleType,
     } satisfies PopupCommand);
     return () => port.onMessage.removeListener(handler);
-  }, [port, chainId, moduleType]);
+  }, [port, origin, chainId, moduleType]);
 
   const refresh = useCallback(() => {
+    if (!origin) return;
     port?.postMessage({
       type: 'refresh-operators',
+      origin,
       chainId,
       moduleType,
     } satisfies PopupCommand);
-  }, [port, chainId, moduleType]);
+  }, [port, origin, chainId, moduleType]);
 
   const filtered = useMemo(() => filterOperators(operators, search, addressLabels), [operators, search, addressLabels]);
 
@@ -159,7 +203,7 @@ export function useAnvilStatus(port: chrome.runtime.Port | null) {
 
 export function useFavorites(
   state: WalletState,
-  send: (cmd: PopupCommand) => void,
+  send: (cmd: PopupCommandInput) => void,
   forkedFrom?: SupportedChainId | null,
 ) {
   const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)

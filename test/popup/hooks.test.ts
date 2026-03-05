@@ -5,6 +5,8 @@ import { createMockPort, type MockPort } from '../setup.js';
 import { makeOperator, makeState } from '../fixtures.js';
 import type { PopupEvent } from '../../lib/shared/messages.js';
 
+const TEST_ORIGIN = 'https://stake.lido.fi';
+
 describe('useWalletState — error handling', () => {
   let port: MockPort;
 
@@ -13,13 +15,18 @@ describe('useWalletState — error handling', () => {
     vi.mocked(chrome.runtime.connect).mockReturnValue(port as unknown as chrome.runtime.Port);
   });
 
-  it('starts with no error', () => {
+  it('starts with no error', async () => {
     const { result } = renderHook(() => useWalletState());
+
+    // Wait for origin resolution to trigger port connection
+    await act(async () => {});
+
     expect(result.current.error).toBeNull();
   });
 
-  it('sets error on error event', () => {
+  it('sets error on error event', async () => {
     const { result } = renderHook(() => useWalletState());
+    await act(async () => {});
 
     act(() => {
       port._emit({ type: 'error', message: 'Invalid RPC URL' } satisfies PopupEvent);
@@ -28,8 +35,9 @@ describe('useWalletState — error handling', () => {
     expect(result.current.error).toBe('Invalid RPC URL');
   });
 
-  it('clears error on state-update', () => {
+  it('clears error on state-update', async () => {
     const { result } = renderHook(() => useWalletState());
+    await act(async () => {});
 
     act(() => {
       port._emit({ type: 'error', message: 'some error' } satisfies PopupEvent);
@@ -42,8 +50,9 @@ describe('useWalletState — error handling', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('clearError resets error to null', () => {
+  it('clearError resets error to null', async () => {
     const { result } = renderHook(() => useWalletState());
+    await act(async () => {});
 
     act(() => {
       port._emit({ type: 'error', message: 'bad' } satisfies PopupEvent);
@@ -66,7 +75,7 @@ describe('useOperators — network switch', () => {
 
   it('starts with empty operators', () => {
     const { result } = renderHook(() =>
-      useOperators(port as unknown as chrome.runtime.Port, 1, 'csm'),
+      useOperators(port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, 'csm'),
     );
     expect(result.current.operators).toEqual([]);
     expect(result.current.loading).toBe(true);
@@ -74,7 +83,7 @@ describe('useOperators — network switch', () => {
 
   it('populates operators on matching event', () => {
     const { result } = renderHook(() =>
-      useOperators(port as unknown as chrome.runtime.Port, 1, 'csm'),
+      useOperators(port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, 'csm'),
     );
 
     const ops = [makeOperator({ id: '1' }), makeOperator({ id: '2' })];
@@ -94,7 +103,7 @@ describe('useOperators — network switch', () => {
   it('resets operators on chainId change', () => {
     const { result, rerender } = renderHook(
       ({ chainId }) =>
-        useOperators(port as unknown as chrome.runtime.Port, chainId, 'csm'),
+        useOperators(port as unknown as chrome.runtime.Port, TEST_ORIGIN, chainId, 'csm'),
       { initialProps: { chainId: 1 } },
     );
 
@@ -118,7 +127,7 @@ describe('useOperators — network switch', () => {
   it('ignores events for old chainId after switch', () => {
     const { result, rerender } = renderHook(
       ({ chainId }) =>
-        useOperators(port as unknown as chrome.runtime.Port, chainId, 'csm'),
+        useOperators(port as unknown as chrome.runtime.Port, TEST_ORIGIN, chainId, 'csm'),
       { initialProps: { chainId: 1 } },
     );
 
@@ -142,7 +151,7 @@ describe('useOperators — network switch', () => {
   it('accepts events for new chainId after switch', () => {
     const { result, rerender } = renderHook(
       ({ chainId }) =>
-        useOperators(port as unknown as chrome.runtime.Port, chainId, 'csm'),
+        useOperators(port as unknown as chrome.runtime.Port, TEST_ORIGIN, chainId, 'csm'),
       { initialProps: { chainId: 1 } },
     );
 
@@ -165,7 +174,7 @@ describe('useOperators — network switch', () => {
   it('resets again when switching back to original chainId', () => {
     const { result, rerender } = renderHook(
       ({ chainId }) =>
-        useOperators(port as unknown as chrome.runtime.Port, chainId, 'csm'),
+        useOperators(port as unknown as chrome.runtime.Port, TEST_ORIGIN, chainId, 'csm'),
       { initialProps: { chainId: 1 } },
     );
 

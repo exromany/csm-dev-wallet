@@ -11,6 +11,7 @@ import {
   seedModuleAvailability,
   makeTestOperators,
   createRunner,
+  resetStateCaches,
 } from './helpers.js';
 
 const { test, summary } = createRunner();
@@ -22,8 +23,9 @@ async function main() {
   // 5 operators: IDs 1-5, types DEF/LEA/ICS/DEF/LEA
   const operators = makeTestOperators(5);
 
-  /** Reseed operators in storage (no in-memory cache for operators) */
+  /** Reseed operators in storage and reset caches */
   async function seedOps() {
+    await resetStateCaches(sw);
     await seedOperators(sw, operators, 1, 'csm');
     await seedModuleAvailability(sw, 1, { csm: true, cm: false });
   }
@@ -125,15 +127,18 @@ async function main() {
       const refreshBtn = page.locator('.filter-btn:has-text("Refresh")');
       await refreshBtn.click();
 
-      // Should show "Loading..." briefly (RPC will fail or fetch real data — we test loading UX)
+      // Wait for loading state to appear (button text changes from "Refresh" to "Loading...")
       const loadingVisible = await page
         .locator('.filter-btn:has-text("Loading")')
-        .isVisible({ timeout: 2000 })
+        .waitFor({ timeout: 5000 })
+        .then(() => true)
         .catch(() => false);
       console.log(`    (loading state detected: ${loadingVisible})`);
 
-      // Wait for refresh to finish (it may fetch from RPC) before closing
-      await page.locator('.filter-btn:has-text("Refresh")').waitFor({ timeout: 15000 }).catch(() => {});
+      // Wait for refresh to finish — button returns to "Refresh" after fetch completes
+      if (loadingVisible) {
+        await page.locator('.filter-btn:has-text("Refresh")').waitFor({ timeout: 60000 });
+      }
       await page.close();
 
       // Reseed after refresh (refresh may overwrite cache with real RPC data)
@@ -168,6 +173,7 @@ async function main() {
 
     await test('Favorites filter shows only starred operators', async () => {
       await seedOps();
+
       const page = await openPopup(context, extensionId);
       await page.waitForSelector('.operator-row');
 

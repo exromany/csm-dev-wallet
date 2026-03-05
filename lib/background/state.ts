@@ -1,108 +1,168 @@
-import type { WalletState } from '../shared/types.js';
-import { DEFAULT_WALLET_STATE } from '../shared/types.js';
+import type { SiteState, GlobalSettings, WalletState } from '../shared/types.js';
+import { DEFAULT_SITE_STATE, DEFAULT_GLOBAL_SETTINGS } from '../shared/types.js';
 import type { BroadcastMessage } from '../shared/messages.js';
 
-const STORAGE_KEY = 'wallet_state';
+const GLOBAL_KEY = 'global_settings';
+const SITES_KEY = 'site_states';
+const LEGACY_KEY = 'wallet_state';
 
-// ── In-memory cache + write mutex ──
+// ── In-memory caches ──
 
-let cached: WalletState | null = null;
-let writeLock: Promise<WalletState> = Promise.resolve(DEFAULT_WALLET_STATE);
+let globalCache: GlobalSettings | null = null;
+let sitesCache: Record<string, SiteState> | null = null;
+let writeLock: Promise<void> = Promise.resolve();
 
-/** Migrate legacy state to current shape — returns new object when changed */
-export function migrateState(raw: WalletState): { state: WalletState; changed: boolean } {
-  let changed = false;
-  let state = raw;
+export function resetCaches() {
+  globalCache = null;
+  sitesCache = null;
+}
 
-  // Add moduleType if missing (pre-v2 state)
-  if (!state.moduleType) {
-    state = { ...state, moduleType: 'csm' };
-    changed = true;
-  }
+// ── Migration from legacy single-key storage ──
 
-  // Migrate bare favorite IDs ("42") to scoped format ("csm:<chainId>:42")
-  const migrated = state.favorites.map((fav) => {
-    if (!fav.includes(':')) {
-      changed = true;
-      return `csm:${state.chainId}:${fav}`;
-    }
-    return fav;
+/** Migrate legacy `wallet_state` to split storage. Returns true if migration occurred. */
+async function migrateLegacy(): Promise<boolean> {
+  const data = await chrome.storage.local.get(LEGACY_KEY);
+  const legacy = data[LEGACY_KEY] as Record<string, unknown> | undefined;
+  if (!legacy) return false;
+
+  // Extract global settings from legacy state
+  const global: GlobalSettings = {
+    customRpcUrls: (legacy.customRpcUrls as GlobalSettings['customRpcUrls']) ?? {},
+    favorites: (legacy.favorites as string[]) ?? [],
+    manualAddresses: (legacy.manualAddresses as GlobalSettings['manualAddresses']) ?? [],
+    addressLabels: (legacy.addressLabels as GlobalSettings['addressLabels']) ?? {},
+    requireApproval: (legacy.requireApproval as boolean) ?? false,
+  };
+
+  // Migrate bare favorite IDs to scoped format
+  const chainId = (legacy.chainId as number) ?? 1;
+  const moduleType = (legacy.moduleType as string) ?? 'csm';
+  global.favorites = global.favorites.map((fav) =>
+    fav.includes(':') ? fav : `${moduleType}:${chainId}:${fav}`,
+  );
+
+  await chrome.storage.local.set({
+    [GLOBAL_KEY]: global,
+    [SITES_KEY]: {},
   });
+  await chrome.storage.local.remove(LEGACY_KEY);
 
-  if (changed) {
-    state = { ...state, favorites: migrated };
-  }
-
-  // Add addressLabels if missing
-  if (!state.addressLabels) {
-    state = { ...state, addressLabels: {} };
-    changed = true;
-  }
-
-  // Add requireApproval if missing
-  if (state.requireApproval === undefined) {
-    state = { ...state, requireApproval: false };
-    changed = true;
-  }
-
-  return { state, changed };
+  return true;
 }
 
-export async function getState(): Promise<WalletState> {
-  if (cached) return cached;
+// ── Global settings ──
 
-  const data = await chrome.storage.local.get(STORAGE_KEY);
-  const raw = (data[STORAGE_KEY] as WalletState | undefined) ?? { ...DEFAULT_WALLET_STATE };
-  const { state, changed } = migrateState(raw);
+export async function getGlobalSettings(): Promise<GlobalSettings> {
+  if (globalCache) return globalCache;
 
-  if (changed || !data[STORAGE_KEY]) {
-    await chrome.storage.local.set({ [STORAGE_KEY]: state });
-  }
+  await migrateLegacy();
 
-  cached = state;
-  return state;
+  const data = await chrome.storage.local.get(GLOBAL_KEY);
+  const raw = (data[GLOBAL_KEY] as GlobalSettings | undefined) ?? { ...DEFAULT_GLOBAL_SETTINGS };
+
+  // Ensure all fields exist (forward-compat)
+  const settings: GlobalSettings = {
+    customRpcUrls: raw.customRpcUrls ?? {},
+    favorites: raw.favorites ?? [],
+    manualAddresses: raw.manualAddresses ?? [],
+    addressLabels: raw.addressLabels ?? {},
+    requireApproval: raw.requireApproval ?? false,
+  };
+
+  globalCache = settings;
+  return settings;
 }
 
-export async function setState(
-  update: Partial<WalletState>,
-): Promise<WalletState> {
+export async function setGlobalSettings(
+  update: Partial<GlobalSettings>,
+): Promise<GlobalSettings> {
   const result = writeLock.then(async () => {
-    const current = await getState();
+    const current = await getGlobalSettings();
     const next = { ...current, ...update };
-    cached = next;
-    await chrome.storage.local.set({ [STORAGE_KEY]: next });
+    globalCache = next;
+    await chrome.storage.local.set({ [GLOBAL_KEY]: next });
     return next;
   });
-  // On failure, reset lock to current state so subsequent calls aren't stuck
-  writeLock = result.catch(() => getState());
+  writeLock = result.then(() => {}, () => {});
   return result;
 }
 
-/** Broadcast state change to all content scripts */
-export async function broadcastToTabs(message: BroadcastMessage) {
+// ── Per-origin site state ──
+
+async function getAllSiteStates(): Promise<Record<string, SiteState>> {
+  if (sitesCache) return sitesCache;
+
+  await migrateLegacy();
+
+  const data = await chrome.storage.local.get(SITES_KEY);
+  const sites = (data[SITES_KEY] as Record<string, SiteState> | undefined) ?? {};
+  sitesCache = sites;
+  return sites;
+}
+
+export async function getSiteState(origin: string): Promise<SiteState> {
+  const sites = await getAllSiteStates();
+  return sites[origin] ?? { ...DEFAULT_SITE_STATE };
+}
+
+export async function setSiteState(
+  origin: string,
+  update: Partial<SiteState>,
+): Promise<SiteState> {
+  const result = writeLock.then(async () => {
+    const sites = await getAllSiteStates();
+    const current = sites[origin] ?? { ...DEFAULT_SITE_STATE };
+    const next = { ...current, ...update };
+    const updated = { ...sites, [origin]: next };
+    sitesCache = updated;
+    await chrome.storage.local.set({ [SITES_KEY]: updated });
+    return next;
+  });
+  writeLock = result.then(() => {}, () => {});
+  return result;
+}
+
+// ── Composed state for popup ──
+
+export async function getComposedState(origin: string): Promise<WalletState> {
+  const [site, global] = await Promise.all([
+    getSiteState(origin),
+    getGlobalSettings(),
+  ]);
+  return { ...site, ...global };
+}
+
+// ── Origin-aware broadcasts ──
+
+/** Broadcast to tabs matching a specific origin */
+async function broadcastToOrigin(origin: string, message: BroadcastMessage) {
   const tabs = await chrome.tabs.query({});
   for (const tab of tabs) {
-    if (tab.id) {
-      chrome.tabs.sendMessage(tab.id, message).catch(() => {
-        // Tab may not have content script — ignore
-      });
+    if (!tab.id || !tab.url) continue;
+    try {
+      const tabOrigin = new URL(tab.url).origin;
+      if (tabOrigin === origin) {
+        chrome.tabs.sendMessage(tab.id, message).catch(() => {});
+      }
+    } catch {
+      // Invalid URL — skip
     }
   }
 }
 
-/** Notify accounts changed to all tabs */
-export async function notifyAccountsChanged(accounts: string[]) {
-  await broadcastToTabs({
+export async function notifyAccountsChanged(origin: string, accounts: string[]) {
+  await broadcastToOrigin(origin, {
     type: 'state-changed',
+    origin,
     event: 'accountsChanged',
     data: accounts,
   });
 }
 
-/** Notify chain changed to all tabs */
-export async function notifyChainChanged(chainId: number) {
-  await broadcastToTabs({
+export async function notifyChainChanged(origin: string, chainId: number) {
+  await broadcastToOrigin(origin, {
     type: 'state-changed',
+    origin,
     event: 'chainChanged',
     data: `0x${chainId.toString(16)}`,
   });

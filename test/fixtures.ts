@@ -1,4 +1,4 @@
-import type { CachedOperator, WalletState } from '../lib/shared/types.js';
+import type { CachedOperator, WalletState, SiteState, GlobalSettings } from '../lib/shared/types.js';
 
 export const ADDR_A = '0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa' as const;
 export const ADDR_B = '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB' as const;
@@ -22,6 +22,27 @@ export function makeState(overrides: Partial<WalletState> = {}): WalletState {
     moduleType: 'csm',
     selectedAddress: null,
     isConnected: false,
+    customRpcUrls: {},
+    favorites: [],
+    manualAddresses: [],
+    addressLabels: {},
+    requireApproval: false,
+    ...overrides,
+  };
+}
+
+export function makeSiteState(overrides: Partial<SiteState> = {}): SiteState {
+  return {
+    chainId: 1,
+    moduleType: 'csm',
+    selectedAddress: null,
+    isConnected: false,
+    ...overrides,
+  };
+}
+
+export function makeGlobalSettings(overrides: Partial<GlobalSettings> = {}): GlobalSettings {
+  return {
     customRpcUrls: {},
     favorites: [],
     manualAddresses: [],

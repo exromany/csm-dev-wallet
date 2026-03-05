@@ -43,11 +43,23 @@ export type SelectedAddress = {
   source: AddressSource;
 };
 
-export type WalletState = {
+// Per-origin state — each site gets its own network/address
+export type SiteState = {
   chainId: number;
   moduleType: ModuleType;
   selectedAddress: SelectedAddress | null;
   isConnected: boolean;
+};
+
+export const DEFAULT_SITE_STATE: SiteState = {
+  chainId: 1,
+  moduleType: 'csm',
+  selectedAddress: null,
+  isConnected: false,
+};
+
+// Shared settings across all sites
+export type GlobalSettings = {
   customRpcUrls: Partial<Record<number, string>>;
   favorites: string[]; // scoped: "csm:1:42"
   manualAddresses: Address[];
@@ -55,14 +67,18 @@ export type WalletState = {
   requireApproval: boolean;
 };
 
-export const DEFAULT_WALLET_STATE: WalletState = {
-  chainId: 1,
-  moduleType: 'csm',
-  selectedAddress: null,
-  isConnected: false,
+export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   customRpcUrls: {},
   favorites: [],
   manualAddresses: [],
   addressLabels: {},
   requireApproval: false,
+};
+
+// Composed view for popup — site state + global settings merged
+export type WalletState = SiteState & GlobalSettings;
+
+export const DEFAULT_WALLET_STATE: WalletState = {
+  ...DEFAULT_SITE_STATE,
+  ...DEFAULT_GLOBAL_SETTINGS,
 };

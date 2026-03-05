@@ -26,6 +26,7 @@ export type InpageMessage = {
 
 export type RpcRequestMessage = {
   type: 'rpc-request';
+  origin: string;
   method: string;
   params?: unknown[];
 };
@@ -40,20 +41,22 @@ export type RpcResponseMessage = {
 
 export const PORT_NAME = 'csm-popup';
 
+// All commands include origin (active tab's origin) so the service worker
+// can compose and return the correct per-site + global state view.
 export type PopupCommand =
-  | { type: 'get-state' }
-  | { type: 'select-address'; address: string; source: import('./types.js').AddressSource }
-  | { type: 'disconnect' }
-  | { type: 'switch-network'; chainId: number }
-  | { type: 'switch-module'; moduleType: ModuleType }
-  | { type: 'request-operators'; chainId: number; moduleType: ModuleType }
-  | { type: 'refresh-operators'; chainId: number; moduleType: ModuleType }
-  | { type: 'toggle-favorite'; operatorId: string }
-  | { type: 'add-manual-address'; address: string }
-  | { type: 'remove-manual-address'; address: string }
-  | { type: 'set-custom-rpc'; chainId: number; rpcUrl: string }
-  | { type: 'set-address-label'; address: string; label: string }
-  | { type: 'set-require-approval'; enabled: boolean };
+  | { type: 'get-state'; origin: string }
+  | { type: 'select-address'; origin: string; address: string; source: import('./types.js').AddressSource }
+  | { type: 'disconnect'; origin: string }
+  | { type: 'switch-network'; origin: string; chainId: number }
+  | { type: 'switch-module'; origin: string; moduleType: ModuleType }
+  | { type: 'request-operators'; origin: string; chainId: number; moduleType: ModuleType }
+  | { type: 'refresh-operators'; origin: string; chainId: number; moduleType: ModuleType }
+  | { type: 'toggle-favorite'; origin: string; operatorId: string }
+  | { type: 'add-manual-address'; origin: string; address: string }
+  | { type: 'remove-manual-address'; origin: string; address: string }
+  | { type: 'set-custom-rpc'; origin: string; chainId: number; rpcUrl: string }
+  | { type: 'set-address-label'; origin: string; address: string; label: string }
+  | { type: 'set-require-approval'; origin: string; enabled: boolean };
 
 export type ModuleAvailability = Partial<Record<ModuleType, boolean>>;
 
@@ -76,5 +79,5 @@ export type ApprovalResponse = {
 // ── Service Worker → Content Script (broadcast) ──────────────────────
 
 export type BroadcastMessage =
-  | { type: 'state-changed'; event: 'accountsChanged'; data: string[] }
-  | { type: 'state-changed'; event: 'chainChanged'; data: string };
+  | { type: 'state-changed'; origin: string; event: 'accountsChanged'; data: string[] }
+  | { type: 'state-changed'; origin: string; event: 'chainChanged'; data: string };

@@ -12,9 +12,10 @@ import { Settings } from './Settings.js';
 type Tab = 'operators' | 'manual' | 'settings';
 
 export function App() {
-  const { state, send, port, error, clearError } = useWalletState();
+  const { state, send, port, origin, error, clearError } = useWalletState();
   const { operators, allOperators, loading, lastFetchedAt, search, setSearch, refresh } = useOperators(
     port,
+    origin,
     state.chainId,
     state.moduleType,
     state.addressLabels,
