@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Dapp</title></head>
+<body>
+  <div id="address">Not connected</div>
+  <div id="chain-id">--</div>
+  <div id="status">--</div>
+  <div id="events"></div>
+  <button id="connect">Connect</button>
+  <button id="send-tx">Send TX</button>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function logEvent(name, data) {
+      const entry = document.createElement('div');
+      entry.className = 'event-entry';
+      entry.textContent = name + ':' + JSON.stringify(data);
+      $('events').appendChild(entry);
+    }
+
+    function waitForProvider() {
+      return new Promise((resolve) => {
+        if (window.ethereum) return resolve(window.ethereum);
+        const iv = setInterval(() => {
+          if (window.ethereum) { clearInterval(iv); resolve(window.ethereum); }
+        }, 50);
+      });
+    }
+
+    waitForProvider().then((eth) => {
+      eth.on('accountsChanged', (accounts) => {
+        $('address').textContent = accounts[0] || 'Not connected';
+        logEvent('accountsChanged', accounts);
+      });
+
+      eth.on('chainChanged', (chainId) => {
+        $('chain-id').textContent = chainId;
+        logEvent('chainChanged', chainId);
+      });
+
+      // Fetch initial chain ID
+      eth.request({ method: 'eth_chainId' }).then((id) => {
+        $('chain-id').textContent = id;
+      }).catch(() => {});
+
+      $('connect').addEventListener('click', () => {
+        eth.request({ method: 'eth_requestAccounts' }).then((accounts) => {
+          $('address').textContent = accounts[0] || 'Not connected';
+          $('status').textContent = 'connected';
+        }).catch((err) => {
+          $('status').textContent = 'error:' + (err.code || '') + ':' + err.message;
+        });
+      });
+
+      document.body.dataset.ready = 'true';
+
+      $('send-tx').addEventListener('click', () => {
+        const from = $('address').textContent;
+        eth.request({
+          method: 'eth_sendTransaction',
+          params: [{ from, to: from, value: '0x0' }],
+        }).then((hash) => {
+          $('status').textContent = 'tx:' + hash;
+        }).catch((err) => {
+          $('status').textContent = 'error:' + (err.code || '') + ':' + err.message;
+        });
+      });
+    });
+  </script>
+</body>
+</html>

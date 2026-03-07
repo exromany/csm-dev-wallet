@@ -2,6 +2,8 @@
  * Shared e2e helpers — launch extension, seed storage, test runner.
  */
 import { chromium, type BrowserContext, type Page, type Worker } from 'playwright';
+import { createServer, type Server } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry } from '../../lib/shared/types.js';
 
@@ -160,6 +162,32 @@ export function makeTestOperators(count: number): CachedOperator[] {
     curveId: '0',
     operatorType: TYPES[i % TYPES.length],
   }));
+}
+
+// ── Test dapp server ──
+
+export async function startTestDapp(port = 0): Promise<{ url: string; close: () => Promise<void> }> {
+  const html = readFileSync(resolve(import.meta.dirname, 'test-dapp.html'), 'utf-8');
+  const server = await new Promise<Server>((res) => {
+    const s = createServer((_, resp) => {
+      resp.writeHead(200, { 'Content-Type': 'text/html' });
+      resp.end(html);
+    });
+    s.listen(port, '127.0.0.1', () => res(s));
+  });
+  const addr = server.address();
+  const assignedPort = typeof addr === 'object' && addr ? addr.port : port;
+  return {
+    url: `http://127.0.0.1:${assignedPort}`,
+    close: () => new Promise((res) => server.close(() => res())),
+  };
+}
+
+export async function openTestDapp(context: BrowserContext, url: string): Promise<Page> {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page.waitForSelector('body[data-ready="true"]', { timeout: 10000 });
+  return page;
 }
 
 // ── Test runner ──
