@@ -33,6 +33,9 @@ export async function handleRpcRequest(
   switch (method) {
     case 'eth_requestAccounts':
     case 'eth_accounts': {
+      // eth_requestAccounts for unconnected origins is intercepted upstream
+      // (background.ts opens a connection prompt window).
+      // By the time we reach here, the address is set or it's eth_accounts.
       const accounts = siteState.selectedAddress
         ? [siteState.selectedAddress.address]
         : [];

@@ -17,6 +17,13 @@ function useActiveTabOrigin() {
   const [origin, setOrigin] = useState<string | null>(null);
 
   useEffect(() => {
+    // When opened as a connection prompt window, origin is passed as a URL param
+    const paramOrigin = new URLSearchParams(window.location.search).get('origin');
+    if (paramOrigin) {
+      setOrigin(paramOrigin);
+      return;
+    }
+
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const url = tabs[0]?.url;
       if (url) {

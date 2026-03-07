@@ -69,6 +69,51 @@ export default defineBackground(() => {
   // ── Approval state ──
   const pendingApprovals = new Map<string, PendingApproval>();
 
+  // ── Connection prompt state (keyed by origin) ──
+  type PendingConnection = {
+    promise: Promise<Address[]>;
+    resolve: (addresses: Address[]) => void;
+    windowId: number;
+  };
+  const pendingConnections = new Map<string, PendingConnection>();
+
+  async function requestConnection(origin: string): Promise<Address[]> {
+    const existing = pendingConnections.get(origin);
+    if (existing) {
+      chrome.windows.update(existing.windowId, { focused: true }).catch(() => {});
+      return existing.promise;
+    }
+
+    const params = new URLSearchParams({ origin });
+    const url = chrome.runtime.getURL(`popup.html?${params.toString()}`);
+    const win = await chrome.windows.create({
+      url,
+      type: 'popup',
+      width: 400,
+      height: 600,
+      focused: true,
+    });
+
+    if (!win?.id) return [];
+    const windowId = win.id;
+
+    let resolve!: (addresses: Address[]) => void;
+    const promise = new Promise<Address[]>((r) => { resolve = r; });
+    pendingConnections.set(origin, { promise, resolve, windowId });
+
+    const onRemoved = (removedId: number) => {
+      if (removedId !== windowId) return;
+      chrome.windows.onRemoved.removeListener(onRemoved);
+      if (pendingConnections.has(origin)) {
+        pendingConnections.delete(origin);
+        resolve([]);
+      }
+    };
+    chrome.windows.onRemoved.addListener(onRemoved);
+
+    return promise;
+  }
+
   const SIGNING_METHODS = new Set([
     'eth_sendTransaction',
     'eth_signTypedData_v4',
@@ -78,6 +123,15 @@ export default defineBackground(() => {
   ]);
 
   async function handleWithApproval(origin: string, method: string, params?: unknown[]) {
+    // Connection prompt for new/unconnected origins
+    if (method === 'eth_requestAccounts') {
+      const siteState = await getSiteState(origin);
+      if (!siteState.selectedAddress) {
+        const addresses = await requestConnection(origin);
+        return { result: addresses };
+      }
+    }
+
     if (SIGNING_METHODS.has(method)) {
       const siteState = await getSiteState(origin);
       const globalSettings = await getGlobalSettings();
@@ -291,6 +345,14 @@ export default defineBackground(() => {
         const state = await getComposedState(origin);
         broadcastToPopups({ type: 'state-update', state });
         await notifyAccountsChanged(origin, [command.address]);
+
+        // Resolve pending connection prompt if one exists for this origin
+        const pending = pendingConnections.get(origin);
+        if (pending) {
+          pendingConnections.delete(origin);
+          pending.resolve([command.address as Address]);
+          chrome.windows.remove(pending.windowId).catch(() => {});
+        }
         break;
       }
 
