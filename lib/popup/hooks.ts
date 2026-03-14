@@ -164,7 +164,7 @@ export function useOperators(
 // ── useModuleAvailability ──
 
 export function useModuleAvailability(port: chrome.runtime.Port | null) {
-  const [modules, setModules] = useState<ModuleAvailability>({ csm: true, cm: false });
+  const [modules, setModules] = useState<ModuleAvailability>({});
 
   useEffect(() => {
     if (!port) return;

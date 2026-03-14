@@ -16,7 +16,7 @@ import {
   startTestDapp,
   openTestDapp,
 } from './helpers.js';
-import type { Page, BrowserContext, Worker } from 'playwright';
+import type { Worker } from 'playwright';
 
 const { test, summary } = createRunner();
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useWalletState, useOperators } from '../../lib/popup/hooks.js';
+import { useWalletState, useOperators, useModuleAvailability } from '../../lib/popup/hooks.js';
 import { createMockPort, type MockPort } from '../setup.js';
 import { makeOperator, makeState } from '../fixtures.js';
 import type { PopupEvent } from '../../lib/shared/messages.js';
@@ -208,5 +208,45 @@ describe('useOperators — network switch', () => {
     });
 
     expect(result.current.operators).toHaveLength(2);
+  });
+});
+
+describe('useModuleAvailability', () => {
+  let port: MockPort;
+
+  beforeEach(() => {
+    port = createMockPort();
+  });
+
+  it('starts with empty availability', () => {
+    const { result } = renderHook(() =>
+      useModuleAvailability(port as unknown as chrome.runtime.Port),
+    );
+    expect(result.current).toEqual({});
+  });
+
+  it('updates on module-availability event', () => {
+    const { result } = renderHook(() =>
+      useModuleAvailability(port as unknown as chrome.runtime.Port),
+    );
+
+    act(() => {
+      port._emit({
+        type: 'module-availability',
+        modules: { csm: true, cm: true },
+      } satisfies PopupEvent);
+    });
+
+    expect(result.current).toEqual({ csm: true, cm: true });
+  });
+
+  it('does not report cm as false before availability is known', () => {
+    const { result } = renderHook(() =>
+      useModuleAvailability(port as unknown as chrome.runtime.Port),
+    );
+
+    // Before any event, cm should be undefined — not false.
+    // This prevents the auto-switch effect from resetting a persisted CM selection.
+    expect(result.current.cm).toBeUndefined();
   });
 });
