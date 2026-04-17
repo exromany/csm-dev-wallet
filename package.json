@@ -22,7 +22,7 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@lidofinance/lido-csm-sdk": "2.0.0-alpha.7",
+    "@lidofinance/lido-csm-sdk": "^2.0.0-alpha.42",
     "@lidofinance/lido-ethereum-sdk": "^4.5.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

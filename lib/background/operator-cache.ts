@@ -1,11 +1,10 @@
 import { createPublicClient, http, zeroAddress, type Address, type PublicClient, type Chain } from 'viem';
 import {
-  COMMON_CONTRACT_ADDRESSES,
-  CSM_MODULE_IDS,
-  CM_MODULE_IDS,
-  CSM_OPERATOR_TYPE_CURVE_ID,
-  CM_OPERATOR_TYPE_CURVE_ID,
-  type OperatorType,
+  COMMON_ADDRESSES,
+  MODULE_CONFIG,
+  MODULE_NAME,
+  OPERATOR_TYPE_CURVE_ID,
+  type OPERATOR_TYPE,
 } from '@lidofinance/lido-csm-sdk/common';
 import { SMDiscoveryAbi } from '@lidofinance/lido-csm-sdk/abi';
 import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
@@ -15,15 +14,10 @@ const STALE_MS = 30 * 60 * 1000; // 30 minutes
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const BATCH_SIZE = 500n;
 
-const MODULE_IDS: Record<ModuleType, Record<SupportedChainId, number>> = {
-  csm: CSM_MODULE_IDS as Record<SupportedChainId, number>,
-  cm: CM_MODULE_IDS as Record<SupportedChainId, number>,
+const MODULE_NAMES: Record<ModuleType, MODULE_NAME> = {
+  csm: MODULE_NAME.CSM,
+  cm: MODULE_NAME.CM,
 };
-
-const CURVE_ID_MAPS = {
-  csm: CSM_OPERATOR_TYPE_CURVE_ID,
-  cm: CM_OPERATOR_TYPE_CURVE_ID,
-} as const;
 
 /** The chain whose contracts/ABIs to use — forkedFrom for Anvil, chainId otherwise */
 function contractChainId(ctx: CacheContext): SupportedChainId {
@@ -82,10 +76,9 @@ export async function setModuleAvailabilityCache(
   await chrome.storage.local.set({ [key]: { ...modules, checkedAt: Date.now() } });
 }
 
-function resolveOperatorType(moduleType: ModuleType, curveId: bigint): OperatorType {
-  const mapping = CURVE_ID_MAPS[moduleType];
-  const entry = Object.entries(mapping).find(([, id]) => id === curveId);
-  return (entry?.[0] ?? 'CC') as OperatorType;
+function resolveOperatorType(curveId: bigint): OPERATOR_TYPE {
+  const entry = Object.entries(OPERATOR_TYPE_CURVE_ID).find(([, id]) => id === curveId);
+  return (entry?.[0] ?? 'CC') as OPERATOR_TYPE;
 }
 
 export function storageKey(ctx: CacheContext): string {
@@ -93,8 +86,8 @@ export function storageKey(ctx: CacheContext): string {
 }
 
 function getDiscoveryAddress(chainId: SupportedChainId): Address {
-  const addresses = COMMON_CONTRACT_ADDRESSES[chainId as keyof typeof COMMON_CONTRACT_ADDRESSES];
-  const addr = addresses?.SMDiscovery;
+  const addresses = COMMON_ADDRESSES[chainId as keyof typeof COMMON_ADDRESSES];
+  const addr = addresses?.smDiscovery;
   if (!addr) throw new Error(`No SMDiscovery address for chain ${chainId}`);
   return addr;
 }
@@ -116,7 +109,7 @@ export async function isModuleAvailable(ctx: CacheContext): Promise<boolean> {
 
   try {
     const discoveryAddress = getDiscoveryAddress(ccid);
-    const moduleId = BigInt(MODULE_IDS[ctx.moduleType][ccid]);
+    const moduleId = MODULE_CONFIG[MODULE_NAMES[ctx.moduleType]][ccid].moduleId;
     const [moduleAddress] = await client.readContract({
       address: discoveryAddress,
       abi: SMDiscoveryAbi,
@@ -137,7 +130,7 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
   const ccid = contractChainId(ctx);
   const client = getClient(ctx);
   const discoveryAddress = getDiscoveryAddress(ccid);
-  const moduleId = BigInt(MODULE_IDS[ctx.moduleType][ccid]);
+  const moduleId = MODULE_CONFIG[MODULE_NAMES[ctx.moduleType]][ccid].moduleId;
 
   // Paginate through all operators
   const allRaw: Awaited<ReturnType<typeof readOperatorBatch>>[number][] = [];
@@ -171,7 +164,7 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
       extendedManagerPermissions: info.extendedManagerPermissions,
       ownerAddress,
       curveId: curveId.toString(),
-      operatorType: resolveOperatorType(ctx.moduleType, curveId),
+      operatorType: resolveOperatorType(curveId),
     };
   });
 

@@ -5,13 +5,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { rawJsonRpc } = vi.hoisted(() => ({ rawJsonRpc: vi.fn() }));
 vi.mock('../../lib/background/rpc.ts', () => ({ rawJsonRpc }));
 
-const MAINNET_CSM = '0x1111111111111111111111111111111111111111';
-const HOODI_CSM = '0x2222222222222222222222222222222222222222';
+const MAINNET_CSM = '0xdA7dE2ECdDfccC6c3AF10108Db212ACBBf9EA83F';
+const HOODI_CSM = '0x79CEf36D84743222f37765204Bec41E92a93E59d';
 
 vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
-  CSM_CONTRACT_ADDRESSES: {
-    1: { csModule: '0x1111111111111111111111111111111111111111' },
-    560048: { csModule: '0x2222222222222222222222222222222222222222' },
+  MODULE_NAME: { CSM: 'CSM', CM: 'CM' },
+  MODULE_CONFIG: {
+    CSM: {
+      1: { contractAddresses: { csModule: '0xdA7dE2ECdDfccC6c3AF10108Db212ACBBf9EA83F' }, moduleId: 3n },
+      560048: { contractAddresses: { csModule: '0x79CEf36D84743222f37765204Bec41E92a93E59d' }, moduleId: 4n },
+    },
+    CM: {
+      1: { contractAddresses: {}, moduleId: 4n },
+      560048: { contractAddresses: {}, moduleId: 5n },
+    },
   },
 }));
 

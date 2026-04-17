@@ -15,14 +15,22 @@ vi.mock('viem', async () => {
 });
 
 vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
-  COMMON_CONTRACT_ADDRESSES: {
-    1: { SMDiscovery: '0x4444444444444444444444444444444444444444' },
-    560048: { SMDiscovery: '0x4444444444444444444444444444444444444444' },
+  COMMON_ADDRESSES: {
+    1: { smDiscovery: '0x4444444444444444444444444444444444444444' },
+    560048: { smDiscovery: '0x4444444444444444444444444444444444444444' },
   },
-  CSM_MODULE_IDS: { 1: 1, 560048: 1 },
-  CM_MODULE_IDS: { 1: 2, 560048: 2 },
-  CSM_OPERATOR_TYPE_CURVE_ID: { DEF: 0n, LEA: 1n, ICS: 2n, CC: 3n },
-  CM_OPERATOR_TYPE_CURVE_ID: { PTO: 0n, PO: 1n, CC: 3n },
+  MODULE_NAME: { CSM: 'CSM', CM: 'CM' },
+  MODULE_CONFIG: {
+    CSM: {
+      1: { contractAddresses: {}, moduleId: 1n },
+      560048: { contractAddresses: {}, moduleId: 1n },
+    },
+    CM: {
+      1: { contractAddresses: {}, moduleId: 2n },
+      560048: { contractAddresses: {}, moduleId: 2n },
+    },
+  },
+  OPERATOR_TYPE_CURVE_ID: { CSM_DEF: 0n, CSM_LEA: 1n, CSM_ICS: 2n, CM_PTO: 0n, CM_PO: 1n, CC: undefined },
 }));
 
 vi.mock('@lidofinance/lido-csm-sdk/abi', () => ({
@@ -193,7 +201,7 @@ describe('fetchOperators', () => {
       proposedRewardsAddress: undefined,
       extendedManagerPermissions: true,
       curveId: '0',
-      operatorType: 'DEF',
+      operatorType: 'CSM_DEF',
     });
   });
 

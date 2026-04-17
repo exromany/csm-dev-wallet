@@ -3,13 +3,13 @@ import { filterOperators } from '../../lib/popup/hooks.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C } from '../fixtures.js';
 
 const ops = [
-  makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, operatorType: 'DEF' }),
-  makeOperator({ id: '10', managerAddress: ADDR_B, rewardsAddress: ADDR_C, operatorType: 'CSM' }),
+  makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, operatorType: 'CSM_DEF' }),
+  makeOperator({ id: '10', managerAddress: ADDR_B, rewardsAddress: ADDR_C, operatorType: 'CSM_LEA' }),
   makeOperator({
     id: '21',
     managerAddress: ADDR_C,
     rewardsAddress: ADDR_A,
-    operatorType: 'DEF',
+    operatorType: 'CSM_DEF',
     proposedManagerAddress: ADDR_B,
     proposedRewardsAddress: ADDR_A,
   }),
@@ -80,7 +80,7 @@ describe('filterOperators', () => {
 
   // operatorType search
   it('filters by operatorType (case-insensitive)', () => {
-    const result = filterOperators(ops, 'csm');
+    const result = filterOperators(ops, 'lea');
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('10');
   });

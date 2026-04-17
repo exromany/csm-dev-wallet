@@ -1,4 +1,4 @@
-import { CSM_CONTRACT_ADDRESSES } from '@lidofinance/lido-csm-sdk/common';
+import { MODULE_CONFIG, MODULE_NAME } from '@lidofinance/lido-csm-sdk/common';
 import type { Address } from 'viem';
 import { CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
 import { rawJsonRpc } from './rpc.js';
@@ -54,10 +54,10 @@ export async function detectAnvilFork(
 
 /** Probe CSM contracts to determine which chain was forked */
 async function probeContracts(rpcUrl: string): Promise<SupportedChainId | null> {
-  const mainnetCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Mainnet].csModule;
+  const mainnetCsm = MODULE_CONFIG[MODULE_NAME.CSM][CHAIN_ID.Mainnet].contractAddresses.csModule;
   if (mainnetCsm && (await hasCode(rpcUrl, mainnetCsm))) return CHAIN_ID.Mainnet;
 
-  const hoodiCsm = CSM_CONTRACT_ADDRESSES[CHAIN_ID.Hoodi].csModule;
+  const hoodiCsm = MODULE_CONFIG[MODULE_NAME.CSM][CHAIN_ID.Hoodi].contractAddresses.csModule;
   if (hoodiCsm && (await hasCode(rpcUrl, hoodiCsm))) return CHAIN_ID.Hoodi;
 
   return null;

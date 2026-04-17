@@ -11,7 +11,7 @@ export function makeOperator(overrides: Partial<CachedOperator> & { id: string }
     extendedManagerPermissions: true,
     ownerAddress: ADDR_A,
     curveId: '0',
-    operatorType: 'DEF',
+    operatorType: 'CSM_DEF',
     ...overrides,
   };
 }
