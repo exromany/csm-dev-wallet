@@ -40,6 +40,7 @@ import {
   type ApprovalResponse,
 } from '../lib/shared/messages.js';
 import { requestApproval, type PendingApproval } from '../lib/background/approval.js';
+import { getSigningMode } from '../lib/background/test-rpc.js';
 import { isAddress, getAddress, type Address } from 'viem';
 
 function assertAddress(value: string): asserts value is Address {
@@ -133,14 +134,25 @@ export default defineBackground(() => {
     }
 
     if (SIGNING_METHODS.has(method)) {
-      const siteState = await getSiteState(origin);
-      const globalSettings = await getGlobalSettings();
-      if (globalSettings.requireApproval && siteState.chainId === ANVIL_CHAIN_ID && siteState.selectedAddress) {
-        const approved = await requestApproval(method, siteState.selectedAddress.address, pendingApprovals);
-        if (!approved) {
-          return { error: { code: 4001, message: 'CSM Dev Wallet: User rejected the request' } };
+      const mode = getSigningMode();
+      if (mode === 'reject') {
+        return { error: { code: 4001, message: 'CSM Dev Wallet: User rejected the request' } };
+      }
+      if (mode === 'error') {
+        return { error: { code: -32603, message: 'CSM Dev Wallet: Simulated RPC error' } };
+      }
+      if (mode !== 'approve') {
+        // mode === 'prompt' — use existing approval popup flow
+        const siteState = await getSiteState(origin);
+        const globalSettings = await getGlobalSettings();
+        if (globalSettings.requireApproval && siteState.chainId === ANVIL_CHAIN_ID && siteState.selectedAddress) {
+          const approved = await requestApproval(method, siteState.selectedAddress.address, pendingApprovals);
+          if (!approved) {
+            return { error: { code: 4001, message: 'CSM Dev Wallet: User rejected the request' } };
+          }
         }
       }
+      // mode === 'approve' falls through — no popup, direct execution
     }
     return handleRpcRequest(method, params, origin);
   }

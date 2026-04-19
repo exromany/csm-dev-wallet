@@ -27,14 +27,16 @@ Communication between layers uses Chrome Messaging API.
 ## Commands
 
 ```bash
-npm run dev        # WXT dev mode with hot reload
-npm run build      # Production build → .output/chrome-mv3/
-npm run zip        # Build + zip for distribution
-npm run test       # vitest single run
-npm run test:watch # vitest watch mode
-npm run test:e2e   # build + Playwright e2e suite (all *.e2e.ts files)
-npm run lint       # oxlint
-npm run typecheck  # tsc --noEmit
+npm run prepare        # Generate WXT types (.wxt/ directory)
+npm run dev            # WXT dev mode with hot reload
+npm run build          # Production build → .output/chrome-mv3/
+npm run zip            # Build + zip for distribution
+npm run test           # vitest single run
+npm run test:watch     # vitest watch mode
+npm run test:e2e       # build + Playwright e2e suite (all *.e2e.ts files)
+npm run lint           # oxlint
+npm run typecheck      # tsc --noEmit
+npm run build:package  # build extension + playwright helpers → dist/
 ```
 
 Requires Node >=24. Load unpacked from `.output/chrome-mv3-dev/` (dev) or `.output/chrome-mv3/` (prod) in `chrome://extensions`.
@@ -94,6 +96,16 @@ test/
 - **CM module:** May not be deployed on all networks — `fetchAllOperators` catches and re-throws after caching empty result
 - **Favorites scoping:** Stored as `"moduleType:chainId:operatorId"` (e.g. `"csm:1:42"`). Legacy bare IDs migrated on load.
 - **State migration:** `migrateState()` handles legacy storage formats — don't assume storage shape is current
+
+## Playwright Testing API
+
+Consumer-facing docs (API, signing modes, RPC methods) live in **README.md** and JSDoc on `playwright/types.ts` — both ship with the npm package.
+
+### Key files
+
+- `playwright/` — helper package source (types, wallet-controller, launch)
+- `lib/background/test-rpc.ts` — wallet_test* RPC handler
+- `test/e2e/playwright-api.e2e.ts` — e2e tests for the API
 
 ## Related Repos
 

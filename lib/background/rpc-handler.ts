@@ -4,6 +4,7 @@ import { withImpersonation, getForkedFrom } from './anvil.js';
 import { rawJsonRpc } from './rpc.js';
 import { errorMessage } from '../shared/errors.js';
 import { DEFAULT_NETWORKS, ANVIL_NETWORK, ANVIL_CHAIN_ID, SUPPORTED_CHAIN_IDS, type SupportedChainId } from '../shared/networks.js';
+import { handleTestRpc, NOT_HANDLED } from './test-rpc.js';
 
 const WATCH_ONLY_ERROR = {
   code: 4200,
@@ -26,6 +27,10 @@ export async function handleRpcRequest(
   params: unknown[] | undefined,
   origin: string,
 ): Promise<{ result?: unknown; error?: { code: number; message: string } }> {
+  // Test RPC methods — handled entirely by test-rpc module
+  const testResult = await handleTestRpc(origin, method, params);
+  if (testResult !== NOT_HANDLED) return testResult;
+
   const siteState = await getSiteState(origin);
   const globalSettings = await getGlobalSettings();
   const anvilForkedFrom = await getForkedFrom();
