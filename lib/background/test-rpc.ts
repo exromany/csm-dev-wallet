@@ -11,11 +11,20 @@ const SIGNING_MODES: SigningMode[] = ['approve', 'reject', 'error', 'prompt'];
 let signingMode: SigningMode = 'prompt';
 
 export function getSigningMode(): SigningMode {
+  // Allow setting from sw.evaluate() during Playwright setup (before any page exists)
+  if (typeof self !== 'undefined' && (self as any).__testSigningMode) {
+    const external = (self as any).__testSigningMode as string;
+    if (SIGNING_MODES.includes(external as SigningMode)) return external as SigningMode;
+  }
   return signingMode;
 }
 
 export function setSigningMode(mode: SigningMode): void {
   signingMode = mode;
+  // Clear the external override so RPC-set values take precedence
+  if (typeof self !== 'undefined') {
+    (self as any).__testSigningMode = undefined;
+  }
 }
 
 export type TestRpcResult =
