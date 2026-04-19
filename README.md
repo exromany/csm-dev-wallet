@@ -63,3 +63,69 @@ For dev mode with hot reload: `npm run dev`, load from `.output/chrome-mv3-dev/`
 | `npm run test:e2e` | Build + Playwright e2e tests |
 | `npm run lint` | Lint with oxlint |
 | `npm run typecheck` | TypeScript check |
+| `npm run build:package` | Build extension + playwright helpers → dist/ |
+
+## Playwright Testing API
+
+This extension ships as an npm package with a Playwright helper for dapp e2e tests. Install it and get a programmable wallet with zero manual interaction.
+
+### Launch
+
+```typescript
+import { launch } from 'csm-dev-wallet/playwright';
+
+const { context, wallet } = await launch();
+// For local dev: launch({ extensionPath: '.output/chrome-mv3' })
+```
+
+`launch()` starts Chromium with the extension loaded and returns a `WalletController` bound to the service worker.
+
+### Setup (before page navigation)
+
+Talks directly to the service worker — call before navigating to the dapp.
+
+```typescript
+await wallet.setup({
+  origin: 'http://localhost:3000',
+  network: 1,                        // chainId
+  account: '0x...',                  // auto-connects, no popup
+  signingMode: 'approve',           // 'approve' | 'reject' | 'error' | 'prompt'
+  operators: [...],                  // optional: seed operator cache
+  moduleAvailability: { csm: true, cm: false }, // optional
+});
+```
+
+### Page control (mid-test)
+
+These methods call `wallet_test*` RPC via `window.ethereum` on the given page.
+
+```typescript
+await wallet.switchAccount(page, '0xNew');     // emits accountsChanged
+await wallet.switchNetwork(page, 560048);      // emits chainChanged
+await wallet.setSigningMode(page, 'reject');   // next sign → 4001
+await wallet.disconnect(page);                 // emits accountsChanged([])
+const state = await wallet.getState(page);     // current wallet state
+```
+
+### Signing modes
+
+| Mode | Behavior |
+|---|---|
+| `approve` | Auto-sign via Anvil impersonation, no popup |
+| `reject` | Auto-reject with code 4001 (user denied) |
+| `error` | Simulate RPC failure with code -32603 |
+| `prompt` | Normal popup behavior (default) |
+
+### Custom RPC methods
+
+Available on `window.ethereum` when the extension is loaded:
+
+| Method | Params | Effect |
+|---|---|---|
+| `wallet_testGetState` | — | Returns composed wallet state |
+| `wallet_testConnect` | `{ address?, source? }` | Connect with optional address |
+| `wallet_testDisconnect` | — | Disconnect, emit accountsChanged([]) |
+| `wallet_testSetAccount` | `{ address, source? }` | Switch address, emit accountsChanged |
+| `wallet_testSetNetwork` | `{ chainId }` | Switch chain, emit chainChanged |
+| `wallet_testSetSigningMode` | `{ mode }` | Set signing behavior |
+| `wallet_testSeedOperators` | `{ operators, chainId, moduleType }` | Inject operator cache |

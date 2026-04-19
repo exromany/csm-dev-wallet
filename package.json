@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "wxt build && npx tsx test/e2e/run-all.ts",
     "test:e2e:only": "npx tsx",
-    "postinstall": "wxt prepare",
+    "prepare": "wxt prepare",
     "build:playwright": "tsup playwright/index.ts --format esm --dts --outDir dist/playwright --external playwright --external viem",
     "build:package": "wxt build && npm run build:playwright && cp -r .output/chrome-mv3 dist/extension"
   },
