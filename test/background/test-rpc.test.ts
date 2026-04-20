@@ -524,3 +524,58 @@ describe('wallet_testSetOperatorAccount', () => {
     expect(res).toEqual({ result: null });
   });
 });
+
+// ── wallet_testSetRpcUrl ──
+
+describe('wallet_testSetRpcUrl', () => {
+  it('persists custom RPC URL via setGlobalSettings', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetRpcUrl', [
+      { chainId: 1, rpcUrl: 'https://my-rpc.example.com' },
+    ]);
+
+    expect(mockSetGlobalSettings).toHaveBeenCalledWith({
+      customRpcUrls: { 1: 'https://my-rpc.example.com' },
+    });
+    expect(res).toEqual({ result: null });
+  });
+
+  it('merges with existing custom RPC URLs', async () => {
+    mockGetGlobalSettings.mockResolvedValue(
+      makeGlobalSettings({ customRpcUrls: { 560048: 'https://existing-hoodi-rpc.com' } }),
+    );
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetRpcUrl', [
+      { chainId: 1, rpcUrl: 'https://my-rpc.example.com' },
+    ]);
+
+    expect(mockSetGlobalSettings).toHaveBeenCalledWith({
+      customRpcUrls: {
+        560048: 'https://existing-hoodi-rpc.com',
+        1: 'https://my-rpc.example.com',
+      },
+    });
+    expect(res).toEqual({ result: null });
+  });
+
+  it('clears client cache', async () => {
+    await handleTestRpc(ORIGIN, 'wallet_testSetRpcUrl', [
+      { chainId: 1, rpcUrl: 'https://my-rpc.example.com' },
+    ]);
+
+    expect(mockClearClientCache).toHaveBeenCalledOnce();
+  });
+
+  it('returns -32602 when chainId missing', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetRpcUrl', [
+      { rpcUrl: 'https://my-rpc.example.com' },
+    ]);
+    expect(res).toMatchObject({ error: { code: -32602 } });
+    expect(mockSetGlobalSettings).not.toHaveBeenCalled();
+  });
+
+  it('returns -32602 when rpcUrl missing', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetRpcUrl', [{ chainId: 1 }]);
+    expect(res).toMatchObject({ error: { code: -32602 } });
+    expect(mockSetGlobalSettings).not.toHaveBeenCalled();
+  });
+});

@@ -130,6 +130,22 @@ export async function handleTestRpc(
       return { result: null };
     }
 
+    case 'wallet_testSetRpcUrl': {
+      const p = (params?.[0] ?? {}) as { chainId?: number; rpcUrl?: string };
+      if (p.chainId === undefined || p.chainId === null) {
+        return { error: { code: -32602, message: 'Missing chainId parameter' } };
+      }
+      if (!p.rpcUrl) {
+        return { error: { code: -32602, message: 'Missing rpcUrl parameter' } };
+      }
+      const settings = await getGlobalSettings();
+      await setGlobalSettings({
+        customRpcUrls: { ...settings.customRpcUrls, [p.chainId]: p.rpcUrl },
+      });
+      clearClientCache();
+      return { result: null };
+    }
+
     case 'wallet_testSetOperatorAccount': {
       const p = (params?.[0] ?? {}) as {
         operatorId?: string;
