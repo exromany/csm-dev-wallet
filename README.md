@@ -30,6 +30,14 @@ Anvil fork source is auto-detected.
 1. Download the latest `.zip` from [Releases](https://github.com/exromany/csm-dev-wallet/releases)
 2. Unzip and load unpacked in `chrome://extensions` (enable Developer mode)
 
+Or via command line:
+
+```bash
+curl -sL https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet.zip -o /tmp/csm-dev-wallet.zip && unzip -o /tmp/csm-dev-wallet.zip -d ~/csm-dev-wallet
+```
+
+Re-run the same command to update, then click the reload icon on the extension card.
+
 **Option 2: Build from source**
 
 ```bash
