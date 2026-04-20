@@ -409,3 +409,118 @@ describe('wallet_testGetOperator', () => {
     expect(res).toMatchObject({ error: { code: -32601 } });
   });
 });
+
+// ── wallet_testSetOperatorAccount ──
+
+describe('wallet_testSetOperatorAccount', () => {
+  const op = makeOperator({
+    id: '10',
+    managerAddress: ADDR_A,
+    rewardsAddress: ADDR_B,
+    proposedManagerAddress: ADDR_C,
+    proposedRewardsAddress: undefined,
+  });
+
+  beforeEach(() => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_csm_1: { operators: [op], lastFetchedAt: Date.now() },
+    });
+  });
+
+  it('sets manager address', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', role: 'manager', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(mockSetSiteState).toHaveBeenCalledWith(ORIGIN, {
+      selectedAddress: {
+        address: ADDR_A,
+        source: { type: 'operator', operatorId: '10', role: 'manager' },
+      },
+      isConnected: true,
+    });
+    expect(mockNotifyAccountsChanged).toHaveBeenCalledWith(ORIGIN, [ADDR_A]);
+    expect(res).toEqual({ result: null });
+  });
+
+  it('sets rewards address', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', role: 'rewards', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(mockSetSiteState).toHaveBeenCalledWith(ORIGIN, {
+      selectedAddress: {
+        address: ADDR_B,
+        source: { type: 'operator', operatorId: '10', role: 'rewards' },
+      },
+      isConnected: true,
+    });
+    expect(res).toEqual({ result: null });
+  });
+
+  it('sets proposedManager address', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', role: 'proposedManager', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(mockSetSiteState).toHaveBeenCalledWith(ORIGIN, {
+      selectedAddress: {
+        address: ADDR_C,
+        source: { type: 'operator', operatorId: '10', role: 'proposedManager' },
+      },
+      isConnected: true,
+    });
+    expect(res).toEqual({ result: null });
+  });
+
+  it('returns -32602 when role address is absent (proposedRewards not set)', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', role: 'proposedRewards', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(res).toMatchObject({ error: { code: -32602 } });
+    expect(mockSetSiteState).not.toHaveBeenCalled();
+  });
+
+  it('returns -32602 when operatorId missing', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { role: 'manager', chainId: 1, moduleType: 'csm' },
+    ]);
+    expect(res).toMatchObject({ error: { code: -32602 } });
+  });
+
+  it('returns -32602 when role missing', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', chainId: 1, moduleType: 'csm' },
+    ]);
+    expect(res).toMatchObject({ error: { code: -32602 } });
+  });
+
+  it('returns -32602 for invalid role', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', role: 'owner', chainId: 1, moduleType: 'csm' },
+    ]);
+    expect(res).toMatchObject({ error: { code: -32602 } });
+  });
+
+  it('returns -32601 when operator not found', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '999', role: 'manager', chainId: 1, moduleType: 'csm' },
+    ]);
+    expect(res).toMatchObject({ error: { code: -32601 } });
+  });
+
+  it('accepts explicit chainId and moduleType', async () => {
+    mockGetSiteState.mockResolvedValue(makeSiteState({ chainId: 560048, moduleType: 'cm' }));
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_csm_1: { operators: [op], lastFetchedAt: Date.now() },
+    });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testSetOperatorAccount', [
+      { operatorId: '10', role: 'manager', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(chrome.storage.local.get).toHaveBeenCalledWith('operators_csm_1');
+    expect(res).toEqual({ result: null });
+  });
+});

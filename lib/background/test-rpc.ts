@@ -130,6 +130,53 @@ export async function handleTestRpc(
       return { result: null };
     }
 
+    case 'wallet_testSetOperatorAccount': {
+      const p = (params?.[0] ?? {}) as {
+        operatorId?: string;
+        role?: unknown;
+        chainId?: number;
+        moduleType?: string;
+      };
+      if (!p.operatorId) {
+        return { error: { code: -32602, message: 'Missing operatorId parameter' } };
+      }
+      if (!p.role || !ADDRESS_ROLES.includes(p.role as AddressRole)) {
+        return {
+          error: {
+            code: -32602,
+            message: `Missing or invalid role. Must be one of: ${ADDRESS_ROLES.join(', ')}`,
+          },
+        };
+      }
+      const role = p.role as AddressRole;
+      const site = await getSiteState(origin);
+      const chainId = p.chainId ?? site.chainId;
+      const moduleType = p.moduleType ?? site.moduleType;
+      const key = `operators_${moduleType}_${chainId}`;
+      const data = await chrome.storage.local.get(key);
+      const entry = data[key] as { operators: Array<Record<string, Address | undefined>> } | undefined;
+      const operator = entry?.operators.find((op) => op['id'] === p.operatorId);
+      if (!operator) {
+        return { error: { code: -32601, message: `Operator ${p.operatorId} not found` } };
+      }
+      const field = ROLE_FIELDS[role];
+      const address = operator[field];
+      if (!address) {
+        return {
+          error: { code: -32602, message: `Operator ${p.operatorId} has no address for role "${role}"` },
+        };
+      }
+      await setSiteState(origin, {
+        selectedAddress: {
+          address,
+          source: { type: 'operator', operatorId: p.operatorId, role },
+        },
+        isConnected: true,
+      });
+      await notifyAccountsChanged(origin, [address]);
+      return { result: null };
+    }
+
     case 'wallet_testGetOperator': {
       const p = (params?.[0] ?? {}) as {
         operatorId?: string;
