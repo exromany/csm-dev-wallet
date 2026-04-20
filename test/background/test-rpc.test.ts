@@ -1,25 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ADDR_A, ADDR_B, makeState } from '../fixtures.js';
+import { ADDR_A, ADDR_B, ADDR_C, makeOperator, makeState, makeSiteState, makeGlobalSettings } from '../fixtures.js';
 
 // ── Mock state module ──
 
 const {
   mockGetComposedState,
+  mockGetSiteState,
   mockSetSiteState,
   mockNotifyAccountsChanged,
   mockNotifyChainChanged,
+  mockGetGlobalSettings,
+  mockSetGlobalSettings,
 } = vi.hoisted(() => ({
   mockGetComposedState: vi.fn(),
+  mockGetSiteState: vi.fn(),
   mockSetSiteState: vi.fn(),
   mockNotifyAccountsChanged: vi.fn(),
   mockNotifyChainChanged: vi.fn(),
+  mockGetGlobalSettings: vi.fn(),
+  mockSetGlobalSettings: vi.fn(),
 }));
 
 vi.mock('../../lib/background/state.js', () => ({
   getComposedState: mockGetComposedState,
+  getSiteState: mockGetSiteState,
   setSiteState: mockSetSiteState,
   notifyAccountsChanged: mockNotifyAccountsChanged,
   notifyChainChanged: mockNotifyChainChanged,
+  getGlobalSettings: mockGetGlobalSettings,
+  setGlobalSettings: mockSetGlobalSettings,
+}));
+
+// ── Mock operator-cache module ──
+
+const { mockClearClientCache, mockFetchOperators } = vi.hoisted(() => ({
+  mockClearClientCache: vi.fn(),
+  mockFetchOperators: vi.fn(),
+}));
+
+vi.mock('../../lib/background/operator-cache.js', () => ({
+  clearClientCache: mockClearClientCache,
+  fetchOperators: mockFetchOperators,
 }));
 
 // ── Imports under test ──
@@ -39,11 +60,14 @@ const ORIGIN = 'https://stake.lido.fi';
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(chrome.storage.local.set).mockResolvedValue(undefined);
+  vi.mocked(chrome.storage.local.get).mockResolvedValue({});
   mockGetComposedState.mockResolvedValue(makeState());
+  mockGetSiteState.mockResolvedValue(makeSiteState());
   mockSetSiteState.mockResolvedValue(undefined);
+  mockGetGlobalSettings.mockResolvedValue(makeGlobalSettings());
+  mockSetGlobalSettings.mockResolvedValue(undefined);
   mockNotifyAccountsChanged.mockResolvedValue(undefined);
   mockNotifyChainChanged.mockResolvedValue(undefined);
-  // reset signing mode to default
   setSigningMode('prompt');
 });
 
@@ -285,5 +309,46 @@ describe('wallet_testSeedOperators', () => {
     const { lastFetchedAt } = setCall['operators_csm_1']!;
     expect(lastFetchedAt).toBeGreaterThanOrEqual(before);
     expect(lastFetchedAt).toBeLessThanOrEqual(after);
+  });
+});
+
+// ── wallet_testGetOperators ──
+
+describe('wallet_testGetOperators', () => {
+  it('returns cached operators for explicit chainId/moduleType', async () => {
+    const operators = [makeOperator({ id: '1' }), makeOperator({ id: '2' })];
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_csm_1: { operators, lastFetchedAt: Date.now() },
+    });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperators', [
+      { chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(chrome.storage.local.get).toHaveBeenCalledWith('operators_csm_1');
+    expect(res).toEqual({ result: operators });
+  });
+
+  it('defaults to current site state when no params', async () => {
+    mockGetSiteState.mockResolvedValue(makeSiteState({ chainId: 560048, moduleType: 'cm' }));
+    const operators = [makeOperator({ id: '5' })];
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_cm_560048: { operators, lastFetchedAt: Date.now() },
+    });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperators', [{}]);
+
+    expect(chrome.storage.local.get).toHaveBeenCalledWith('operators_cm_560048');
+    expect(res).toEqual({ result: operators });
+  });
+
+  it('returns null when no cache exists', async () => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({});
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperators', [
+      { chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(res).toEqual({ result: null });
   });
 });

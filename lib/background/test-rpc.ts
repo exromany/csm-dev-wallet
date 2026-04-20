@@ -1,5 +1,16 @@
-import { setSiteState, getComposedState, notifyAccountsChanged, notifyChainChanged } from './state.js';
-import type { AddressSource } from '../shared/types.js';
+import {
+  setSiteState,
+  getSiteState,
+  getComposedState,
+  getGlobalSettings,
+  setGlobalSettings,
+  notifyAccountsChanged,
+  notifyChainChanged,
+} from './state.js';
+import { clearClientCache, fetchOperators } from './operator-cache.js';
+import { DEFAULT_NETWORKS, ANVIL_NETWORK, ANVIL_CHAIN_ID } from '../shared/networks.js';
+import type { SupportedChainId } from '../shared/networks.js';
+import type { AddressSource, AddressRole } from '../shared/types.js';
 import type { Address } from 'viem';
 
 export const NOT_HANDLED: unique symbol = Symbol('NOT_HANDLED');
@@ -31,6 +42,15 @@ export type TestRpcResult =
   | { result: unknown; error?: never }
   | { error: { code: number; message: string }; result?: never }
   | typeof NOT_HANDLED;
+
+const ADDRESS_ROLES: AddressRole[] = ['manager', 'rewards', 'proposedManager', 'proposedRewards'];
+
+const ROLE_FIELDS: Record<AddressRole, string> = {
+  manager: 'managerAddress',
+  rewards: 'rewardsAddress',
+  proposedManager: 'proposedManagerAddress',
+  proposedRewards: 'proposedRewardsAddress',
+};
 
 export async function handleTestRpc(
   origin: string,
@@ -108,6 +128,17 @@ export async function handleTestRpc(
         [key]: { operators: p.operators, lastFetchedAt: Date.now() },
       });
       return { result: null };
+    }
+
+    case 'wallet_testGetOperators': {
+      const p = (params?.[0] ?? {}) as { chainId?: number; moduleType?: string };
+      const site = await getSiteState(origin);
+      const chainId = p.chainId ?? site.chainId;
+      const moduleType = p.moduleType ?? site.moduleType;
+      const key = `operators_${moduleType}_${chainId}`;
+      const data = await chrome.storage.local.get(key);
+      const entry = data[key] as { operators: unknown[] } | undefined;
+      return { result: entry?.operators ?? null };
     }
 
     default:
