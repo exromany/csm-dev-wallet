@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -17,11 +18,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          registry-url: https://registry.npmjs.org
 
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
+
+      - run: npm run build:package
 
       - run: npm run zip
 
@@ -36,3 +40,14 @@ jobs:
             --title "$TAG" \
             --notes "Built from $(git rev-parse --short HEAD)" \
             --latest
+
+      - name: Publish to npm
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "csm-dev-wallet@${VERSION}" version 2>/dev/null; then
+            echo "v${VERSION} already published, skipping"
+          else
+            npm publish --provenance --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
