@@ -107,6 +107,34 @@ await wallet.disconnect(page);                 // emits accountsChanged([])
 const state = await wallet.getState(page);     // current wallet state
 ```
 
+### Operator queries (mid-test)
+
+Read cached operators, look up a single operator, or select an account by operator+role.
+
+```typescript
+const ops = await wallet.getOperators(page);              // all cached operators
+const ops = await wallet.getOperators(page, 560048, 'cm'); // explicit chain/module
+
+const op = await wallet.getOperator(page, '42');           // single operator by ID
+
+await wallet.selectOperator(page, '42', 'manager');        // set manager address as active
+await wallet.selectOperator(page, '42', 'rewards');        // set rewards address
+await wallet.selectOperator(page, '42', 'proposedManager'); // set proposed manager
+```
+
+### RPC & operator refresh (mid-test)
+
+Configure RPC endpoints and refresh operator data from chain.
+
+```typescript
+await wallet.setRpcUrl(page, 1, 'https://my-rpc.example.com');   // set mainnet RPC
+await wallet.setRpcUrl(page, 31337, 'http://127.0.0.1:9545');    // set anvil RPC
+
+const ops = await wallet.refreshOperators(page);                  // refetch from RPC
+const ops = await wallet.refreshOperators(page, 560048, 'cm');    // explicit chain/module
+const ops = await wallet.refreshOperators(page, 1, 'csm', rpcUrl); // with RPC override
+```
+
 ### Signing modes
 
 | Mode | Behavior |
@@ -129,3 +157,8 @@ Available on `window.ethereum` when the extension is loaded:
 | `wallet_testSetNetwork` | `{ chainId }` | Switch chain, emit chainChanged |
 | `wallet_testSetSigningMode` | `{ mode }` | Set signing behavior |
 | `wallet_testSeedOperators` | `{ operators, chainId, moduleType }` | Inject operator cache |
+| `wallet_testGetOperators` | `{ chainId?, moduleType? }` | Get cached operators (defaults from site state) |
+| `wallet_testGetOperator` | `{ operatorId, chainId?, moduleType? }` | Get single operator by ID |
+| `wallet_testSetOperatorAccount` | `{ operatorId, role, chainId?, moduleType? }` | Select operator address by role |
+| `wallet_testSetRpcUrl` | `{ chainId, rpcUrl }` | Set custom RPC URL for a chain |
+| `wallet_testRefreshOperators` | `{ chainId?, moduleType?, rpcUrl? }` | Refetch operators from RPC |
