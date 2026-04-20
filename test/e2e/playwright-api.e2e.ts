@@ -155,6 +155,84 @@ async function main() {
       await page.close();
     });
 
+    // Test 7: getOperators returns seeded data
+    await test('wallet.getOperators returns cached operators', async () => {
+      await wallet.setup({
+        origin: dappOrigin,
+        network: 1,
+        account: address,
+        operators,
+      });
+      const page = await openTestDapp(context, dapp.url);
+
+      const result = await wallet.getOperators(page);
+      if (!Array.isArray(result)) throw new Error(`Expected array, got ${typeof result}`);
+      if (result.length !== operators.length) {
+        throw new Error(`Expected ${operators.length} operators, got ${result.length}`);
+      }
+      await page.close();
+    });
+
+    // Test 8: getOperator returns single operator
+    await test('wallet.getOperator returns operator by ID', async () => {
+      await wallet.setup({
+        origin: dappOrigin,
+        network: 1,
+        account: address,
+        operators,
+      });
+      const page = await openTestDapp(context, dapp.url);
+
+      const op = await wallet.getOperator(page, '1') as { id: string; managerAddress: string };
+      if (op.id !== '1') throw new Error(`Expected id '1', got '${op.id}'`);
+      if (op.managerAddress.toLowerCase() !== operators[0].managerAddress.toLowerCase()) {
+        throw new Error(`Manager address mismatch`);
+      }
+      await page.close();
+    });
+
+    // Test 9: selectOperator sets address from operator role
+    await test('wallet.selectOperator sets account by operator+role', async () => {
+      await wallet.setup({
+        origin: dappOrigin,
+        network: 1,
+        account: address,
+        operators,
+      });
+      const page = await openTestDapp(context, dapp.url);
+      await page.click('#connect');
+      await page.waitForFunction(
+        () => document.getElementById('address')?.textContent !== 'Not connected',
+        null,
+        { timeout: 5000 },
+      );
+
+      const rewardsAddr = operators[0].rewardsAddress;
+      await wallet.selectOperator(page, '1', 'rewards');
+
+      await page.waitForFunction(
+        (addr) => document.getElementById('address')?.textContent?.toLowerCase() === addr.toLowerCase(),
+        rewardsAddr,
+        { timeout: 5000 },
+      );
+      await page.close();
+    });
+
+    // Test 10: setRpcUrl persists custom URL
+    await test('wallet.setRpcUrl persists RPC URL in state', async () => {
+      await wallet.setup({ origin: dappOrigin, network: 1, account: address });
+      const page = await openTestDapp(context, dapp.url);
+
+      await wallet.setRpcUrl(page, 1, 'https://custom-rpc.example.com');
+
+      const state = await wallet.getState(page);
+      const urls = state.customRpcUrls as Record<string, string>;
+      if (urls[1] !== 'https://custom-rpc.example.com' && urls['1'] !== 'https://custom-rpc.example.com') {
+        throw new Error(`Expected custom RPC URL, got ${JSON.stringify(urls)}`);
+      }
+      await page.close();
+    });
+
     const { passed, failed } = summary();
     console.log(`\nResults: ${passed} passed, ${failed} failed`);
   } finally {
