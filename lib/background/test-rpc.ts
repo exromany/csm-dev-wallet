@@ -130,6 +130,31 @@ export async function handleTestRpc(
       return { result: null };
     }
 
+    case 'wallet_testGetOperator': {
+      const p = (params?.[0] ?? {}) as {
+        operatorId?: string;
+        chainId?: number;
+        moduleType?: string;
+      };
+      if (!p.operatorId) {
+        return { error: { code: -32602, message: 'Missing operatorId parameter' } };
+      }
+      const site = await getSiteState(origin);
+      const chainId = p.chainId ?? site.chainId;
+      const moduleType = p.moduleType ?? site.moduleType;
+      const key = `operators_${moduleType}_${chainId}`;
+      const data = await chrome.storage.local.get(key);
+      const entry = data[key] as { operators: Array<{ id: string }> } | undefined;
+      if (!entry) {
+        return { error: { code: -32601, message: `Operator ${p.operatorId} not found` } };
+      }
+      const operator = entry.operators.find((op) => op.id === p.operatorId);
+      if (!operator) {
+        return { error: { code: -32601, message: `Operator ${p.operatorId} not found` } };
+      }
+      return { result: operator };
+    }
+
     case 'wallet_testGetOperators': {
       const p = (params?.[0] ?? {}) as { chainId?: number; moduleType?: string };
       const site = await getSiteState(origin);

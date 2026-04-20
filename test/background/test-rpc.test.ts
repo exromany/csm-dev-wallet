@@ -352,3 +352,60 @@ describe('wallet_testGetOperators', () => {
     expect(res).toEqual({ result: null });
   });
 });
+
+// ── wallet_testGetOperator ──
+
+describe('wallet_testGetOperator', () => {
+  it('returns operator by id', async () => {
+    const op = makeOperator({ id: '42' });
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_csm_1: { operators: [makeOperator({ id: '1' }), op], lastFetchedAt: Date.now() },
+    });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperator', [
+      { operatorId: '42', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(res).toEqual({ result: op });
+  });
+
+  it('defaults chainId/moduleType from site state', async () => {
+    mockGetSiteState.mockResolvedValue(makeSiteState({ chainId: 560048, moduleType: 'cm' }));
+    const op = makeOperator({ id: '7' });
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_cm_560048: { operators: [op], lastFetchedAt: Date.now() },
+    });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperator', [{ operatorId: '7' }]);
+
+    expect(chrome.storage.local.get).toHaveBeenCalledWith('operators_cm_560048');
+    expect(res).toEqual({ result: op });
+  });
+
+  it('returns -32602 when operatorId missing', async () => {
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperator', [{}]);
+    expect(res).toMatchObject({ error: { code: -32602 } });
+  });
+
+  it('returns -32601 when operator not found', async () => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      operators_csm_1: { operators: [makeOperator({ id: '1' })], lastFetchedAt: Date.now() },
+    });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperator', [
+      { operatorId: '99', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(res).toMatchObject({ error: { code: -32601 } });
+  });
+
+  it('returns -32601 when no cache exists', async () => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({});
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testGetOperator', [
+      { operatorId: '1', chainId: 1, moduleType: 'csm' },
+    ]);
+
+    expect(res).toMatchObject({ error: { code: -32601 } });
+  });
+});
