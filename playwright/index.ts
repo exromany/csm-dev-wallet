@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createWalletController } from './wallet-controller.js';
 import type { LaunchOptions, LaunchResult } from './types.js';
 
-export type { WalletController, LaunchOptions, LaunchResult, SetupOptions, SigningMode, AddressSource } from './types.js';
+export type { WalletController, LaunchOptions, LaunchResult, SetupOptions, SigningMode, AddressSource, AddressRole } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLED_EXTENSION_PATH = resolve(__dirname, '../extension');

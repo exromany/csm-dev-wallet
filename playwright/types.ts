@@ -13,6 +13,16 @@ import type { BrowserContext, Page, Worker } from 'playwright';
 export type SigningMode = 'approve' | 'reject' | 'error' | 'prompt';
 
 /**
+ * Which role's address to select from an operator.
+ *
+ * - `'manager'` — managerAddress
+ * - `'rewards'` — rewardsAddress
+ * - `'proposedManager'` — proposedManagerAddress (if set)
+ * - `'proposedRewards'` — proposedRewardsAddress (if set)
+ */
+export type AddressRole = 'manager' | 'rewards' | 'proposedManager' | 'proposedRewards';
+
+/**
  * Describes where an address came from — used for bookkeeping in wallet state.
  */
 export type AddressSource =
@@ -130,6 +140,27 @@ export interface WalletController {
 
   /** Inject operators into the extension's cache via RPC. */
   seedOperators(page: Page, operators: unknown[], chainId: number, moduleType?: string): Promise<void>;
+
+  /** Get cached operators for a chain/module. Returns null if no cache. */
+  getOperators(page: Page, chainId?: number, moduleType?: string): Promise<unknown[] | null>;
+
+  /** Get a single cached operator by ID. Throws on not-found. */
+  getOperator(page: Page, operatorId: string, chainId?: number, moduleType?: string): Promise<Record<string, unknown>>;
+
+  /**
+   * Select an operator's address by role. Resolves the address from the operator cache,
+   * sets it as active, and emits `accountsChanged`.
+   */
+  selectOperator(page: Page, operatorId: string, role: AddressRole, chainId?: number, moduleType?: string): Promise<void>;
+
+  /** Set a custom RPC URL for a chain. Clears internal client cache. */
+  setRpcUrl(page: Page, chainId: number, rpcUrl: string): Promise<void>;
+
+  /**
+   * Refresh operators from RPC. Fetches live data, updates the cache, and returns operators.
+   * Optional rpcUrl override for cases where RPC isn't configured yet.
+   */
+  refreshOperators(page: Page, chainId?: number, moduleType?: string, rpcUrl?: string): Promise<unknown[]>;
 
   /** The extension's service worker instance. */
   readonly sw: Worker;
