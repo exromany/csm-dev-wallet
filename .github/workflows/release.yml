@@ -29,7 +29,7 @@ jobs:
 
       - run: npm run zip
 
-      - name: Create release
+      - name: Create versioned release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -40,6 +40,20 @@ jobs:
             --title "$TAG" \
             --notes "Built from $(git rev-parse --short HEAD)" \
             --latest
+
+      - name: Update stable download link
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          ZIP=$(ls .output/*.zip)
+          cp "$ZIP" .output/csm-dev-wallet.zip
+          gh release delete latest --yes 2>/dev/null || true
+          git push --delete origin latest 2>/dev/null || true
+          gh release create latest .output/csm-dev-wallet.zip \
+            --title "Latest (v${VERSION})" \
+            --notes "Always points to the latest build. [Download](https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet.zip)" \
+            --prerelease
 
       - name: Publish to npm
         run: |
