@@ -130,6 +130,29 @@ export async function handleTestRpc(
       return { result: null };
     }
 
+    case 'wallet_testRefreshOperators': {
+      const p = (params?.[0] ?? {}) as {
+        chainId?: number;
+        moduleType?: string;
+        rpcUrl?: string;
+      };
+      const [site, settings] = await Promise.all([getSiteState(origin), getGlobalSettings()]);
+      const chainId = p.chainId ?? site.chainId;
+      const moduleType = p.moduleType ?? site.moduleType;
+      let rpcUrl = p.rpcUrl;
+      if (!rpcUrl) {
+        rpcUrl = settings.customRpcUrls[chainId];
+      }
+      if (!rpcUrl) {
+        const isAnvil = chainId === ANVIL_CHAIN_ID;
+        rpcUrl = isAnvil
+          ? ANVIL_NETWORK.rpcUrl
+          : DEFAULT_NETWORKS[chainId as SupportedChainId]?.rpcUrl ?? ANVIL_NETWORK.rpcUrl;
+      }
+      const entry = await fetchOperators({ chainId, moduleType: moduleType as any, rpcUrl });
+      return { result: entry.operators };
+    }
+
     case 'wallet_testSetRpcUrl': {
       const p = (params?.[0] ?? {}) as { chainId?: number; rpcUrl?: string };
       if (p.chainId === undefined || p.chainId === null) {

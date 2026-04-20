@@ -579,3 +579,54 @@ describe('wallet_testSetRpcUrl', () => {
     expect(mockSetGlobalSettings).not.toHaveBeenCalled();
   });
 });
+
+// ── wallet_testRefreshOperators ──
+
+describe('wallet_testRefreshOperators', () => {
+  it('fetches operators and returns them (default params from site state)', async () => {
+    mockGetSiteState.mockResolvedValue(makeSiteState({ chainId: 1, moduleType: 'csm' }));
+    const operators = [makeOperator({ id: '1' }), makeOperator({ id: '2' })];
+    mockFetchOperators.mockResolvedValue({ operators, lastFetchedAt: Date.now() });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testRefreshOperators', [{}]);
+
+    expect(mockFetchOperators).toHaveBeenCalledWith(
+      expect.objectContaining({ chainId: 1, moduleType: 'csm' }),
+    );
+    expect(res).toEqual({ result: operators });
+  });
+
+  it('uses explicit chainId, moduleType, rpcUrl', async () => {
+    const operators = [makeOperator({ id: '3' })];
+    mockFetchOperators.mockResolvedValue({ operators, lastFetchedAt: Date.now() });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testRefreshOperators', [
+      { chainId: 560048, moduleType: 'cm', rpcUrl: 'https://custom-rpc.example.com' },
+    ]);
+
+    expect(mockFetchOperators).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chainId: 560048,
+        moduleType: 'cm',
+        rpcUrl: 'https://custom-rpc.example.com',
+      }),
+    );
+    expect(res).toEqual({ result: operators });
+  });
+
+  it('uses custom RPC URL from global settings when not explicitly passed', async () => {
+    mockGetSiteState.mockResolvedValue(makeSiteState({ chainId: 1, moduleType: 'csm' }));
+    mockGetGlobalSettings.mockResolvedValue(
+      makeGlobalSettings({ customRpcUrls: { 1: 'https://custom-mainnet-rpc.example.com' } }),
+    );
+    const operators = [makeOperator({ id: '5' })];
+    mockFetchOperators.mockResolvedValue({ operators, lastFetchedAt: Date.now() });
+
+    const res = await handleTestRpc(ORIGIN, 'wallet_testRefreshOperators', [{}]);
+
+    expect(mockFetchOperators).toHaveBeenCalledWith(
+      expect.objectContaining({ rpcUrl: 'https://custom-mainnet-rpc.example.com' }),
+    );
+    expect(res).toEqual({ result: operators });
+  });
+});
