@@ -27,16 +27,23 @@ Anvil fork source is auto-detected.
 
 **Option 1: Pre-built (recommended)**
 
-1. Download the latest `.zip` from [Releases](https://github.com/exromany/csm-dev-wallet/releases)
-2. Unzip and load unpacked in `chrome://extensions` (enable Developer mode)
+Download the latest `.zip` from [Releases](https://github.com/exromany/csm-dev-wallet/releases) and load it as an unpacked extension.
 
-Or via command line:
+### Chrome / Chromium
 
 ```bash
 curl -sL https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet.zip -o /tmp/csm-dev-wallet.zip && unzip -o /tmp/csm-dev-wallet.zip -d ~/csm-dev-wallet
 ```
 
-Re-run the same command to update, then click the reload icon on the extension card.
+Then load unpacked from `~/csm-dev-wallet` in `chrome://extensions` (enable Developer mode). Re-run to update, then click the reload icon.
+
+### Firefox (121+)
+
+```bash
+curl -sL https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet-firefox.zip -o /tmp/csm-dev-wallet-firefox.zip && unzip -o /tmp/csm-dev-wallet-firefox.zip -d ~/csm-dev-wallet-firefox
+```
+
+Then in `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → pick `manifest.json` from `~/csm-dev-wallet-firefox`. Note: Firefox unloads temporary extensions on browser restart.
 
 **Option 2: Build from source**
 
@@ -44,10 +51,9 @@ Re-run the same command to update, then click the reload icon on the extension c
 git clone https://github.com/exromany/csm-dev-wallet.git
 cd csm-dev-wallet
 npm install
-npm run build
+npm run build          # Chrome → .output/chrome-mv3/
+npm run build:firefox  # Firefox → .output/firefox-mv3/
 ```
-
-Load unpacked from `.output/chrome-mv3/`.
 
 ## Usage
 

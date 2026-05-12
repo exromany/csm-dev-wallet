@@ -28,6 +28,7 @@ jobs:
       - run: npm run build:package
 
       - run: npm run zip
+      - run: npm run zip:firefox
 
       - name: Create versioned release
         env:
@@ -35,8 +36,9 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TAG="v${VERSION}+$(date -u '+%Y%m%d.%H%M%S')"
-          ZIP=$(ls .output/*.zip)
-          gh release create "$TAG" "$ZIP" \
+          CHROME_ZIP=$(ls .output/*-chrome.zip)
+          FIREFOX_ZIP=$(ls .output/*-firefox.zip)
+          gh release create "$TAG" "$CHROME_ZIP" "$FIREFOX_ZIP" \
             --title "$TAG" \
             --notes "Built from $(git rev-parse --short HEAD)" \
             --latest
@@ -46,13 +48,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          ZIP=$(ls .output/*.zip)
-          cp "$ZIP" .output/csm-dev-wallet.zip
+          CHROME_ZIP=$(ls .output/*-chrome.zip)
+          FIREFOX_ZIP=$(ls .output/*-firefox.zip)
+          cp "$CHROME_ZIP" .output/csm-dev-wallet.zip
+          cp "$FIREFOX_ZIP" .output/csm-dev-wallet-firefox.zip
           gh release delete latest --yes 2>/dev/null || true
           git push --delete origin latest 2>/dev/null || true
-          gh release create latest .output/csm-dev-wallet.zip \
+          gh release create latest \
+            .output/csm-dev-wallet.zip \
+            .output/csm-dev-wallet-firefox.zip \
             --title "Latest (v${VERSION})" \
-            --notes "Always points to the latest build. [Download](https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet.zip)" \
+            --notes "Always points to the latest build. [Chrome](https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet.zip) · [Firefox](https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet-firefox.zip)" \
             --prerelease
 
       - name: Publish to npm
