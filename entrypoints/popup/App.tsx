@@ -18,10 +18,11 @@ import { ConnectedBar } from './ConnectedBar.js';
 import { OperatorList } from './OperatorList.js';
 import { OperatorGroups, ViewToggle } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
+import { AnvilAccounts } from './AnvilAccounts.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
 
-type Tab = 'operators' | 'manual' | 'settings';
+type Tab = 'operators' | 'manual' | 'anvil' | 'settings';
 type Theme = 'dark' | 'light';
 
 function readInitialTheme(): Theme {
@@ -99,6 +100,13 @@ export function App() {
     }
   }, [availableModules.cm, state.moduleType, send]);
 
+  const onAnvil = state.chainId === ANVIL_CHAIN_ID;
+
+  // Anvil tab only exists on the Anvil network — bounce off it if user switches networks
+  useEffect(() => {
+    if (!onAnvil && tab === 'anvil') setTab('operators');
+  }, [onAnvil, tab]);
+
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
   // Grouped view only makes sense for CM (where operators have groups).
@@ -167,11 +175,14 @@ export function App() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="tabs">
-        {([
-          ['operators', 'Operators'],
-          ['manual', 'Manual'],
-          ['settings', 'Settings'],
-        ] as const).map(([t, label]) => (
+        {(
+          [
+            ['operators', 'Operators'],
+            ['manual', 'Manual'],
+            ...(onAnvil ? ([['anvil', 'Anvil']] as const) : []),
+            ['settings', 'Settings'],
+          ] satisfies ReadonlyArray<readonly [Tab, string]>
+        ).map(([t, label]) => (
           <button
             key={t}
             className={`tab ${tab === t ? 'active' : ''}`}
@@ -286,7 +297,6 @@ export function App() {
         {tab === 'manual' && (
           <ManualAddresses
             addresses={state.manualAddresses}
-            anvilAccounts={state.chainId === ANVIL_CHAIN_ID ? anvilStatus.accounts : []}
             selectedAddress={state.selectedAddress?.address}
             addressLabels={state.addressLabels}
             onSetLabel={(address, label) =>
@@ -303,7 +313,19 @@ export function App() {
                 source: { type: 'manual' },
               })
             }
-            onSelectAnvil={(address, index) =>
+          />
+        )}
+
+        {tab === 'anvil' && onAnvil && (
+          <AnvilAccounts
+            accounts={anvilStatus.accounts}
+            forkedFrom={anvilStatus.forkedFrom}
+            selectedAddress={state.selectedAddress?.address}
+            addressLabels={state.addressLabels}
+            onSetLabel={(address, label) =>
+              send({ type: 'set-address-label', address, label })
+            }
+            onSelect={(address, index) =>
               send({
                 type: 'select-address',
                 address,
