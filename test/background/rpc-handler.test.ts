@@ -123,4 +123,39 @@ describe('handleRpcRequest — signing methods', () => {
     expect(mockWithImpersonation).not.toHaveBeenCalled();
     expect(mockRawJsonRpc).not.toHaveBeenCalled();
   });
+
+  it('routes eth_sendTransaction through withImpersonation for operator source', async () => {
+    mockGetSiteState.mockResolvedValue(
+      makeSiteState({
+        chainId: ANVIL_CHAIN_ID,
+        selectedAddress: {
+          address: ADDR_A,
+          source: { type: 'operator', operatorId: '42', role: 'manager' },
+        },
+      }),
+    );
+    // withImpersonation receives a fn() to execute under impersonation; we
+    // run that fn to verify the inner proxy call happens.
+    mockWithImpersonation.mockImplementation(async (_rpc, _addr, fn) => fn());
+    mockRawJsonRpc.mockResolvedValue({ result: '0xtxhash' });
+
+    const result = await handleRpcRequest(
+      'eth_sendTransaction',
+      [{ from: ADDR_A, to: ADDR_A, value: '0x0' }],
+      ORIGIN,
+    );
+
+    expect(result).toEqual({ result: '0xtxhash' });
+    expect(mockWithImpersonation).toHaveBeenCalledTimes(1);
+    expect(mockWithImpersonation).toHaveBeenCalledWith(
+      expect.any(String),
+      ADDR_A,
+      expect.any(Function),
+    );
+    expect(mockRawJsonRpc).toHaveBeenCalledWith(
+      expect.any(String),
+      'eth_sendTransaction',
+      [{ from: ADDR_A, to: ADDR_A, value: '0x0' }],
+    );
+  });
 });
