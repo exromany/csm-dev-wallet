@@ -7,26 +7,22 @@ import { LabelEditor } from './LabelEditor.js';
 
 type Props = {
   addresses: Address[];
-  anvilAccounts?: Address[];
   selectedAddress?: string;
   addressLabels: Record<string, string>;
   onSetLabel: (address: string, label: string) => void;
   onAdd: (address: string) => void;
   onRemove: (address: string) => void;
   onSelect: (address: string) => void;
-  onSelectAnvil?: (address: string, index: number) => void;
 };
 
 export function ManualAddresses({
   addresses,
-  anvilAccounts = [],
   selectedAddress,
   addressLabels,
   onSetLabel,
   onAdd,
   onRemove,
   onSelect,
-  onSelectAnvil,
 }: Props) {
   const [name, setName] = useState('');
   const [addr, setAddr] = useState('');
@@ -71,42 +67,6 @@ export function ManualAddresses({
           </button>
         </div>
       </div>
-
-      {anvilAccounts.length > 0 && (
-        <>
-          <div className="section-label spaced">Anvil accounts (pre-funded)</div>
-          {anvilAccounts.map((address, i) => {
-            const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
-            const label = addressLabels[address.toLowerCase()] ?? '';
-            const copied = isCopied(address);
-            return (
-              <div
-                key={address}
-                className={`manual-entry ${selected ? 'selected' : ''} ${label ? '' : 'no-name'}`}
-                onClick={() => onSelectAnvil?.(address, i)}
-              >
-                <span className="anvil-index">#{i}</span>
-                <div className="body">
-                  <LabelEditor
-                    label={label}
-                    onSave={(l) => onSetLabel(address, l)}
-                    className="entry-label"
-                    placeholder="Name this account…"
-                  />
-                  <div className="addr">{truncateAddress(address)}</div>
-                </div>
-                <button
-                  className={`btn-copy ${copied ? 'copied' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); copy(address); }}
-                  title="Copy address"
-                >
-                  {copied ? '✓' : '⎘'}
-                </button>
-              </div>
-            );
-          })}
-        </>
-      )}
 
       {addresses.length > 0 && <div className="section-label spaced">Saved</div>}
       {addresses.map((address) => {
