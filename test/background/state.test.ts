@@ -213,6 +213,54 @@ describe('legacy migration', () => {
   });
 });
 
+describe('forward-compat for new fields', () => {
+  it('hydrates groupFavorites default when missing from stored global settings', async () => {
+    store['global_settings'] = {
+      customRpcUrls: {},
+      favorites: ['cm:1:5'],
+      manualAddresses: [],
+      addressLabels: {},
+      operatorLabels: {},
+      requireApproval: false,
+    };
+    const { getGlobalSettings } = await importState();
+    const settings = await getGlobalSettings();
+    expect(settings.groupFavorites).toEqual([]);
+  });
+
+  it('persists groupFavorites independently of operator favorites', async () => {
+    const { setGlobalSettings, getGlobalSettings } = await importState();
+    await setGlobalSettings({ favorites: ['cm:1:1'], groupFavorites: ['cm:1:3'] });
+    const settings = await getGlobalSettings();
+    expect(settings.favorites).toEqual(['cm:1:1']);
+    expect(settings.groupFavorites).toEqual(['cm:1:3']);
+  });
+
+  it('hydrates operatorViewMode default on legacy site state', async () => {
+    store['site_states'] = {
+      'https://legacy.com': {
+        chainId: 1,
+        moduleType: 'cm',
+        selectedAddress: null,
+        isConnected: false,
+      },
+    };
+    const { getSiteState } = await importState();
+    const site = await getSiteState('https://legacy.com');
+    expect(site.operatorViewMode).toBe('list');
+  });
+
+  it('persists operatorViewMode per-origin via setSiteState', async () => {
+    const { setSiteState } = await importState();
+    await setSiteState('https://a.com', { operatorViewMode: 'grouped' });
+    await setSiteState('https://b.com', { operatorViewMode: 'list' });
+    vi.resetModules();
+    const mod2 = await importState();
+    expect((await mod2.getSiteState('https://a.com')).operatorViewMode).toBe('grouped');
+    expect((await mod2.getSiteState('https://b.com')).operatorViewMode).toBe('list');
+  });
+});
+
 describe('broadcast targeting', () => {
   it('notifyAccountsChanged only sends to tabs matching origin', async () => {
     mockTabs([

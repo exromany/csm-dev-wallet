@@ -3,6 +3,8 @@ import {
   useWalletState,
   useOperators,
   useFavorites,
+  useGroupFavorites,
+  useViewMode,
   useModuleAvailability,
   useAnvilStatus,
   useOperatorLabels,
@@ -14,6 +16,7 @@ import { formatTimeAgo } from '../../lib/popup/utils.js';
 import { NetworkModuleChip, NetworkModulePanel } from './NetworkSelector.js';
 import { ConnectedBar } from './ConnectedBar.js';
 import { OperatorList } from './OperatorList.js';
+import { OperatorGroups, ViewToggle } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { Settings } from './Settings.js';
 
@@ -33,6 +36,8 @@ export function App() {
   const { state, send, port, origin, error, clearError } = useWalletState();
   const anvilStatus = useAnvilStatus(port);
   const favorites = useFavorites(state, send, anvilStatus.forkedFrom);
+  const groupFavorites = useGroupFavorites(state, send, anvilStatus.forkedFrom);
+  const [viewMode, setViewMode] = useViewMode(state, send);
   const operatorLabels = useOperatorLabels(state, send, anvilStatus.forkedFrom);
   const {
     operators,
@@ -95,9 +100,22 @@ export function App() {
   }, [availableModules.cm, state.moduleType, send]);
 
   const { isFavorite } = favorites;
+  const { isFavorite: isGroupFavorite } = groupFavorites;
+  // Grouped view only makes sense for CM (where operators have groups).
+  // Force list view for CSM so the toggle is a no-op there.
+  const effectiveViewMode = state.moduleType === 'cm' ? viewMode : 'list';
+
+  // Pending isn't available in grouped mode — drop the user back to "All" so
+  // the filter pill they have selected matches what's actually shown.
+  useEffect(() => {
+    if (effectiveViewMode === 'grouped' && filterGroup === 'pending') {
+      setFilterGroup('all');
+    }
+  }, [effectiveViewMode, filterGroup]);
+
   const displayOperators = useMemo(
-    () => filterByGroup(operators, filterGroup, isFavorite),
-    [operators, filterGroup, isFavorite],
+    () => filterByGroup(operators, filterGroup, isFavorite, isGroupFavorite),
+    [operators, filterGroup, isFavorite, isGroupFavorite],
   );
 
   return (
@@ -168,18 +186,23 @@ export function App() {
         {tab === 'operators' && (
           <>
             <div className="search-wrapper">
-              <div className="search-bar">
-                <span className="search-icon">⌕</span>
-                <input
-                  ref={searchInputRef}
-                  placeholder="Search #ID, address, label…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search ? (
-                  <button className="search-clear" onClick={() => setSearch('')}>×</button>
-                ) : (
-                  <kbd className="kbd">⌘K</kbd>
+              <div className="search-row">
+                <div className="search-bar">
+                  <span className="search-icon">⌕</span>
+                  <input
+                    ref={searchInputRef}
+                    placeholder="Search #ID, address, label…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {search ? (
+                    <button className="search-clear" onClick={() => setSearch('')}>×</button>
+                  ) : (
+                    <kbd className="kbd">⌘K</kbd>
+                  )}
+                </div>
+                {state.moduleType === 'cm' && (
+                  <ViewToggle mode={viewMode} onChange={setViewMode} />
                 )}
               </div>
               <div className="filter-bar">
@@ -195,13 +218,15 @@ export function App() {
                 >
                   Favorites
                 </button>
-                <button
-                  className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
-                  onClick={() => setFilterGroup('pending')}
-                  title="Operators with pending P-MGR or P-RWD role-change proposals"
-                >
-                  Pending
-                </button>
+                {effectiveViewMode === 'list' && (
+                  <button
+                    className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
+                    onClick={() => setFilterGroup('pending')}
+                    title="Operators with pending P-MGR or P-RWD role-change proposals"
+                  >
+                    Pending
+                  </button>
+                )}
                 <div className="spacer" />
                 {lastFetchedAt && (
                   <span className="staleness-label">
@@ -220,21 +245,41 @@ export function App() {
                 Start a local fork to browse operators.
               </div>
             )}
-            <OperatorList
-              operators={displayOperators}
-              allOperatorsCount={allOperators.length}
-              loading={loading}
-              selectedAddress={state.selectedAddress?.address}
-              favorites={favorites}
-              operatorLabels={operatorLabels}
-              onSelect={(address, operatorId, role) =>
-                send({
-                  type: 'select-address',
-                  address,
-                  source: { type: 'operator', operatorId, role },
-                })
-              }
-            />
+            {effectiveViewMode === 'grouped' ? (
+              <OperatorGroups
+                operators={operators}
+                allOperatorsCount={allOperators.length}
+                loading={loading}
+                scope={filterGroup}
+                selectedAddress={state.selectedAddress?.address}
+                favorites={favorites}
+                groupFavorites={groupFavorites}
+                operatorLabels={operatorLabels}
+                onSelect={(address, operatorId, role) =>
+                  send({
+                    type: 'select-address',
+                    address,
+                    source: { type: 'operator', operatorId, role },
+                  })
+                }
+              />
+            ) : (
+              <OperatorList
+                operators={displayOperators}
+                allOperatorsCount={allOperators.length}
+                loading={loading}
+                selectedAddress={state.selectedAddress?.address}
+                favorites={favorites}
+                operatorLabels={operatorLabels}
+                onSelect={(address, operatorId, role) =>
+                  send({
+                    type: 'select-address',
+                    address,
+                    source: { type: 'operator', operatorId, role },
+                  })
+                }
+              />
+            )}
           </>
         )}
 

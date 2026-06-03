@@ -22,8 +22,10 @@ export function makeState(overrides: Partial<WalletState> = {}): WalletState {
     moduleType: 'csm',
     selectedAddress: null,
     isConnected: false,
+    operatorViewMode: 'list',
     customRpcUrls: {},
     favorites: [],
+    groupFavorites: [],
     manualAddresses: [],
     addressLabels: {},
     operatorLabels: {},
@@ -38,6 +40,7 @@ export function makeSiteState(overrides: Partial<SiteState> = {}): SiteState {
     moduleType: 'csm',
     selectedAddress: null,
     isConnected: false,
+    operatorViewMode: 'list',
     ...overrides,
   };
 }
@@ -46,6 +49,7 @@ export function makeGlobalSettings(overrides: Partial<GlobalSettings> = {}): Glo
   return {
     customRpcUrls: {},
     favorites: [],
+    groupFavorites: [],
     manualAddresses: [],
     addressLabels: {},
     operatorLabels: {},

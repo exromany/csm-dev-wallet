@@ -52,7 +52,9 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
 }));
 
 vi.mock('@lidofinance/lido-csm-sdk/abi', () => ({
-  SMDiscoveryAbi: [{ name: 'stub' }],
+  SMDiscoveryAbi: [{ name: 'SMDiscoveryAbi' }],
+  CuratedModuleAbi: [{ name: 'CuratedModuleAbi' }],
+  MetaRegistryAbi: [{ name: 'MetaRegistryAbi' }],
 }));
 
 // ── Imports under test ──
@@ -296,6 +298,146 @@ describe('fetchOperators', () => {
     expect(chrome.storage.local.set).toHaveBeenCalledWith(
       expect.objectContaining({ operators_csm_31337: expect.any(Object) }),
     );
+  });
+});
+
+// ── fetchOperators CM group enrichment ──
+// CM operators get groupId/groupName from on-chain MetaRegistry. The cache
+// fetch chains: SMDiscovery.moduleCache → CuratedModule.META_REGISTRY →
+// MetaRegistry.getNodeOperatorGroupId (per op) → getOperatorGroup (per unique
+// non-zero group). Failure of any step leaves operators ungrouped.
+
+describe('fetchOperators (CM group enrichment)', () => {
+  const rawOperator = (overrides: Record<string, unknown> = {}) => ({
+    id: 0n,
+    managerAddress: ADDR_A,
+    rewardAddress: ADDR_B,
+    proposedManagerAddress: zeroAddress,
+    proposedRewardAddress: zeroAddress,
+    extendedManagerPermissions: true,
+    curveId: 0n,
+    ...overrides,
+  });
+
+  /**
+   * Route readContract calls by ABI/function so a single mock can simulate
+   * the full SMDiscovery → CuratedModule → MetaRegistry chain.
+   */
+  function setupCmChain({
+    moduleAddress,
+    metaRegistry,
+    groupIdByOpId,
+    groupNameById,
+    operators,
+  }: {
+    moduleAddress: string;
+    metaRegistry: string;
+    groupIdByOpId: Record<string, bigint>;
+    groupNameById: Record<string, string>;
+    operators: ReturnType<typeof rawOperator>[];
+  }) {
+    mockReadContract.mockImplementation((args: { functionName: string; args?: unknown[] }) => {
+      switch (args.functionName) {
+        case 'getAllNodeOperators': {
+          // Single-batch return (length < BATCH_SIZE ends pagination)
+          return Promise.resolve(operators);
+        }
+        case 'moduleCache':
+          return Promise.resolve([moduleAddress]);
+        case 'META_REGISTRY':
+          return Promise.resolve(metaRegistry);
+        case 'getNodeOperatorGroupId': {
+          const opId = String(args.args![0]);
+          return Promise.resolve(groupIdByOpId[opId] ?? 0n);
+        }
+        case 'getOperatorGroup': {
+          const gid = String(args.args![0]);
+          return Promise.resolve({
+            name: groupNameById[gid] ?? '',
+            subNodeOperators: [],
+            externalOperators: [],
+          });
+        }
+        default:
+          return Promise.reject(new Error(`unmocked: ${args.functionName}`));
+      }
+    });
+  }
+
+  it('decorates CM operators with groupId + groupName from MetaRegistry', async () => {
+    setupCmChain({
+      moduleAddress: '0x5555555555555555555555555555555555555555',
+      metaRegistry: '0x7777777777777777777777777777777777777777',
+      groupIdByOpId: { '0': 3n, '1': 3n, '2': 7n, '3': 0n },
+      groupNameById: { '3': 'Kiln Cluster', '7': '' },
+      operators: [
+        rawOperator({ id: 0n }),
+        rawOperator({ id: 1n }),
+        rawOperator({ id: 2n }),
+        rawOperator({ id: 3n }),
+      ],
+    });
+
+    const entry = await fetchOperators(ctx({ chainId: 1, moduleType: 'cm' }));
+
+    expect(entry.operators[0]).toMatchObject({ id: '0', groupId: '3', groupName: 'Kiln Cluster' });
+    expect(entry.operators[1]).toMatchObject({ id: '1', groupId: '3', groupName: 'Kiln Cluster' });
+    expect(entry.operators[2]).toMatchObject({ id: '2', groupId: '7' });
+    expect(entry.operators[2].groupName).toBeUndefined();
+    expect(entry.operators[3].groupId).toBeUndefined();
+    expect(entry.operators[3].groupName).toBeUndefined();
+  });
+
+  it('does not call MetaRegistry chain for CSM', async () => {
+    mockReadContract.mockImplementation((args: { functionName: string }) => {
+      if (args.functionName === 'getAllNodeOperators') return Promise.resolve([rawOperator()]);
+      if (args.functionName === 'META_REGISTRY' || args.functionName === 'getNodeOperatorGroupId') {
+        throw new Error('CSM should not invoke MetaRegistry chain');
+      }
+      return Promise.resolve([]);
+    });
+
+    const entry = await fetchOperators(ctx({ chainId: 1, moduleType: 'csm' }));
+    expect(entry.operators[0].groupId).toBeUndefined();
+  });
+
+  it('leaves operators ungrouped if MetaRegistry resolution fails', async () => {
+    mockReadContract.mockImplementation((args: { functionName: string }) => {
+      switch (args.functionName) {
+        case 'getAllNodeOperators':
+          return Promise.resolve([rawOperator({ id: 9n })]);
+        case 'moduleCache':
+          return Promise.resolve([zeroAddress]); // module unavailable
+        default:
+          return Promise.reject(new Error(`unexpected: ${args.functionName}`));
+      }
+    });
+
+    const entry = await fetchOperators(ctx({ chainId: 1, moduleType: 'cm' }));
+    expect(entry.operators[0].groupId).toBeUndefined();
+  });
+
+  it('treats getOperatorGroup failure as missing name (operator still gets groupId)', async () => {
+    mockReadContract.mockImplementation((args: { functionName: string; args?: unknown[] }) => {
+      switch (args.functionName) {
+        case 'getAllNodeOperators':
+          return Promise.resolve([rawOperator({ id: 0n })]);
+        case 'moduleCache':
+          return Promise.resolve(['0x5555555555555555555555555555555555555555']);
+        case 'META_REGISTRY':
+          return Promise.resolve('0x7777777777777777777777777777777777777777');
+        case 'getNodeOperatorGroupId':
+          return Promise.resolve(11n);
+        case 'getOperatorGroup':
+          return Promise.reject(new Error('group fetch broke'));
+        default:
+          return Promise.reject(new Error(`unmocked: ${args.functionName}`));
+      }
+    });
+
+    const entry = await fetchOperators(ctx({ chainId: 1, moduleType: 'cm' }));
+    expect(entry.operators[0].groupId).toBe('11');
+    expect(entry.operators[0].groupName).toBeUndefined();
   });
 });
 

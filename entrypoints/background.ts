@@ -487,6 +487,33 @@ export default defineBackground(() => {
         break;
       }
 
+      case 'toggle-group-favorite': {
+        const { origin } = command;
+        const siteState = await getSiteState(origin);
+        const globalSettings = await getGlobalSettings();
+        const forkedFrom = await getForkedFrom();
+        const chainIdForFavorites = (siteState.chainId === ANVIL_CHAIN_ID && forkedFrom)
+          ? forkedFrom
+          : siteState.chainId;
+        const groupFavorites = toggleFavorite(
+          globalSettings.groupFavorites,
+          siteState.moduleType,
+          chainIdForFavorites,
+          command.groupId,
+        );
+        await setGlobalSettings({ groupFavorites });
+        const state = await getComposedState(origin);
+        broadcastToPopups({ type: 'state-update', state });
+        break;
+      }
+
+      case 'set-view-mode': {
+        await setSiteState(command.origin, { operatorViewMode: command.mode });
+        const state = await getComposedState(command.origin);
+        broadcastToPopups({ type: 'state-update', state });
+        break;
+      }
+
       case 'add-manual-address': {
         assertAddress(command.address);
         const normalized = getAddress(command.address);

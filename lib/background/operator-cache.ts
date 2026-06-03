@@ -6,7 +6,7 @@ import {
   OPERATOR_TYPE,
   getOperatorTypeByCurveId,
 } from '@lidofinance/lido-csm-sdk/common';
-import { SMDiscoveryAbi } from '@lidofinance/lido-csm-sdk/abi';
+import { SMDiscoveryAbi, CuratedModuleAbi, MetaRegistryAbi } from '@lidofinance/lido-csm-sdk/abi';
 import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
 
@@ -169,9 +169,93 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
     };
   });
 
+  if (ctx.moduleType === 'cm' && operators.length > 0) {
+    await enrichWithGroups(client, discoveryAddress, moduleId, operators);
+  }
+
   const entry = { operators, lastFetchedAt: Date.now() };
   await chrome.storage.local.set({ [storageKey(ctx)]: entry });
   return entry;
+}
+
+/**
+ * CM-only: decorate operators in-place with `groupId` + optional `groupName`
+ * sourced from on-chain MetaRegistry.
+ *
+ * Flow: SMDiscovery.moduleCache(moduleId) → CuratedModule address →
+ * CuratedModule.META_REGISTRY() → MetaRegistry. Per operator:
+ * getNodeOperatorGroupId(opId). Per unique non-zero groupId: getOperatorGroup
+ * for the title.
+ *
+ * Failure-tolerant: a missing MetaRegistry or transient RPC error leaves
+ * operators ungrouped — the rest of the cache stays usable.
+ */
+async function enrichWithGroups(
+  client: PublicClient,
+  discoveryAddress: Address,
+  moduleId: bigint,
+  operators: CachedOperator[],
+): Promise<void> {
+  try {
+    const [moduleAddress] = await client.readContract({
+      address: discoveryAddress,
+      abi: SMDiscoveryAbi,
+      functionName: 'moduleCache',
+      args: [moduleId],
+    });
+    if (moduleAddress === zeroAddress) return;
+
+    const metaRegistry = await client.readContract({
+      address: moduleAddress,
+      abi: CuratedModuleAbi,
+      functionName: 'META_REGISTRY',
+    });
+    if (!metaRegistry || metaRegistry === zeroAddress) return;
+
+    const groupIds = await Promise.all(
+      operators.map((op) =>
+        client.readContract({
+          address: metaRegistry,
+          abi: MetaRegistryAbi,
+          functionName: 'getNodeOperatorGroupId',
+          args: [BigInt(op.id)],
+        }),
+      ),
+    );
+
+    // groupId === 0n means "no group"
+    const uniqueGroupIds = [...new Set(groupIds.filter((id) => id !== 0n))];
+    const groupInfos = await Promise.all(
+      uniqueGroupIds.map((gid) =>
+        client
+          .readContract({
+            address: metaRegistry,
+            abi: MetaRegistryAbi,
+            functionName: 'getOperatorGroup',
+            args: [gid],
+          })
+          .then((info) => ({ gid, info }))
+          .catch(() => ({ gid, info: null })),
+      ),
+    );
+    const nameByGroup = new Map<string, string>();
+    for (const { gid, info } of groupInfos) {
+      if (info && info.name && info.name.length > 0) {
+        nameByGroup.set(gid.toString(), info.name);
+      }
+    }
+
+    for (let i = 0; i < operators.length; i++) {
+      const gid = groupIds[i];
+      if (gid === 0n) continue;
+      const op = operators[i];
+      op.groupId = gid.toString();
+      const name = nameByGroup.get(op.groupId);
+      if (name) op.groupName = name;
+    }
+  } catch {
+    // Group enrichment is best-effort — failure leaves operators ungrouped.
+  }
 }
 
 async function readOperatorBatch(
