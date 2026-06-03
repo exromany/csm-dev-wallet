@@ -104,4 +104,23 @@ describe('handleRpcRequest — signing methods', () => {
     expect(mockRawJsonRpc).not.toHaveBeenCalled();
     expect(mockWithImpersonation).not.toHaveBeenCalled();
   });
+
+  it('returns a clear error for personal_sign when source is not "anvil"', async () => {
+    mockGetSiteState.mockResolvedValue(
+      makeSiteState({
+        chainId: ANVIL_CHAIN_ID,
+        selectedAddress: {
+          address: ADDR_A,
+          source: { type: 'operator', operatorId: '42', role: 'manager' },
+        },
+      }),
+    );
+
+    const result = await handleRpcRequest('personal_sign', ['0xdead', ADDR_A], ORIGIN);
+
+    expect(result.error?.code).toBe(4200);
+    expect(result.error?.message).toMatch(/Anvil pre-funded account/);
+    expect(mockWithImpersonation).not.toHaveBeenCalled();
+    expect(mockRawJsonRpc).not.toHaveBeenCalled();
+  });
 });

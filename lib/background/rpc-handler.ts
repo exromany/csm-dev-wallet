@@ -16,6 +16,13 @@ const NOT_CONNECTED_ERROR = {
   message: 'CSM Dev Wallet: No address selected. Open the extension popup to connect.',
 };
 
+const MESSAGE_SIGNING_REQUIRES_ANVIL_ACCOUNT = {
+  code: 4200,
+  message:
+    'CSM Dev Wallet: Message signing requires an Anvil pre-funded account. ' +
+    'Pick one from the Anvil tab.',
+};
+
 const BLOCKED_METHODS = /^(anvil_|hardhat_|evm_)/i;
 
 function effectiveChainId(chainId: number, anvilForkedFrom: number | null): number {
@@ -103,6 +110,11 @@ export async function handleRpcRequest(
       // Anvil owns the pre-funded account's key — sign natively, no impersonation.
       if (siteState.selectedAddress.source.type === 'anvil') {
         return proxyToRpc(method, params, ANVIL_CHAIN_ID, { [ANVIL_CHAIN_ID]: rpcUrl });
+      }
+      // Non-Anvil addresses: impersonation forges `from` on transactions but
+      // cannot produce signatures. Bail out clearly for message-signing methods.
+      if (method !== 'eth_sendTransaction') {
+        return { error: MESSAGE_SIGNING_REQUIRES_ANVIL_ACCOUNT };
       }
       return handleAnvilSigning(method, params, siteState.selectedAddress.address, rpcUrl);
     }
