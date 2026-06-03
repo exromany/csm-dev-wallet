@@ -6,7 +6,7 @@
  * 3. Popup ↔ Service Worker: chrome.runtime.connect (port)
  */
 
-import type { ModuleType } from './types.js';
+import type { ModuleType, OperatorViewMode } from './types.js';
 import type { RpcError } from './errors.js';
 
 // ── Inpage ↔ Content Script (window.postMessage) ──────────────────────
@@ -52,6 +52,8 @@ export type PopupCommand =
   | { type: 'request-operators'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'refresh-operators'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'toggle-favorite'; origin: string; operatorId: string }
+  | { type: 'toggle-group-favorite'; origin: string; groupId: string }
+  | { type: 'set-view-mode'; origin: string; mode: OperatorViewMode }
   | { type: 'add-manual-address'; origin: string; address: string }
   | { type: 'remove-manual-address'; origin: string; address: string }
   | { type: 'set-custom-rpc'; origin: string; chainId: number; rpcUrl: string }

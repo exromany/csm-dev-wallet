@@ -56,4 +56,29 @@ describe('filterByGroup', () => {
     const result = filterByGroup(ops, 'pending', favSet(['1']));
     expect(result.map((o) => o.id)).toEqual(['2', '3', '4']);
   });
+
+  it('"favorites" also includes operators in a starred group (flat-view pin behavior)', () => {
+    const grouped = [
+      makeOperator({ id: '10', groupId: '7' }),
+      makeOperator({ id: '11', groupId: '7' }),
+      makeOperator({ id: '12' }),
+    ];
+    const result = filterByGroup(grouped, 'favorites', () => false, (gid) => gid === '7');
+    expect(result.map((o) => o.id)).toEqual(['10', '11']);
+  });
+
+  it('"favorites" unions operator-level and group-level stars', () => {
+    const grouped = [
+      makeOperator({ id: '10', groupId: '7' }),
+      makeOperator({ id: '11', groupId: '7' }),
+      makeOperator({ id: '12' }),
+    ];
+    const result = filterByGroup(
+      grouped,
+      'favorites',
+      favSet(['12']),
+      (gid) => gid === '7',
+    );
+    expect(result.map((o) => o.id)).toEqual(['10', '11', '12']);
+  });
 });

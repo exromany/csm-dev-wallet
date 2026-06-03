@@ -29,6 +29,7 @@ async function migrateLegacy(): Promise<boolean> {
   const global: GlobalSettings = {
     customRpcUrls: (legacy.customRpcUrls as GlobalSettings['customRpcUrls']) ?? {},
     favorites: (legacy.favorites as string[]) ?? [],
+    groupFavorites: (legacy.groupFavorites as string[]) ?? [],
     manualAddresses: (legacy.manualAddresses as GlobalSettings['manualAddresses']) ?? [],
     addressLabels: (legacy.addressLabels as GlobalSettings['addressLabels']) ?? {},
     operatorLabels: (legacy.operatorLabels as GlobalSettings['operatorLabels']) ?? {},
@@ -65,6 +66,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
   const settings: GlobalSettings = {
     customRpcUrls: raw.customRpcUrls ?? {},
     favorites: raw.favorites ?? [],
+    groupFavorites: raw.groupFavorites ?? [],
     manualAddresses: raw.manualAddresses ?? [],
     addressLabels: raw.addressLabels ?? {},
     operatorLabels: raw.operatorLabels ?? {},
@@ -104,7 +106,10 @@ async function getAllSiteStates(): Promise<Record<string, SiteState>> {
 
 export async function getSiteState(origin: string): Promise<SiteState> {
   const sites = await getAllSiteStates();
-  return sites[origin] ?? { ...DEFAULT_SITE_STATE };
+  const stored = sites[origin];
+  if (!stored) return { ...DEFAULT_SITE_STATE };
+  // Spread defaults so newly-introduced fields are populated on legacy site state
+  return { ...DEFAULT_SITE_STATE, ...stored };
 }
 
 export async function setSiteState(

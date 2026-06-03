@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type RefObject } from 'react';
-import type { WalletState, CachedOperator, ModuleType } from '../shared/types.js';
+import type { WalletState, CachedOperator, ModuleType, OperatorViewMode } from '../shared/types.js';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
@@ -288,6 +288,52 @@ export function useFavorites(
   return { toggle, isFavorite };
 }
 
+// ── useGroupFavorites ──
+// Group favorites are scoped by module+chain just like operator favorites, but
+// keyed by groupId. Anvil maps to its forkedFrom chain so a fork shares group
+// favorites with the underlying network.
+
+export function useGroupFavorites(
+  state: WalletState,
+  send: (cmd: PopupCommandInput) => void,
+  forkedFrom?: SupportedChainId | null,
+) {
+  const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
+    ? forkedFrom
+    : state.chainId;
+  const prefix = `${state.moduleType}:${chainIdForPrefix}:`;
+
+  const toggle = useCallback(
+    (groupId: string) => send({ type: 'toggle-group-favorite', groupId }),
+    [send],
+  );
+
+  const favoriteSet = useMemo(
+    () => new Set(state.groupFavorites),
+    [state.groupFavorites],
+  );
+
+  const isFavorite = useCallback(
+    (groupId: string) => favoriteSet.has(`${prefix}${groupId}`),
+    [favoriteSet, prefix],
+  );
+
+  return { toggle, isFavorite };
+}
+
+// ── useViewMode ──
+
+export function useViewMode(
+  state: WalletState,
+  send: (cmd: PopupCommandInput) => void,
+): [OperatorViewMode, (mode: OperatorViewMode) => void] {
+  const set = useCallback(
+    (mode: OperatorViewMode) => send({ type: 'set-view-mode', mode }),
+    [send],
+  );
+  return [state.operatorViewMode, set];
+}
+
 // ── useOperatorLabels ──
 // Operator labels are user-set names for operators (e.g. "Kiln", "P2P.org"),
 // scoped by module + chain so the same numeric ID across networks stays distinct.
@@ -346,14 +392,71 @@ export function useCopyAddress() {
 
 export type FilterGroup = 'all' | 'favorites' | 'pending';
 
+/**
+ * Flat-list filter. Favorites includes operators starred individually OR
+ * belonging to a starred group (a starred group implicitly pins its members).
+ */
 export function filterByGroup(
   operators: CachedOperator[],
   group: FilterGroup,
   isFavorite: (id: string) => boolean,
+  isGroupFavorite: (groupId: string) => boolean = () => false,
 ): CachedOperator[] {
-  if (group === 'favorites') return operators.filter((op) => isFavorite(op.id));
+  if (group === 'favorites') {
+    return operators.filter(
+      (op) => isFavorite(op.id) || (op.groupId !== undefined && isGroupFavorite(op.groupId)),
+    );
+  }
   if (group === 'pending') return operators.filter((op) => op.proposedManagerAddress || op.proposedRewardsAddress);
   return operators;
+}
+
+// ── filterGroupedView ──
+// Grouped-view filter operates on whole groups, per spec:
+//   • all       — every group, plus the "No group" bucket
+//   • favorites — only starred groups (hide "No group" entirely)
+//   • pending   — groups holding any pending op, with non-pending members
+//                 stripped out; plus pending ungrouped operators
+import type { GroupedOperators, OperatorGroup } from '../shared/groups.js';
+
+export type GroupedFilterResult = {
+  groups: { group: OperatorGroup; partial: boolean }[];
+  ungrouped: CachedOperator[];
+};
+
+function opIsPending(op: CachedOperator): boolean {
+  return Boolean(op.proposedManagerAddress || op.proposedRewardsAddress);
+}
+
+export function filterGroupedView(
+  grouped: GroupedOperators,
+  scope: FilterGroup,
+  isGroupFavorite: (groupId: string) => boolean,
+): GroupedFilterResult {
+  if (scope === 'favorites') {
+    return {
+      groups: grouped.groups
+        .filter((g) => isGroupFavorite(g.id))
+        .map((group) => ({ group, partial: false })),
+      ungrouped: [],
+    };
+  }
+  if (scope === 'pending') {
+    const groups: GroupedFilterResult['groups'] = [];
+    for (const g of grouped.groups) {
+      const pendingOps = g.operators.filter(opIsPending);
+      if (pendingOps.length === 0) continue;
+      groups.push({
+        group: { ...g, operators: pendingOps },
+        partial: pendingOps.length < g.operators.length,
+      });
+    }
+    return { groups, ungrouped: grouped.ungrouped.filter(opIsPending) };
+  }
+  return {
+    groups: grouped.groups.map((group) => ({ group, partial: false })),
+    ungrouped: grouped.ungrouped,
+  };
 }
 
 // ── filterOperators ──

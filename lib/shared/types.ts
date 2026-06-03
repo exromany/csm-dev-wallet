@@ -31,6 +31,10 @@ export type CachedOperator = {
   ownerAddress: Address; // manager or rewards, whichever has extended perms
   curveId: string; // bigint serialized
   operatorType: string; // OPERATOR_TYPE from @lidofinance/lido-csm-sdk — scoped to moduleType, falls back to "CC"
+  // CM-only: MetaRegistry group membership. Absent for CSM operators and
+  // for CM operators that belong to no group.
+  groupId?: string; // bigint serialized
+  groupName?: string; // optional on-chain title
 };
 
 export type OperatorCacheEntry = {
@@ -43,12 +47,15 @@ export type SelectedAddress = {
   source: AddressSource;
 };
 
-// Per-origin state — each site gets its own network/address
+export type OperatorViewMode = 'list' | 'grouped';
+
+// Per-origin state — each site gets its own network/address/view
 export type SiteState = {
   chainId: number;
   moduleType: ModuleType;
   selectedAddress: SelectedAddress | null;
   isConnected: boolean;
+  operatorViewMode: OperatorViewMode; // List ⇄ Grouped toggle (CM-only effect)
 };
 
 export const DEFAULT_SITE_STATE: SiteState = {
@@ -56,12 +63,14 @@ export const DEFAULT_SITE_STATE: SiteState = {
   moduleType: 'csm',
   selectedAddress: null,
   isConnected: false,
+  operatorViewMode: 'list',
 };
 
 // Shared settings across all sites
 export type GlobalSettings = {
   customRpcUrls: Partial<Record<number, string>>;
   favorites: string[]; // scoped: "csm:1:42"
+  groupFavorites: string[]; // scoped: "cm:1:3" — module:chainId:groupId
   manualAddresses: Address[];
   addressLabels: Record<string, string>; // lowercase address → label
   operatorLabels: Record<string, string>; // scoped "csm:1:42" → label
@@ -71,6 +80,7 @@ export type GlobalSettings = {
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   customRpcUrls: {},
   favorites: [],
+  groupFavorites: [],
   manualAddresses: [],
   addressLabels: {},
   operatorLabels: {},

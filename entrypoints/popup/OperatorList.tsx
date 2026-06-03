@@ -61,72 +61,7 @@ export function OperatorList({
   );
 }
 
-type RolePill = { label: 'MGR' | 'RWD'; tint: 'mgr' | 'rwd'; owner: boolean };
-
-type AddressGroup = {
-  address: string;
-  primaryRole: AddressRole;
-  rolePills: RolePill[];
-  proposedPills: string[];
-};
-
-function groupAddresses(op: CachedOperator): AddressGroup[] {
-  const ownerKey = op.ownerAddress.toLowerCase();
-  const ownerOf = new Set<'MGR' | 'RWD'>();
-  if (op.managerAddress.toLowerCase() === ownerKey) ownerOf.add('MGR');
-  if (op.rewardsAddress.toLowerCase() === ownerKey) ownerOf.add('RWD');
-
-  type Entry = {
-    role: AddressRole;
-    label: 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD';
-    tint: 'mgr' | 'rwd';
-    address: string;
-    proposed: boolean;
-  };
-  const entries: Entry[] = [
-    { role: 'manager', label: 'MGR', tint: 'mgr', address: op.managerAddress, proposed: false },
-    { role: 'rewards', label: 'RWD', tint: 'rwd', address: op.rewardsAddress, proposed: false },
-  ];
-  if (op.proposedManagerAddress) {
-    entries.push({ role: 'proposedManager', label: 'P-MGR', tint: 'mgr', address: op.proposedManagerAddress, proposed: true });
-  }
-  if (op.proposedRewardsAddress) {
-    entries.push({ role: 'proposedRewards', label: 'P-RWD', tint: 'rwd', address: op.proposedRewardsAddress, proposed: true });
-  }
-
-  const map = new Map<string, AddressGroup>();
-  for (const e of entries) {
-    const key = e.address.toLowerCase();
-    let group = map.get(key);
-    if (!group) {
-      group = {
-        address: e.address,
-        primaryRole: e.role,
-        rolePills: [],
-        proposedPills: [],
-      };
-      map.set(key, group);
-    }
-    if (e.proposed) {
-      group.proposedPills.push(e.label);
-    } else {
-      const label = e.label as 'MGR' | 'RWD';
-      group.rolePills.push({
-        label,
-        tint: e.tint,
-        owner: ownerOf.has(label),
-      });
-    }
-  }
-  return Array.from(map.values());
-}
-
-// 'CSM_LEA' → 'csm-lea' — drives per-type ribbon color via CSS class.
-function typeKind(operatorType: string): string {
-  return (operatorType || 'cc').toLowerCase().replace(/_/g, '-');
-}
-
-function OperatorRow({
+export function OperatorRow({
   operator: op,
   selectedAddress,
   isFavorite,
@@ -203,6 +138,71 @@ function OperatorRow({
       </div>
     </div>
   );
+}
+
+type RolePill = { label: 'MGR' | 'RWD'; tint: 'mgr' | 'rwd'; owner: boolean };
+
+type AddressGroup = {
+  address: string;
+  primaryRole: AddressRole;
+  rolePills: RolePill[];
+  proposedPills: string[];
+};
+
+function groupAddresses(op: CachedOperator): AddressGroup[] {
+  const ownerKey = op.ownerAddress.toLowerCase();
+  const ownerOf = new Set<'MGR' | 'RWD'>();
+  if (op.managerAddress.toLowerCase() === ownerKey) ownerOf.add('MGR');
+  if (op.rewardsAddress.toLowerCase() === ownerKey) ownerOf.add('RWD');
+
+  type Entry = {
+    role: AddressRole;
+    label: 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD';
+    tint: 'mgr' | 'rwd';
+    address: string;
+    proposed: boolean;
+  };
+  const entries: Entry[] = [
+    { role: 'manager', label: 'MGR', tint: 'mgr', address: op.managerAddress, proposed: false },
+    { role: 'rewards', label: 'RWD', tint: 'rwd', address: op.rewardsAddress, proposed: false },
+  ];
+  if (op.proposedManagerAddress) {
+    entries.push({ role: 'proposedManager', label: 'P-MGR', tint: 'mgr', address: op.proposedManagerAddress, proposed: true });
+  }
+  if (op.proposedRewardsAddress) {
+    entries.push({ role: 'proposedRewards', label: 'P-RWD', tint: 'rwd', address: op.proposedRewardsAddress, proposed: true });
+  }
+
+  const map = new Map<string, AddressGroup>();
+  for (const e of entries) {
+    const key = e.address.toLowerCase();
+    let group = map.get(key);
+    if (!group) {
+      group = {
+        address: e.address,
+        primaryRole: e.role,
+        rolePills: [],
+        proposedPills: [],
+      };
+      map.set(key, group);
+    }
+    if (e.proposed) {
+      group.proposedPills.push(e.label);
+    } else {
+      const label = e.label as 'MGR' | 'RWD';
+      group.rolePills.push({
+        label,
+        tint: e.tint,
+        owner: ownerOf.has(label),
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
+// 'CSM_LEA' → 'csm-lea' — drives per-type ribbon color via CSS class.
+function typeKind(operatorType: string): string {
+  return (operatorType || 'cc').toLowerCase().replace(/_/g, '-');
 }
 
 function AddressChip({

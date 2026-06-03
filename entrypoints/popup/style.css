@@ -427,7 +427,15 @@ input:focus {
   z-index: 2;
 }
 
+.search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
 .search-bar {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -435,6 +443,36 @@ input:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 7px 10px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--dim);
+  transition: background 120ms, color 120ms;
+}
+
+.view-toggle-btn:hover {
+  color: var(--text);
+}
+
+.view-toggle-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .search-bar input {
@@ -1063,4 +1101,192 @@ input:focus {
 
 .checkbox-row input {
   accent-color: var(--accent);
+}
+
+/* ── Operator groups (CM grouped view) ────────────────── */
+
+.operator-groups {
+  padding: 4px 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.group-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  transition: background 120ms, border-color 120ms;
+}
+
+.group-section.open .group-header {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.group-header:hover {
+  background: var(--surface);
+}
+
+.group-caret {
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  color: var(--dim);
+  transition: transform 140ms;
+  flex-shrink: 0;
+}
+
+.group-caret.open {
+  transform: rotate(90deg);
+}
+
+.group-star {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--dim-2);
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 120ms;
+}
+
+.group-star:hover {
+  color: var(--text);
+}
+
+.group-star.active {
+  color: var(--warn);
+}
+
+.group-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.group-id-tag {
+  font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.group-count {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 1px 7px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.group-partial-hint {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 11%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.group-body {
+  padding: 2px 0 4px 12px;
+  margin-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+/* "No group" block — dashed separator from groups above */
+.ungrouped-section {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+}
+
+.ungrouped-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  color: var(--dim-2);
+  font-family: inherit;
+  text-align: left;
+}
+
+.ungrouped-header:hover {
+  color: var(--dim);
+}
+
+.ungrouped-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.ungrouped-body {
+  padding: 0;
+}
+
+/* Rich empty state used by grouped Favorites/Pending */
+.empty-state-rich {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--dim-2);
+}
+
+.empty-glyph {
+  font-size: 22px;
+  margin-bottom: 8px;
+  color: var(--dim);
+}
+
+.empty-headline {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+.empty-hint {
+  font-size: 11px;
+  line-height: 1.5;
 }
