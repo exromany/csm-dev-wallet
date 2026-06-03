@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { OperatorList } from '../../entrypoints/popup/OperatorList.js';
-import { makeOperator, ADDR_A } from '../fixtures.js';
+import { makeOperator, ADDR_A, ADDR_B } from '../fixtures.js';
 
 const noopFavorites = { toggle: vi.fn(), isFavorite: () => false };
 const noopSelect = vi.fn();
@@ -48,14 +48,28 @@ describe('OperatorList', () => {
     expect(addressRows).toHaveLength(1);
   });
 
-  it('marks owner role pill with .owner class based on ownerAddress', () => {
-    // Owner = manager address. The MGR pill should carry .owner; RWD should not.
-    const ops = [makeOperator({ id: '1', managerAddress: ADDR_A, ownerAddress: ADDR_A })];
+  it('marks MGR pill as owner when ownerAddress matches managerAddress', () => {
+    const ops = [makeOperator({
+      id: '1',
+      managerAddress: ADDR_A,
+      rewardsAddress: ADDR_B,
+      ownerAddress: ADDR_A,
+    })];
     render(<OperatorList {...baseProps} operators={ops} />);
-    const mgr = screen.getByText('MGR');
-    const rwd = screen.getByText('RWD');
-    expect(mgr.className).toContain('owner');
-    expect(rwd.className).not.toContain('owner');
+    expect(screen.getByText('MGR').className).toContain('owner');
+    expect(screen.getByText('RWD').className).not.toContain('owner');
+  });
+
+  it('marks RWD pill as owner when ownerAddress matches rewardsAddress', () => {
+    const ops = [makeOperator({
+      id: '1',
+      managerAddress: ADDR_A,
+      rewardsAddress: ADDR_B,
+      ownerAddress: ADDR_B,
+    })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('MGR').className).not.toContain('owner');
+    expect(screen.getByText('RWD').className).toContain('owner');
   });
 
   it('shows filled star when favorite', () => {
