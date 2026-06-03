@@ -6,6 +6,8 @@ import {
   useModuleAvailability,
   useAnvilStatus,
   useOperatorLabels,
+  filterByGroup,
+  type FilterGroup,
 } from '../../lib/popup/hooks.js';
 import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 import { formatTimeAgo } from '../../lib/popup/utils.js';
@@ -51,7 +53,7 @@ export function App() {
   const availableModules = useModuleAvailability(port);
   const [tab, setTab] = useState<Tab>('operators');
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [filterGroup, setFilterGroup] = useState<FilterGroup>('all');
   const [netModOpen, setNetModOpen] = useState(false);
   const chipRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -94,8 +96,8 @@ export function App() {
 
   const { isFavorite } = favorites;
   const displayOperators = useMemo(
-    () => (showFavoritesOnly ? operators.filter((op) => isFavorite(op.id)) : operators),
-    [operators, showFavoritesOnly, isFavorite],
+    () => filterByGroup(operators, filterGroup, isFavorite),
+    [operators, filterGroup, isFavorite],
   );
 
   return (
@@ -182,16 +184,23 @@ export function App() {
               </div>
               <div className="filter-bar">
                 <button
-                  className={`filter-btn ${!showFavoritesOnly ? 'active' : ''}`}
-                  onClick={() => setShowFavoritesOnly(false)}
+                  className={`filter-btn ${filterGroup === 'all' ? 'active' : ''}`}
+                  onClick={() => setFilterGroup('all')}
                 >
                   All
                 </button>
                 <button
-                  className={`filter-btn ${showFavoritesOnly ? 'active' : ''}`}
-                  onClick={() => setShowFavoritesOnly(true)}
+                  className={`filter-btn ${filterGroup === 'favorites' ? 'active' : ''}`}
+                  onClick={() => setFilterGroup('favorites')}
                 >
                   Favorites
+                </button>
+                <button
+                  className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
+                  onClick={() => setFilterGroup('pending')}
+                  title="Operators with pending P-MGR or P-RWD role-change proposals"
+                >
+                  Pending
                 </button>
                 <div className="spacer" />
                 {lastFetchedAt && (
