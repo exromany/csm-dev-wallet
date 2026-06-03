@@ -1,4 +1,3 @@
-// test/background/rpc-handler.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeSiteState, makeGlobalSettings, ADDR_A } from '../fixtures.js';
 
@@ -47,7 +46,6 @@ vi.mock('../../lib/background/rpc.js', () => ({ rawJsonRpc: mockRawJsonRpc }));
 
 // ── Imports under test ──
 import { handleRpcRequest } from '../../lib/background/rpc-handler.js';
-import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 
 const ORIGIN = 'https://stake.lido.fi';
 
