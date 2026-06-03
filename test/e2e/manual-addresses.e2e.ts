@@ -9,6 +9,9 @@ import {
   openPopup,
   goToTab,
   createRunner,
+  clickAdd,
+  clickManualRow,
+  connectedPill,
 } from './helpers.js';
 
 const { test, summary } = createRunner();
@@ -44,17 +47,17 @@ async function main() {
       const page = await openPopup(context, extensionId);
       await goToTab(page, 'Manual');
 
-      await page.fill('.manual-input-row input', VALID_ADDRESS);
-      await page.click('.btn-add');
+      await page.fill('.manual-form .addr-input', VALID_ADDRESS);
+      await clickAdd(page);
       await page.waitForTimeout(300);
 
-      const inputValue = await page.locator('.manual-input-row input').inputValue();
+      const inputValue = await page.locator('.manual-form .addr-input').inputValue();
       if (inputValue !== '') throw new Error(`Input not cleared: "${inputValue}"`);
 
       const emptyVisible = await page.locator('.empty-state').isVisible().catch(() => false);
       if (emptyVisible) throw new Error('Empty state still visible after adding');
 
-      const addressText = await page.locator('.address-mono').first().textContent();
+      const addressText = await page.locator('.manual-entry .addr').first().textContent();
       if (!addressText) throw new Error('No address shown in list');
       await page.close();
     });
@@ -66,19 +69,20 @@ async function main() {
       await goToTab(page, 'Manual');
 
       // First remove any existing addresses from previous tests
-      while (await page.locator('.btn-disconnect:has-text("Remove")').count() > 0) {
-        await page.click('.btn-disconnect:has-text("Remove")');
+      while (await page.locator('.btn-copy.danger[title="Remove"]').count() > 0) {
+        await page.click('.btn-copy.danger[title="Remove"]');
         await page.waitForTimeout(200);
       }
 
-      await page.fill('.manual-input-row input', INVALID_ADDRESS);
-      await page.click('.btn-add');
-      await page.waitForTimeout(300);
+      await page.fill('.manual-form .addr-input', INVALID_ADDRESS);
+      // Button is disabled for invalid input — click anyway via JS to confirm guard.
+      const addEnabled = await page.locator('.btn-add-icon').isEnabled();
+      if (addEnabled) throw new Error('Add button should be disabled for invalid address');
 
       const emptyVisible = await page.locator('.empty-state').isVisible();
       if (!emptyVisible) throw new Error('Invalid address was added — empty state gone');
 
-      const inputValue = await page.locator('.manual-input-row input').inputValue();
+      const inputValue = await page.locator('.manual-form .addr-input').inputValue();
       if (inputValue !== INVALID_ADDRESS) {
         throw new Error(`Input unexpectedly changed to: "${inputValue}"`);
       }
@@ -92,17 +96,16 @@ async function main() {
       await goToTab(page, 'Manual');
 
       // Add an address via UI
-      await page.fill('.manual-input-row input', VALID_ADDRESS);
-      await page.click('.btn-add');
+      await page.fill('.manual-form .addr-input', VALID_ADDRESS);
+      await clickAdd(page);
       await page.waitForTimeout(300);
 
-      // Click the address row to select
-      await page.click('.address-row');
+      // Click the manual row to select
+      await clickManualRow(page);
       await page.waitForTimeout(500);
 
-      const connectedBar = page.locator('.connected-bar');
-      const visible = await connectedBar.isVisible({ timeout: 2000 }).catch(() => false);
-      if (!visible) throw new Error('Connected bar not visible after selecting address');
+      const visible = await connectedPill(page).isVisible({ timeout: 2000 }).catch(() => false);
+      if (!visible) throw new Error('Connected pill not visible after selecting address');
       await page.close();
     });
 
@@ -115,14 +118,14 @@ async function main() {
       // Ensure there's an address (add if empty)
       const emptyBefore = await page.locator('.empty-state').isVisible().catch(() => false);
       if (emptyBefore) {
-        await page.fill('.manual-input-row input', VALID_ADDRESS);
-        await page.click('.btn-add');
+        await page.fill('.manual-form .addr-input', VALID_ADDRESS);
+        await clickAdd(page);
         await page.waitForTimeout(300);
       }
 
       // Remove all addresses
-      while (await page.locator('.btn-disconnect:has-text("Remove")').count() > 0) {
-        await page.click('.btn-disconnect:has-text("Remove")');
+      while (await page.locator('.btn-copy.danger[title="Remove"]').count() > 0) {
+        await page.click('.btn-copy.danger[title="Remove"]');
         await page.waitForTimeout(300);
       }
 

@@ -28,7 +28,7 @@ describe('ManualAddresses', () => {
 
     const input = screen.getByPlaceholderText(/0x address/i);
     fireEvent.change(input, { target: { value: VALID_ADDR } });
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByTitle('Add address'));
 
     expect(onAdd).toHaveBeenCalledWith(VALID_ADDR);
     expect(input).toHaveValue('');
@@ -40,7 +40,7 @@ describe('ManualAddresses', () => {
 
     const input = screen.getByPlaceholderText(/0x address/i);
     fireEvent.change(input, { target: { value: 'not-an-address' } });
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByTitle('Add address'));
 
     expect(onAdd).not.toHaveBeenCalled();
   });
@@ -67,7 +67,7 @@ describe('ManualAddresses', () => {
     );
 
     // Address row should be rendered (truncated)
-    const addressRow = screen.getByText(/0xd8dA\.\.\.6045/);
+    const addressRow = screen.getByText(/0xd8dA…6045/);
     fireEvent.click(addressRow);
 
     expect(onSelect).toHaveBeenCalledWith(VALID_ADDR);
@@ -83,7 +83,8 @@ describe('ManualAddresses', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('Remove'));
+    // Remove button is now an "×" icon (button with title="Remove")
+    fireEvent.click(screen.getByTitle('Remove'));
     expect(onRemove).toHaveBeenCalledWith(VALID_ADDR);
   });
 });

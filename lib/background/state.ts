@@ -31,6 +31,7 @@ async function migrateLegacy(): Promise<boolean> {
     favorites: (legacy.favorites as string[]) ?? [],
     manualAddresses: (legacy.manualAddresses as GlobalSettings['manualAddresses']) ?? [],
     addressLabels: (legacy.addressLabels as GlobalSettings['addressLabels']) ?? {},
+    operatorLabels: (legacy.operatorLabels as GlobalSettings['operatorLabels']) ?? {},
     requireApproval: (legacy.requireApproval as boolean) ?? false,
   };
 
@@ -66,6 +67,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     favorites: raw.favorites ?? [],
     manualAddresses: raw.manualAddresses ?? [],
     addressLabels: raw.addressLabels ?? {},
+    operatorLabels: raw.operatorLabels ?? {},
     requireApproval: raw.requireApproval ?? false,
   };
 

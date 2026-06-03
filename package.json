@@ -1,6 +1,6 @@
 {
   "name": "csm-dev-wallet",
-  "version": "1.5.1",
+  "version": "2.0.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -39,7 +39,7 @@
     "build:package": "wxt build && npm run build:playwright && cp -r .output/chrome-mv3 dist/extension"
   },
   "dependencies": {
-    "@lidofinance/lido-csm-sdk": "^2.0.0-alpha.42",
+    "@lidofinance/lido-csm-sdk": "^2.0.0-alpha.60",
     "@lidofinance/lido-ethereum-sdk": "^4.5.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

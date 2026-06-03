@@ -16,32 +16,28 @@ const CONFIGURABLE_NETWORKS = [
 
 export function Settings({ state, onSetRpc, onSetRequireApproval }: Props) {
   return (
-    <>
-      <h3 style={{ marginBottom: 12, fontSize: 13 }}>RPC Endpoints</h3>
+    <div className="panel">
+      <div className="section-label">RPC endpoints</div>
       {CONFIGURABLE_NETWORKS.map(({ chainId, label, defaultUrl }) => (
         <RpcInput
           key={chainId}
           label={label}
           defaultUrl={defaultUrl}
-          currentUrl={
-            (state.customRpcUrls as Record<number, string>)[chainId] ?? ''
-          }
+          currentUrl={(state.customRpcUrls as Record<number, string>)[chainId] ?? ''}
           onSave={(url) => onSetRpc(chainId, url)}
         />
       ))}
 
-      <h3 style={{ marginBottom: 12, marginTop: 20, fontSize: 13 }}>Signing</h3>
-      <div className="settings-group">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={state.requireApproval}
-            onChange={(e) => onSetRequireApproval(e.target.checked)}
-          />
-          Require approval for signing (Anvil only)
-        </label>
-      </div>
-    </>
+      <div className="section-label spaced">Signing</div>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={state.requireApproval}
+          onChange={(e) => onSetRequireApproval(e.target.checked)}
+        />
+        Require approval for signing (Anvil only)
+      </label>
+    </div>
   );
 }
 
@@ -64,14 +60,12 @@ function RpcInput({
 
   return (
     <div className="settings-group">
-      <label>{label}</label>
+      <label className="field-label">{label}</label>
       <input
         placeholder={defaultUrl}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onBlur={() => {
-          if (value !== currentUrl) onSave(value);
-        }}
+        onBlur={() => { if (value !== currentUrl) onSave(value); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && value !== currentUrl) onSave(value);
         }}

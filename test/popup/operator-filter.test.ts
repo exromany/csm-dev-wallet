@@ -90,4 +90,31 @@ describe('filterOperators', () => {
     expect(result).toHaveLength(2);
     expect(result.map((o) => o.id).sort()).toEqual(['1', '21']);
   });
+
+  // operator label search
+  it('filters by operator label (the new per-operator nickname)', () => {
+    const labels: Record<string, string> = { '1': 'Kiln', '10': 'P2P.org' };
+    const getLabel = (id: string) => labels[id] ?? '';
+
+    const result = filterOperators(ops, 'kiln', {}, getLabel);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('1');
+  });
+
+  it('operator-label search is case-insensitive and substring', () => {
+    const labels: Record<string, string> = { '1': 'Kiln', '10': 'P2P.org' };
+    const getLabel = (id: string) => labels[id] ?? '';
+
+    expect(filterOperators(ops, 'p2p', {}, getLabel).map((o) => o.id)).toEqual(['10']);
+    expect(filterOperators(ops, 'KIL', {}, getLabel).map((o) => o.id)).toEqual(['1']);
+  });
+
+  it('operator-label search does not affect id-substring matches', () => {
+    const labels: Record<string, string> = { '1': '21-banger' };
+    const getLabel = (id: string) => labels[id] ?? '';
+
+    // '21' still matches operator 21 by id; operator 1 ALSO matches by label.
+    const result = filterOperators(ops, '21', {}, getLabel);
+    expect(result.map((o) => o.id).sort()).toEqual(['1', '21']);
+  });
 });

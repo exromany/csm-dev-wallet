@@ -97,6 +97,7 @@ export function useOperators(
   chainId: number,
   moduleType: ModuleType,
   addressLabels: Record<string, string> = {},
+  getOperatorLabel: (operatorId: string) => string = () => '',
 ) {
   const [operators, setOperators] = useState<CachedOperator[]>([]);
   const [loading, setLoading] = useState(false);
@@ -156,7 +157,10 @@ export function useOperators(
     } satisfies PopupCommand);
   }, [port, origin, chainId, moduleType]);
 
-  const filtered = useMemo(() => filterOperators(operators, search, addressLabels), [operators, search, addressLabels]);
+  const filtered = useMemo(
+    () => filterOperators(operators, search, addressLabels, getOperatorLabel),
+    [operators, search, addressLabels, getOperatorLabel],
+  );
 
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
 }
@@ -233,6 +237,34 @@ export function useFavorites(
   return { toggle, isFavorite };
 }
 
+// ── useOperatorLabels ──
+// Operator labels are user-set names for operators (e.g. "Kiln", "P2P.org"),
+// scoped by module + chain so the same numeric ID across networks stays distinct.
+
+export function useOperatorLabels(
+  state: WalletState,
+  send: (cmd: PopupCommandInput) => void,
+  forkedFrom?: SupportedChainId | null,
+) {
+  const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
+    ? forkedFrom
+    : state.chainId;
+  const prefix = `${state.moduleType}:${chainIdForPrefix}:`;
+
+  const get = useCallback(
+    (operatorId: string) => state.operatorLabels[`${prefix}${operatorId}`] ?? '',
+    [state.operatorLabels, prefix],
+  );
+
+  const set = useCallback(
+    (operatorId: string, label: string) =>
+      send({ type: 'set-operator-label', operatorId, label }),
+    [send],
+  );
+
+  return { get, set };
+}
+
 // ── useCopyAddress ──
 
 export function useCopyAddress() {
@@ -259,12 +291,27 @@ export function useCopyAddress() {
   return { copy, isCopied };
 }
 
+// ── filterByGroup ──
+
+export type FilterGroup = 'all' | 'favorites' | 'pending';
+
+export function filterByGroup(
+  operators: CachedOperator[],
+  group: FilterGroup,
+  isFavorite: (id: string) => boolean,
+): CachedOperator[] {
+  if (group === 'favorites') return operators.filter((op) => isFavorite(op.id));
+  if (group === 'pending') return operators.filter((op) => op.proposedManagerAddress || op.proposedRewardsAddress);
+  return operators;
+}
+
 // ── filterOperators ──
 
 export function filterOperators(
   operators: CachedOperator[],
   search: string,
   addressLabels: Record<string, string> = {},
+  getOperatorLabel: (operatorId: string) => string = () => '',
 ): CachedOperator[] {
   if (!search) return operators;
   const raw = search.trim();
@@ -285,6 +332,7 @@ export function filterOperators(
       op.rewardsAddress.toLowerCase().includes(q) ||
       op.proposedManagerAddress?.toLowerCase().includes(q) ||
       op.proposedRewardsAddress?.toLowerCase().includes(q) ||
+      getOperatorLabel(op.id).toLowerCase().includes(q) ||
       (addressLabels[op.managerAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (addressLabels[op.rewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (op.proposedManagerAddress && (addressLabels[op.proposedManagerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||

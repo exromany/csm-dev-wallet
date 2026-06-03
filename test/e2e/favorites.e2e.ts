@@ -12,6 +12,8 @@ import {
   seedModuleAvailability,
   makeTestOperators,
   createRunner,
+  selectNetwork,
+  fillSearch,
 } from './helpers.js';
 
 const { test, summary } = createRunner();
@@ -126,7 +128,7 @@ async function main() {
       await page.waitForSelector('.operator-row');
 
       // Search "LEA" — matches #2 and #5 (both LEA type)
-      await page.fill('.search-bar', 'LEA');
+      await fillSearch(page, 'LEA');
       await page.waitForTimeout(300);
 
       let rows = await page.locator('.operator-row').count();
@@ -168,7 +170,7 @@ async function main() {
       if (activeStars !== 1) throw new Error(`Mainnet: expected 1 active star, got ${activeStars}`);
 
       // Switch to Hoodi
-      await page.selectOption('.network-select', '560048');
+      await selectNetwork(page, 560048);
       await page.waitForTimeout(500);
 
       // No stars should be active on Hoodi

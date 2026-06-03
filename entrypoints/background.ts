@@ -530,6 +530,27 @@ export default defineBackground(() => {
         break;
       }
 
+      case 'set-operator-label': {
+        const globalSettings = await getGlobalSettings();
+        const site = await getSiteState(command.origin);
+        const forkedFrom = await getForkedFrom();
+        const chainIdForPrefix =
+          site.chainId === ANVIL_CHAIN_ID && forkedFrom
+            ? forkedFrom
+            : site.chainId;
+        const scopedId = `${site.moduleType}:${chainIdForPrefix}:${command.operatorId}`;
+        const operatorLabels = { ...globalSettings.operatorLabels };
+        if (command.label.trim()) {
+          operatorLabels[scopedId] = command.label.trim();
+        } else {
+          delete operatorLabels[scopedId];
+        }
+        await setGlobalSettings({ operatorLabels });
+        const state = await getComposedState(command.origin);
+        broadcastToPopups({ type: 'state-update', state });
+        break;
+      }
+
       case 'set-custom-rpc': {
         if (command.rpcUrl) {
           try {

@@ -14,22 +14,26 @@ type Props = {
 export function ConnectedBar({ address, chainId, label, onDisconnect }: Props) {
   const isAnvil = chainId === ANVIL_CHAIN_ID;
   const { copy, isCopied } = useCopyAddress();
+  const copied = isCopied(address.address);
+
   return (
-    <div className="connected-bar">
-      <span className="address">{truncateAddress(address.address)}</span>
-      {label && <span className="address-label">{label}</span>}
-      <button
-        className="btn-copy"
-        onClick={() => copy(address.address)}
-        title="Copy address"
-      >
-        {isCopied(address.address) ? 'Copied!' : '\u2398'}
-      </button>
+    <div className="connected-pill">
+      <span className="dot" />
+      <span className="address mono">{truncateAddress(address.address)}</span>
+      {label && <span className="label">{label}</span>}
       <span className={`badge ${isAnvil ? 'anvil' : 'watch'}`}>
         {isAnvil ? 'anvil' : 'watch-only'}
       </span>
-      <button className="btn-disconnect" onClick={onDisconnect}>
-        Disconnect
+      <div className="spacer" />
+      <button
+        className={`btn-copy ${copied ? 'copied' : ''}`}
+        onClick={() => copy(address.address)}
+        title="Copy address"
+      >
+        {copied ? '✓' : '⎘'}
+      </button>
+      <button className="btn-ghost danger" onClick={onDisconnect}>
+        disconnect
       </button>
     </div>
   );

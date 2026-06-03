@@ -3,7 +3,7 @@ import type { Address } from 'viem';
 import { isAddress } from 'viem';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
-import { AddressLabel } from './AddressLabel.js';
+import { LabelEditor } from './LabelEditor.js';
 
 type Props = {
   addresses: Address[];
@@ -28,64 +28,123 @@ export function ManualAddresses({
   onSelect,
   onSelectAnvil,
 }: Props) {
-  const [input, setInput] = useState('');
+  const [name, setName] = useState('');
+  const [addr, setAddr] = useState('');
   const { copy, isCopied } = useCopyAddress();
 
+  const valid = isAddress(addr.trim());
+
   const handleAdd = () => {
-    const trimmed = input.trim();
-    if (isAddress(trimmed)) {
-      onAdd(trimmed);
-      setInput('');
-    }
+    const trimmed = addr.trim();
+    if (!isAddress(trimmed)) return;
+    onAdd(trimmed);
+    if (name.trim()) onSetLabel(trimmed, name.trim());
+    setName('');
+    setAddr('');
   };
 
   return (
-    <>
+    <div className="panel">
+      <div className="manual-form-sticky">
+        <div className="section-label">Add address</div>
+        <div className="manual-form">
+          <input
+            className="name-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+          />
+          <input
+            className="addr-input"
+            value={addr}
+            onChange={(e) => setAddr(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            placeholder="0x address…"
+          />
+          <button
+            className="btn-add-icon"
+            disabled={!valid}
+            onClick={handleAdd}
+            title="Add address"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
       {anvilAccounts.length > 0 && (
         <>
-          <h4 className="section-label">Anvil Accounts (pre-funded)</h4>
-          {anvilAccounts.map((addr, i) => {
-            const selected =
-              selectedAddress?.toLowerCase() === addr.toLowerCase();
+          <div className="section-label spaced">Anvil accounts (pre-funded)</div>
+          {anvilAccounts.map((address, i) => {
+            const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
+            const label = addressLabels[address.toLowerCase()] ?? '';
+            const copied = isCopied(address);
             return (
-              <div key={addr} className="operator-row">
-                <div
-                  className={`address-row ${selected ? 'selected' : ''}`}
-                  onClick={() => onSelectAnvil?.(addr, i)}
-                >
-                  <span className="role-badge anvil">#{i}</span>
-                  <span className="address-mono">{truncateAddress(addr)}</span>
-                  <AddressLabel
-                    address={addr}
-                    label={addressLabels[addr.toLowerCase()] ?? ''}
-                    onSave={(label) => onSetLabel(addr, label)}
+              <div
+                key={address}
+                className={`manual-entry ${selected ? 'selected' : ''} ${label ? '' : 'no-name'}`}
+                onClick={() => onSelectAnvil?.(address, i)}
+              >
+                <span className="anvil-index">#{i}</span>
+                <div className="body">
+                  <LabelEditor
+                    label={label}
+                    onSave={(l) => onSetLabel(address, l)}
+                    className="entry-label"
+                    placeholder="Name this account…"
                   />
-                  <button
-                    className="btn-copy"
-                    onClick={(e) => { e.stopPropagation(); copy(addr); }}
-                    title="Copy address"
-                  >
-                    {isCopied(addr) ? 'Copied!' : '\u2398'}
-                  </button>
+                  <div className="addr">{truncateAddress(address)}</div>
                 </div>
+                <button
+                  className={`btn-copy ${copied ? 'copied' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); copy(address); }}
+                  title="Copy address"
+                >
+                  {copied ? '✓' : '⎘'}
+                </button>
               </div>
             );
           })}
         </>
       )}
 
-      <h4 className="section-label">Manual Addresses</h4>
-      <div className="manual-input-row">
-        <input
-          placeholder="0x address..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        />
-        <button className="btn-add" onClick={handleAdd}>
-          Add
-        </button>
-      </div>
+      {addresses.length > 0 && <div className="section-label spaced">Saved</div>}
+      {addresses.map((address) => {
+        const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
+        const label = addressLabels[address.toLowerCase()] ?? '';
+        const copied = isCopied(address);
+        return (
+          <div
+            key={address}
+            className={`manual-entry ${selected ? 'selected' : ''} ${label ? '' : 'no-name'}`}
+            onClick={() => onSelect(address)}
+          >
+            <div className="body">
+              <LabelEditor
+                label={label}
+                onSave={(l) => onSetLabel(address, l)}
+                className="entry-label"
+                placeholder="Name this address…"
+              />
+              <div className="addr">{truncateAddress(address)}</div>
+            </div>
+            <button
+              className={`btn-copy ${copied ? 'copied' : ''}`}
+              onClick={(e) => { e.stopPropagation(); copy(address); }}
+              title="Copy address"
+            >
+              {copied ? '✓' : '⎘'}
+            </button>
+            <button
+              className="btn-copy danger"
+              onClick={(e) => { e.stopPropagation(); onRemove(address); }}
+              title="Remove"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
 
       {addresses.length === 0 && (
         <div className="empty-state">
@@ -94,42 +153,6 @@ export function ManualAddresses({
           Add an address above to connect as it.
         </div>
       )}
-
-      {addresses.map((addr) => {
-        const selected =
-          selectedAddress?.toLowerCase() === addr.toLowerCase();
-        return (
-          <div key={addr} className="operator-row">
-            <div
-              className={`address-row ${selected ? 'selected' : ''}`}
-              onClick={() => onSelect(addr)}
-            >
-              <span className="address-mono">{truncateAddress(addr)}</span>
-              <AddressLabel
-                address={addr}
-                label={addressLabels[addr.toLowerCase()] ?? ''}
-                onSave={(label) => onSetLabel(addr, label)}
-              />
-              <button
-                className="btn-copy"
-                onClick={(e) => { e.stopPropagation(); copy(addr); }}
-                title="Copy address"
-              >
-                {isCopied(addr) ? 'Copied!' : '\u2398'}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 8, padding: '2px 6px' }}>
-              <button
-                className="btn-disconnect"
-                style={{ fontSize: 11 }}
-                onClick={() => onRemove(addr)}
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        );
-      })}
-    </>
+    </div>
   );
 }

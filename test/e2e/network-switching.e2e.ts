@@ -11,6 +11,8 @@ import {
   seedModuleAvailability,
   makeTestOperators,
   createRunner,
+  selectNetwork,
+  fillSearch,
 } from './helpers.js';
 
 const { test, summary } = createRunner();
@@ -41,7 +43,7 @@ async function main() {
       let rows = await page.locator('.operator-row').count();
       if (rows !== 5) throw new Error(`Mainnet: expected 5, got ${rows}`);
 
-      await page.selectOption('.network-select', '560048');
+      await selectNetwork(page, 560048);
       await page.waitForTimeout(500);
 
       rows = await page.locator('.operator-row').count();
@@ -59,10 +61,10 @@ async function main() {
       await page.waitForSelector('.operator-row');
 
       // Ensure we're on Mainnet first (previous test may have left on Hoodi)
-      await page.selectOption('.network-select', '560048');
+      await selectNetwork(page, 560048);
       await page.waitForTimeout(500);
 
-      await page.selectOption('.network-select', '1');
+      await selectNetwork(page, 1);
       await page.waitForTimeout(500);
 
       const rows = await page.locator('.operator-row').count();
@@ -80,21 +82,21 @@ async function main() {
       await page.waitForSelector('.operator-row');
 
       // Mainnet first
-      await page.selectOption('.network-select', '1');
+      await selectNetwork(page, 1);
       await page.waitForTimeout(500);
 
       // Search that matches Mainnet operator
-      await page.fill('.search-bar', '#1');
+      await fillSearch(page, '#1');
       await page.waitForTimeout(300);
       let rows = await page.locator('.operator-row').count();
       if (rows !== 1) throw new Error(`Search #1 on Mainnet: expected 1, got ${rows}`);
 
       // Switch to Hoodi — search persists but matches against new operators
-      await page.selectOption('.network-select', '560048');
+      await selectNetwork(page, 560048);
       await page.waitForTimeout(500);
 
       // Clear search to see all Hoodi operators
-      await page.fill('.search-bar', '');
+      await fillSearch(page, '');
       await page.waitForTimeout(300);
 
       rows = await page.locator('.operator-row').count();

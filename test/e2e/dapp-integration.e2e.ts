@@ -15,6 +15,7 @@ import {
   resetStateCaches,
   startTestDapp,
   openTestDapp,
+  selectNetwork,
 } from './helpers.js';
 import type { Worker } from 'playwright';
 
@@ -79,8 +80,8 @@ async function main() {
         page.click('#connect'),
       ]);
 
-      await popup.waitForSelector('.address-row', { timeout: 10000 });
-      await popup.locator('.address-row').first().click();
+      await popup.waitForSelector('.address-chip', { timeout: 10000 });
+      await popup.locator('.address-chip').first().click();
 
       await page.waitForFunction(
         (addr) => document.getElementById('address')?.textContent?.toLowerCase() === addr,
@@ -132,8 +133,8 @@ async function main() {
       const popup = await context.newPage();
       await popup.goto(`chrome-extension://${extensionId}/popup.html?origin=${encodeURIComponent(dappOrigin)}`);
       await popup.waitForSelector('.app');
-      await popup.waitForSelector('.btn-disconnect', { timeout: 5000 });
-      await popup.click('.btn-disconnect');
+      await popup.waitForSelector('.connected-pill .btn-ghost.danger', { timeout: 5000 });
+      await popup.click('.connected-pill .btn-ghost.danger');
       await popup.close();
 
       // Dapp should receive accountsChanged and reset
@@ -164,8 +165,8 @@ async function main() {
         page.click('#connect'),
       ]);
 
-      await popup.waitForSelector('.address-row', { timeout: 10000 });
-      await popup.locator('.address-row').first().click();
+      await popup.waitForSelector('.address-chip', { timeout: 10000 });
+      await popup.locator('.address-chip').first().click();
 
       await page.waitForFunction(
         (addr) => document.getElementById('address')?.textContent?.toLowerCase() === addr,
@@ -200,7 +201,7 @@ async function main() {
       const popup = await context.newPage();
       await popup.goto(`chrome-extension://${extensionId}/popup.html?origin=${encodeURIComponent(dappOrigin)}`);
       await popup.waitForSelector('.app');
-      await popup.selectOption('.network-select', '560048');
+      await selectNetwork(popup, 560048);
       await popup.waitForTimeout(1000);
       await popup.close();
 
