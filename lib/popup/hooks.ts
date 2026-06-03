@@ -53,24 +53,62 @@ export function useWalletState() {
   useEffect(() => {
     if (!origin) return;
 
-    const p = chrome.runtime.connect({ name: PORT_NAME });
-    setPort(p);
+    // MV3 terminates the service worker after ~30s idle and at a 5min hard cap,
+    // even with an open port. When the popup outlives the SW (devtools attached,
+    // popup as tab, connection-prompt window), the port disconnects. We listen
+    // for disconnect and reopen on visibility/focus so a stale popup keeps working.
+    let active = true;
+    let current: chrome.runtime.Port | null = null;
 
-    p.onMessage.addListener((event: PopupEvent) => {
-      if (event.type === 'state-update') {
-        setLocalState(event.state);
-        setError(null);
-      }
-      if (event.type === 'error') {
-        setError(event.message);
-      }
-    });
+    const open = () => {
+      const p = chrome.runtime.connect({ name: PORT_NAME });
+      current = p;
 
-    // Request initial state for this origin
-    p.postMessage({ type: 'get-state', origin } satisfies PopupCommand);
+      p.onMessage.addListener((event: PopupEvent) => {
+        if (event.type === 'state-update') {
+          setLocalState(event.state);
+          setError(null);
+        }
+        if (event.type === 'error') {
+          setError(event.message);
+        }
+      });
+
+      p.onDisconnect.addListener(() => {
+        if (current === p) current = null;
+        if (active) setPort((cur) => (cur === p ? null : cur));
+      });
+
+      // Request initial state for this origin. get-state on the SW side re-triggers
+      // anvil-status, module-availability, and operator refresh — so a fresh port
+      // gets a fully-resynced view automatically.
+      try {
+        p.postMessage({ type: 'get-state', origin } satisfies PopupCommand);
+      } catch {
+        // Port died before first message — onDisconnect will clear and visibility/focus will retry
+      }
+
+      setPort(p);
+    };
+
+    open();
+
+    const reconnect = () => {
+      if (!active) return;
+      if (document.visibilityState !== 'visible') return;
+      if (current) return;
+      open();
+    };
+
+    document.addEventListener('visibilitychange', reconnect);
+    window.addEventListener('focus', reconnect);
 
     return () => {
-      p.disconnect();
+      active = false;
+      document.removeEventListener('visibilitychange', reconnect);
+      window.removeEventListener('focus', reconnect);
+      try { current?.disconnect(); } catch {}
+      current = null;
       setPort(null);
     };
   }, [origin]);
@@ -78,8 +116,13 @@ export function useWalletState() {
   const send = useCallback(
     (command: PopupCommandInput) => {
       if (!port || !origin) return;
-      // Inject origin into every command
-      port.postMessage({ ...command, origin } as PopupCommand);
+      try {
+        // Inject origin into every command
+        port.postMessage({ ...command, origin } as PopupCommand);
+      } catch {
+        // Port died between React render and click — clear so visibility/focus reopens it
+        setPort(null);
+      }
     },
     [port, origin],
   );
@@ -138,23 +181,31 @@ export function useOperators(
     };
 
     port.onMessage.addListener(handler);
-    port.postMessage({
-      type: 'request-operators',
-      origin,
-      chainId,
-      moduleType,
-    } satisfies PopupCommand);
+    try {
+      port.postMessage({
+        type: 'request-operators',
+        origin,
+        chainId,
+        moduleType,
+      } satisfies PopupCommand);
+    } catch {
+      // Port disconnected between render and effect — useWalletState reopens on focus
+    }
     return () => port.onMessage.removeListener(handler);
   }, [port, origin, chainId, moduleType]);
 
   const refresh = useCallback(() => {
-    if (!origin) return;
-    port?.postMessage({
-      type: 'refresh-operators',
-      origin,
-      chainId,
-      moduleType,
-    } satisfies PopupCommand);
+    if (!origin || !port) return;
+    try {
+      port.postMessage({
+        type: 'refresh-operators',
+        origin,
+        chainId,
+        moduleType,
+      } satisfies PopupCommand);
+    } catch {
+      // Port disconnected — useWalletState will reopen on focus
+    }
   }, [port, origin, chainId, moduleType]);
 
   const filtered = useMemo(

@@ -66,6 +66,65 @@ describe('useWalletState — error handling', () => {
   });
 });
 
+describe('useWalletState — reconnect on disconnect', () => {
+  let port1: MockPort;
+  let port2: MockPort;
+
+  beforeEach(() => {
+    port1 = createMockPort();
+    port2 = createMockPort();
+    vi.mocked(chrome.runtime.connect).mockClear();
+    let callCount = 0;
+    vi.mocked(chrome.runtime.connect).mockImplementation(() => {
+      const p = callCount++ === 0 ? port1 : port2;
+      return p as unknown as chrome.runtime.Port;
+    });
+  });
+
+  it('reopens port when SW disconnects and window regains focus', async () => {
+    const { result } = renderHook(() => useWalletState());
+    await act(async () => {});
+
+    expect(chrome.runtime.connect).toHaveBeenCalledTimes(1);
+    expect(result.current.port).toBe(port1 as unknown as chrome.runtime.Port);
+
+    // SW idles out: Chrome fires onDisconnect on the popup port
+    act(() => {
+      port1._emitDisconnect();
+    });
+    expect(result.current.port).toBeNull();
+
+    // Popup regains focus → reconnect handler opens a new port and resends get-state
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(chrome.runtime.connect).toHaveBeenCalledTimes(2);
+    expect(result.current.port).toBe(port2 as unknown as chrome.runtime.Port);
+    expect(port2.postMessage).toHaveBeenCalledWith({
+      type: 'get-state',
+      origin: TEST_ORIGIN,
+    });
+  });
+
+  it('send silently clears port when postMessage throws on a dead port', async () => {
+    const { result } = renderHook(() => useWalletState());
+    await act(async () => {});
+
+    // get-state has already gone out; make the next postMessage throw, simulating
+    // the SW dying between React render and click handler.
+    port1.postMessage.mockImplementationOnce(() => {
+      throw new Error('Attempting to use a disconnected port object');
+    });
+
+    act(() => {
+      result.current.send({ type: 'switch-module', moduleType: 'csm' });
+    });
+
+    expect(result.current.port).toBeNull();
+  });
+});
+
 describe('useOperators — network switch', () => {
   let port: MockPort;
 

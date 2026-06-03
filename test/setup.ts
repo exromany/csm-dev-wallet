@@ -4,6 +4,7 @@ export type MockPort = ReturnType<typeof createMockPort>;
 
 export function createMockPort() {
   const listeners: Array<(event: unknown) => void> = [];
+  const disconnectListeners: Array<() => void> = [];
   return {
     postMessage: vi.fn(),
     onMessage: {
@@ -15,10 +16,23 @@ export function createMockPort() {
         if (i >= 0) listeners.splice(i, 1);
       },
     },
+    onDisconnect: {
+      addListener: (fn: () => void) => {
+        disconnectListeners.push(fn);
+      },
+      removeListener: (fn: () => void) => {
+        const i = disconnectListeners.indexOf(fn);
+        if (i >= 0) disconnectListeners.splice(i, 1);
+      },
+    },
     disconnect: vi.fn(),
     /** Emit an event to all listeners (test helper) */
     _emit(event: unknown) {
       listeners.forEach((fn) => fn(event));
+    },
+    /** Simulate the SW closing the port (test helper) */
+    _emitDisconnect() {
+      disconnectListeners.forEach((fn) => fn());
     },
     _listeners: listeners,
   };
