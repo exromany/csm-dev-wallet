@@ -4,7 +4,7 @@
 
 **Goal:** Let testers complete off-chain message-signing flows (`personal_sign`, `eth_signTypedData_v4`) in the CSM widget by selecting an Anvil pre-funded account in the popup.
 
-**Architecture:** Route signing methods in `lib/background/rpc-handler.ts` by `SelectedAddress.source.type`. `'anvil'` source → proxy directly to Anvil (Anvil holds the key, signs natively). Other sources → impersonate for `eth_sendTransaction` (unchanged); return a clear EIP-1193 error for message-signing methods. No UI, state, or type changes — the popup already exposes Anvil accounts as a selectable `source.type === 'anvil'` address.
+**Architecture:** Route signing methods in `lib/background/rpc-handler.ts` by `SelectedAddress.source.type`. `'anvil'` source → proxy directly to Anvil (Anvil holds the key, signs natively). Other sources → impersonate for `eth_sendTransaction` (unchanged); return a clear EIP-1193 error for message-signing methods. No UI, state, or type changes — the popup already exposes Anvil accounts as a selectable `source.type === 'anvil'` address (via the dedicated Anvil tab introduced in commit `bdfa89e`).
 
 **Tech Stack:** TypeScript, vitest, viem, WXT (Manifest V3 extension). Tests use `vi.mock` + `vi.hoisted` per existing conventions in `test/background/`.
 
@@ -281,7 +281,7 @@ const MESSAGE_SIGNING_REQUIRES_ANVIL_ACCOUNT = {
   code: 4200,
   message:
     'CSM Dev Wallet: Message signing requires an Anvil pre-funded account. ' +
-    'Pick one from the Anvil section in the Manual tab.',
+    'Pick one from the Anvil tab.',
 };
 ```
 
@@ -326,7 +326,7 @@ git commit -m "feat(rpc): clear error when non-Anvil source requests message sig
 
 Anvil's anvil_impersonateAccount forges the tx 'from' field but cannot
 produce signatures. Return EIP-1193 error 4200 with guidance pointing the
-user at the Anvil section in the Manual tab instead of leaking Anvil's
+user at the Anvil tab instead of leaking Anvil's
 native error."
 ```
 
@@ -421,10 +421,10 @@ Expected: builds successfully into `.output/chrome-mv3/`.
 If a local Anvil fork is available:
 1. `anvil --fork-url <mainnet-rpc>` in a terminal.
 2. Load the dev build into `chrome://extensions` from `.output/chrome-mv3-dev/`.
-3. Open the popup, switch to Anvil network, open the Manual tab.
-4. Select an account from the "Anvil accounts (pre-funded)" section.
+3. Open the popup, switch to Anvil network, open the Anvil tab.
+4. Select one of the pre-funded accounts.
 5. On the dapp, trigger a SIWE login or EIP-712 permit. Confirm the signature is returned to the dapp without error.
-6. Switch to an operator address. Trigger the same flow. Confirm the dapp sees error code 4200 with the "Pick one from the Anvil section" message.
+6. Switch to an operator address. Trigger the same flow. Confirm the dapp sees error code 4200 with the "Pick one from the Anvil tab" message.
 7. Switch back to an operator address. Trigger `eth_sendTransaction` (e.g., add bond). Confirm it still works.
 
 No commit needed for the smoke test.

@@ -13,17 +13,17 @@ Scope is limited to generic message-signing UX (SIWE, EIP-712 permits, etc.) whe
 
 ## Why
 
-The CSM widget exercises message-signing flows (e.g. permits). With the wallet's current behavior, a tester on Anvil cannot complete these flows even though Anvil has 10 pre-funded accounts with well-known private keys available. The UI already exposes those accounts as selectable in the Manual tab; only the RPC routing logic blocks signing.
+The CSM widget exercises message-signing flows (e.g. permits). With the wallet's current behavior, a tester on Anvil cannot complete these flows even though Anvil has 10 pre-funded accounts with well-known private keys available. The UI already exposes those accounts as selectable in the dedicated Anvil tab; only the RPC routing logic blocks signing.
 
 ## Design Decisions
 
 ### Discriminate by `source.type`, not address membership
 
-`SelectedAddress.source.type === 'anvil'` is set when the user picks from the Anvil section of the Manual tab. We use that signal — not membership in `eth_accounts` from the live RPC — to decide whether Anvil owns the key.
+`SelectedAddress.source.type === 'anvil'` is set when the user picks an account from the Anvil tab. We use that signal — not membership in `eth_accounts` from the live RPC — to decide whether Anvil owns the key.
 
 - Reflects explicit user intent.
 - No extra RPC roundtrip on every signing call.
-- A manual address that coincidentally matches a pre-funded one will not sign messages. Documented edge case; choose the Anvil section to sign with that key.
+- A manual address that coincidentally matches a pre-funded one will not sign messages. Documented edge case; choose the address from the Anvil tab to sign with that key.
 
 ### Three-way routing in the signing case
 
@@ -41,7 +41,7 @@ The Anvil-account path skips impersonation entirely. Anvil already holds the key
 
 ### Hard error with guidance for non-Anvil signing
 
-Non-Anvil addresses on Anvil still sign transactions via impersonation (unchanged), but message-signing methods return a precise EIP-1193 error pointing the user at the Anvil section in the Manual tab. Prevents cryptic Anvil-side errors leaking to the dapp.
+Non-Anvil addresses on Anvil still sign transactions via impersonation (unchanged), but message-signing methods return a precise EIP-1193 error pointing the user at the Anvil tab. Prevents cryptic Anvil-side errors leaking to the dapp.
 
 ## Files Changed
 
