@@ -100,6 +100,10 @@ export async function handleRpcRequest(
         return { error: WATCH_ONLY_ERROR };
       }
       const rpcUrl = globalSettings.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
+      // Anvil owns the pre-funded account's key — sign natively, no impersonation.
+      if (siteState.selectedAddress.source.type === 'anvil') {
+        return proxyToRpc(method, params, ANVIL_CHAIN_ID, { [ANVIL_CHAIN_ID]: rpcUrl });
+      }
       return handleAnvilSigning(method, params, siteState.selectedAddress.address, rpcUrl);
     }
 

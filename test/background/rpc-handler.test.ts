@@ -46,6 +46,7 @@ vi.mock('../../lib/background/rpc.js', () => ({ rawJsonRpc: mockRawJsonRpc }));
 
 // ── Imports under test ──
 import { handleRpcRequest } from '../../lib/background/rpc-handler.js';
+import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 
 const ORIGIN = 'https://stake.lido.fi';
 
@@ -60,6 +61,31 @@ beforeEach(() => {
 });
 
 describe('handleRpcRequest — signing methods', () => {
+  it('proxies personal_sign directly when source.type === "anvil"', async () => {
+    mockGetSiteState.mockResolvedValue(
+      makeSiteState({
+        chainId: ANVIL_CHAIN_ID,
+        selectedAddress: {
+          address: ADDR_A,
+          source: { type: 'anvil', index: 0 },
+        },
+      }),
+    );
+    mockRawJsonRpc.mockResolvedValue({ result: '0xsignature' });
+
+    const result = await handleRpcRequest('personal_sign', ['0xdead', ADDR_A], ORIGIN);
+
+    expect(result).toEqual({ result: '0xsignature' });
+    expect(mockWithImpersonation).not.toHaveBeenCalled();
+    // Only the personal_sign call — no anvil_impersonateAccount round-trip.
+    expect(mockRawJsonRpc).toHaveBeenCalledTimes(1);
+    expect(mockRawJsonRpc).toHaveBeenCalledWith(
+      expect.any(String),
+      'personal_sign',
+      ['0xdead', ADDR_A],
+    );
+  });
+
   it('returns watch-only error when chainId is not Anvil', async () => {
     mockGetSiteState.mockResolvedValue(
       makeSiteState({
