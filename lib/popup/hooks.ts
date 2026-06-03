@@ -97,6 +97,7 @@ export function useOperators(
   chainId: number,
   moduleType: ModuleType,
   addressLabels: Record<string, string> = {},
+  getOperatorLabel: (operatorId: string) => string = () => '',
 ) {
   const [operators, setOperators] = useState<CachedOperator[]>([]);
   const [loading, setLoading] = useState(false);
@@ -156,7 +157,10 @@ export function useOperators(
     } satisfies PopupCommand);
   }, [port, origin, chainId, moduleType]);
 
-  const filtered = useMemo(() => filterOperators(operators, search, addressLabels), [operators, search, addressLabels]);
+  const filtered = useMemo(
+    () => filterOperators(operators, search, addressLabels, getOperatorLabel),
+    [operators, search, addressLabels, getOperatorLabel],
+  );
 
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
 }
@@ -293,6 +297,7 @@ export function filterOperators(
   operators: CachedOperator[],
   search: string,
   addressLabels: Record<string, string> = {},
+  getOperatorLabel: (operatorId: string) => string = () => '',
 ): CachedOperator[] {
   if (!search) return operators;
   const raw = search.trim();
@@ -313,6 +318,7 @@ export function filterOperators(
       op.rewardsAddress.toLowerCase().includes(q) ||
       op.proposedManagerAddress?.toLowerCase().includes(q) ||
       op.proposedRewardsAddress?.toLowerCase().includes(q) ||
+      getOperatorLabel(op.id).toLowerCase().includes(q) ||
       (addressLabels[op.managerAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (addressLabels[op.rewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (op.proposedManagerAddress && (addressLabels[op.proposedManagerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||

@@ -135,7 +135,7 @@ export function ManualAddresses({
         );
       })}
 
-      {addresses.length === 0 && anvilAccounts.length === 0 && (
+      {addresses.length === 0 && (
         <div className="empty-state">
           No manual addresses yet.
           <br />

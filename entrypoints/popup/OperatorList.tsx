@@ -259,10 +259,19 @@ function OperatorLabelEditor({ label, onSave }: { label: string; onSave: (l: str
   useEffect(() => { setDraft(label); }, [label]);
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
 
-  const commit = () => {
+  // Save policy: blur saves only non-empty edits (preserves the existing label
+  // if the user accidentally clears the field and clicks away). Pressing Enter
+  // commits whatever is typed — that's the only way to clear a label, which
+  // matches users' expectation that deletion is an explicit, deliberate action.
+  const commit = (allowEmpty: boolean) => {
     const next = draft.trim();
     setEditing(false);
-    if (next !== label) onSave(next);
+    if (next === label) return;
+    if (!next && !allowEmpty) {
+      setDraft(label);
+      return;
+    }
+    onSave(next);
   };
   const cancel = () => { setDraft(label); setEditing(false); };
 
@@ -273,9 +282,9 @@ function OperatorLabelEditor({ label, onSave }: { label: string; onSave: (l: str
         className="operator-label-input"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
+        onBlur={() => commit(false)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
+          if (e.key === 'Enter') commit(true);
           if (e.key === 'Escape') cancel();
         }}
         onClick={(e) => e.stopPropagation()}

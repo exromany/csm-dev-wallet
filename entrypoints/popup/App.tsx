@@ -29,6 +29,9 @@ function readInitialTheme(): Theme {
 
 export function App() {
   const { state, send, port, origin, error, clearError } = useWalletState();
+  const anvilStatus = useAnvilStatus(port);
+  const favorites = useFavorites(state, send, anvilStatus.forkedFrom);
+  const operatorLabels = useOperatorLabels(state, send, anvilStatus.forkedFrom);
   const {
     operators,
     allOperators,
@@ -43,10 +46,8 @@ export function App() {
     state.chainId,
     state.moduleType,
     state.addressLabels,
+    operatorLabels.get,
   );
-  const anvilStatus = useAnvilStatus(port);
-  const favorites = useFavorites(state, send, anvilStatus.forkedFrom);
-  const operatorLabels = useOperatorLabels(state, send, anvilStatus.forkedFrom);
   const availableModules = useModuleAvailability(port);
   const [tab, setTab] = useState<Tab>('operators');
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
@@ -62,17 +63,23 @@ export function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setTab('operators');
-        requestAnimationFrame(() => {
-          const input = searchInputRef.current;
-          if (input) {
-            input.focus();
-            input.select();
-          }
-        });
+      if (!((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) return;
+      // Don't hijack typing — Ctrl+K is a common browser shortcut, and users
+      // editing a manual address, RPC URL, or operator label would lose their
+      // work if we yanked the tab/focus out from under them.
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) {
+        return;
       }
+      e.preventDefault();
+      setTab('operators');
+      requestAnimationFrame(() => {
+        const input = searchInputRef.current;
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      });
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -140,13 +147,17 @@ export function App() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="tabs">
-        {(['operators', 'manual', 'settings'] as Tab[]).map((t) => (
+        {([
+          ['operators', 'Operators'],
+          ['manual', 'Manual'],
+          ['settings', 'Settings'],
+        ] as const).map(([t, label]) => (
           <button
             key={t}
             className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => { setTab(t); clearError(); }}
           >
-            {t}
+            {label}
           </button>
         ))}
       </div>
