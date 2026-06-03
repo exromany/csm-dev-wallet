@@ -11,16 +11,6 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script>
-      // Set theme before paint to avoid a flash. Mirrors the persisted value
-      // written by the popup app.
-      try {
-        const t = localStorage.getItem('csm-wallet-theme');
-        if (t === 'light' || t === 'dark') {
-          document.documentElement.setAttribute('data-theme', t);
-        }
-      } catch {}
-    </script>
   </head>
   <body>
     <div id="root"></div>

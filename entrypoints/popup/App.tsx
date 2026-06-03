@@ -16,10 +16,10 @@ import { ConnectedBar } from './ConnectedBar.js';
 import { OperatorList } from './OperatorList.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { Settings } from './Settings.js';
+import { THEME_KEY } from './theme-init.js';
 
 type Tab = 'operators' | 'manual' | 'settings';
 type Theme = 'dark' | 'light';
-const THEME_KEY = 'csm-wallet-theme';
 
 function readInitialTheme(): Theme {
   try {
