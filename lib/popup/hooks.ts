@@ -259,6 +259,20 @@ export function useCopyAddress() {
   return { copy, isCopied };
 }
 
+// ── filterByGroup ──
+
+export type FilterGroup = 'all' | 'favorites' | 'pending';
+
+export function filterByGroup(
+  operators: CachedOperator[],
+  group: FilterGroup,
+  isFavorite: (id: string) => boolean,
+): CachedOperator[] {
+  if (group === 'favorites') return operators.filter((op) => isFavorite(op.id));
+  if (group === 'pending') return operators.filter((op) => op.proposedManagerAddress || op.proposedRewardsAddress);
+  return operators;
+}
+
 // ── filterOperators ──
 
 export function filterOperators(
