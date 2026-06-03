@@ -1,19 +1,43 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useWalletState, useOperators, useFavorites, useModuleAvailability, useAnvilStatus } from '../../lib/popup/hooks.js';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  useWalletState,
+  useOperators,
+  useFavorites,
+  useModuleAvailability,
+  useAnvilStatus,
+  useOperatorLabels,
+} from '../../lib/popup/hooks.js';
 import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 import { formatTimeAgo } from '../../lib/popup/utils.js';
-import { NetworkSelector } from './NetworkSelector.js';
-import { ModuleSelector } from './ModuleSelector.js';
+import { NetworkModuleChip, NetworkModulePanel } from './NetworkSelector.js';
 import { ConnectedBar } from './ConnectedBar.js';
 import { OperatorList } from './OperatorList.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { Settings } from './Settings.js';
 
 type Tab = 'operators' | 'manual' | 'settings';
+type Theme = 'dark' | 'light';
+const THEME_KEY = 'csm-wallet-theme';
+
+function readInitialTheme(): Theme {
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    if (t === 'light' || t === 'dark') return t;
+  } catch {}
+  return 'dark';
+}
 
 export function App() {
   const { state, send, port, origin, error, clearError } = useWalletState();
-  const { operators, allOperators, loading, lastFetchedAt, search, setSearch, refresh } = useOperators(
+  const {
+    operators,
+    allOperators,
+    loading,
+    lastFetchedAt,
+    search,
+    setSearch,
+    refresh,
+  } = useOperators(
     port,
     origin,
     state.chainId,
@@ -22,8 +46,37 @@ export function App() {
   );
   const anvilStatus = useAnvilStatus(port);
   const favorites = useFavorites(state, send, anvilStatus.forkedFrom);
+  const operatorLabels = useOperatorLabels(state, send, anvilStatus.forkedFrom);
   const availableModules = useModuleAvailability(port);
   const [tab, setTab] = useState<Tab>('operators');
+  const [theme, setTheme] = useState<Theme>(readInitialTheme);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [netModOpen, setNetModOpen] = useState(false);
+  const chipRef = useRef<HTMLButtonElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch {}
+  }, [theme]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setTab('operators');
+        requestAnimationFrame(() => {
+          const input = searchInputRef.current;
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Auto-switch away from CM if it becomes unavailable
   useEffect(() => {
@@ -31,32 +84,49 @@ export function App() {
       send({ type: 'switch-module', moduleType: 'csm' });
     }
   }, [availableModules.cm, state.moduleType, send]);
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const { isFavorite } = favorites;
   const displayOperators = useMemo(
-    () => showFavoritesOnly
-      ? operators.filter((op) => isFavorite(op.id))
-      : operators,
+    () => (showFavoritesOnly ? operators.filter((op) => isFavorite(op.id)) : operators),
     [operators, showFavoritesOnly, isFavorite],
   );
 
   return (
     <div className="app">
       <div className="header">
-        <h1>CSM Dev Wallet</h1>
-        <NetworkSelector
+        <div className="brand">
+          <div className="brand-mark">◆</div>
+          <div className="brand-name">CSM Dev</div>
+        </div>
+        <button
+          className="icon-btn"
+          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+        >
+          {theme === 'dark' ? '☾' : '☀'}
+        </button>
+        <NetworkModuleChip
           chainId={state.chainId}
+          moduleType={state.moduleType}
           forkedFrom={anvilStatus.forkedFrom}
-          onSwitch={(chainId) => send({ type: 'switch-network', chainId })}
+          open={netModOpen}
+          onToggle={() => setNetModOpen((o) => !o)}
+          chipRef={chipRef}
         />
       </div>
 
-      <ModuleSelector
-        moduleType={state.moduleType}
-        availableModules={availableModules}
-        onSwitch={(moduleType) => send({ type: 'switch-module', moduleType })}
-      />
+      {netModOpen && (
+        <NetworkModulePanel
+          chainId={state.chainId}
+          moduleType={state.moduleType}
+          forkedFrom={anvilStatus.forkedFrom}
+          availableModules={availableModules}
+          onSwitchNetwork={(chainId) => send({ type: 'switch-network', chainId })}
+          onSwitchModule={(moduleType) => send({ type: 'switch-module', moduleType })}
+          onClose={() => setNetModOpen(false)}
+          chipRef={chipRef}
+        />
+      )}
 
       {state.selectedAddress && (
         <ConnectedBar
@@ -76,7 +146,7 @@ export function App() {
             className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => { setTab(t); clearError(); }}
           >
-            {t === 'operators' ? 'Operators' : t === 'manual' ? 'Manual' : 'Settings'}
+            {t}
           </button>
         ))}
       </div>
@@ -85,42 +155,48 @@ export function App() {
         {tab === 'operators' && (
           <>
             <div className="search-wrapper">
-              <input
-                className="search-bar"
-                placeholder="Search by #ID, address, label, or type..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {search && (
-                <button className="search-clear" onClick={() => setSearch('')}>×</button>
-              )}
-            </div>
-            <div className="filter-bar">
-              <button
-                className={`filter-btn ${!showFavoritesOnly ? 'active' : ''}`}
-                onClick={() => setShowFavoritesOnly(false)}
-              >
-                All
-              </button>
-              <button
-                className={`filter-btn ${showFavoritesOnly ? 'active' : ''}`}
-                onClick={() => setShowFavoritesOnly(true)}
-              >
-                Favorites
-              </button>
-              <div className="spacer" />
-              {lastFetchedAt && (
-                <span className="staleness-label">
-                  Updated {formatTimeAgo(lastFetchedAt)}
-                </span>
-              )}
-              <button className="filter-btn" onClick={refresh} disabled={loading}>
-                {loading ? 'Loading...' : 'Refresh'}
-              </button>
+              <div className="search-bar">
+                <span className="search-icon">⌕</span>
+                <input
+                  ref={searchInputRef}
+                  placeholder="Search #ID, address, label…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {search ? (
+                  <button className="search-clear" onClick={() => setSearch('')}>×</button>
+                ) : (
+                  <kbd className="kbd">⌘K</kbd>
+                )}
+              </div>
+              <div className="filter-bar">
+                <button
+                  className={`filter-btn ${!showFavoritesOnly ? 'active' : ''}`}
+                  onClick={() => setShowFavoritesOnly(false)}
+                >
+                  All
+                </button>
+                <button
+                  className={`filter-btn ${showFavoritesOnly ? 'active' : ''}`}
+                  onClick={() => setShowFavoritesOnly(true)}
+                >
+                  Favorites
+                </button>
+                <div className="spacer" />
+                {lastFetchedAt && (
+                  <span className="staleness-label">
+                    updated {formatTimeAgo(lastFetchedAt)}
+                  </span>
+                )}
+                <button className="refresh-btn" onClick={refresh} disabled={loading}>
+                  {loading ? 'loading…' : '↻ refresh'}
+                </button>
+              </div>
             </div>
             {state.chainId === ANVIL_CHAIN_ID && !anvilStatus.forkedFrom && !loading && (
               <div className="empty-state">
-                Anvil not detected.<br />
+                Anvil not detected.
+                <br />
                 Start a local fork to browse operators.
               </div>
             )}
@@ -130,6 +206,7 @@ export function App() {
               loading={loading}
               selectedAddress={state.selectedAddress?.address}
               favorites={favorites}
+              operatorLabels={operatorLabels}
               onSelect={(address, operatorId, role) =>
                 send({
                   type: 'select-address',

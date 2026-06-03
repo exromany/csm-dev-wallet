@@ -77,7 +77,7 @@ export async function seedSiteState(sw: Worker, extensionId: string, state: Part
 export async function seedGlobalSettings(sw: Worker, settings: Partial<GlobalSettings>) {
   await resetStateCaches(sw);
   await sw.evaluate(async (patch) => {
-    const defaults = { customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, requireApproval: false };
+    const defaults = { customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, operatorLabels: {}, requireApproval: false };
     const data = await chrome.storage.local.get('global_settings');
     const current = data.global_settings ?? defaults;
     await chrome.storage.local.set({ global_settings: { ...current, ...patch } });

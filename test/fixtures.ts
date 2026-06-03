@@ -26,6 +26,7 @@ export function makeState(overrides: Partial<WalletState> = {}): WalletState {
     favorites: [],
     manualAddresses: [],
     addressLabels: {},
+    operatorLabels: {},
     requireApproval: false,
     ...overrides,
   };
@@ -47,6 +48,7 @@ export function makeGlobalSettings(overrides: Partial<GlobalSettings> = {}): Glo
     favorites: [],
     manualAddresses: [],
     addressLabels: {},
+    operatorLabels: {},
     requireApproval: false,
     ...overrides,
   };

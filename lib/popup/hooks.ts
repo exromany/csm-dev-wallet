@@ -233,6 +233,34 @@ export function useFavorites(
   return { toggle, isFavorite };
 }
 
+// ── useOperatorLabels ──
+// Operator labels are user-set names for operators (e.g. "Kiln", "P2P.org"),
+// scoped by module + chain so the same numeric ID across networks stays distinct.
+
+export function useOperatorLabels(
+  state: WalletState,
+  send: (cmd: PopupCommandInput) => void,
+  forkedFrom?: SupportedChainId | null,
+) {
+  const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
+    ? forkedFrom
+    : state.chainId;
+  const prefix = `${state.moduleType}:${chainIdForPrefix}:`;
+
+  const get = useCallback(
+    (operatorId: string) => state.operatorLabels[`${prefix}${operatorId}`] ?? '',
+    [state.operatorLabels, prefix],
+  );
+
+  const set = useCallback(
+    (operatorId: string, label: string) =>
+      send({ type: 'set-operator-label', operatorId, label }),
+    [send],
+  );
+
+  return { get, set };
+}
+
 // ── useCopyAddress ──
 
 export function useCopyAddress() {

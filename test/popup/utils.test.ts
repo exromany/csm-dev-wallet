@@ -4,7 +4,7 @@ import { truncateAddress, formatTimeAgo } from '../../lib/popup/utils.js';
 describe('truncateAddress', () => {
   it('keeps first 6 and last 4 chars', () => {
     expect(truncateAddress('0xAbCdEfGh12345678901234567890AbCdEfGh1234'))
-      .toBe('0xAbCd...1234');
+      .toBe('0xAbCd…1234');
   });
 });
 

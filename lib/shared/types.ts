@@ -64,6 +64,7 @@ export type GlobalSettings = {
   favorites: string[]; // scoped: "csm:1:42"
   manualAddresses: Address[];
   addressLabels: Record<string, string>; // lowercase address → label
+  operatorLabels: Record<string, string>; // scoped "csm:1:42" → label
   requireApproval: boolean;
 };
 
@@ -72,6 +73,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   favorites: [],
   manualAddresses: [],
   addressLabels: {},
+  operatorLabels: {},
   requireApproval: false,
 };
 
