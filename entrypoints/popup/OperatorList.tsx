@@ -121,12 +121,9 @@ function groupAddresses(op: CachedOperator): AddressGroup[] {
   return Array.from(map.values());
 }
 
-// Operator type → ribbon/accent color class. CSM_ICS uses the accent,
-// CSM_LEA uses success, everything else falls to a neutral slate.
-function typeKind(operatorType: string): 'ics' | 'lea' | 'other' {
-  if (operatorType === 'CSM_ICS') return 'ics';
-  if (operatorType === 'CSM_LEA') return 'lea';
-  return 'other';
+// 'CSM_LEA' → 'csm-lea' — drives per-type ribbon color via CSS class.
+function typeKind(operatorType: string): string {
+  return (operatorType || 'cc').toLowerCase().replace(/_/g, '-');
 }
 
 function OperatorRow({

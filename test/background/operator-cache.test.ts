@@ -30,7 +30,25 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
       560048: { contractAddresses: {}, moduleId: 2n },
     },
   },
-  OPERATOR_TYPE_CURVE_ID: { CSM_DEF: 0n, CSM_LEA: 1n, CSM_ICS: 2n, CM_PTO: 0n, CM_PO: 1n, CC: undefined },
+  OPERATOR_TYPE: { CC: 'CC' },
+  getOperatorTypeByCurveId: (moduleName: 'CSM' | 'CM', curveId: bigint) => {
+    const table: Record<string, bigint> = {
+      CSM_DEF: 0n,
+      CSM_LEA: 1n,
+      CSM_ICS: 2n,
+      CSM_IDVTC: 4n,
+      CM_PO: 0n,
+      CM_PTO: 1n,
+      CM_PGO: 2n,
+      CM_DO: 3n,
+      CM_EEO: 4n,
+      CM_IODC: 5n,
+      CM_IODCP: 6n,
+    };
+    return Object.entries(table).find(
+      ([key, id]) => id === curveId && key.startsWith(`${moduleName}_`),
+    )?.[0];
+  },
 }));
 
 vi.mock('@lidofinance/lido-csm-sdk/abi', () => ({
@@ -203,6 +221,33 @@ describe('fetchOperators', () => {
       curveId: '0',
       operatorType: 'CSM_DEF',
     });
+  });
+
+  it('scopes operatorType resolution to moduleType — CM curveId=1n is CM_PTO, not CSM_LEA', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ curveId: 1n })]);
+
+    const csm = await fetchOperators(ctx({ moduleType: 'csm' }));
+    expect(csm.operators[0].operatorType).toBe('CSM_LEA');
+
+    const cm = await fetchOperators(ctx({ moduleType: 'cm' }));
+    expect(cm.operators[0].operatorType).toBe('CM_PTO');
+  });
+
+  it('curveId=4n disambiguates: CSM → CSM_IDVTC, CM → CM_EEO', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ curveId: 4n })]);
+
+    const csm = await fetchOperators(ctx({ moduleType: 'csm' }));
+    expect(csm.operators[0].operatorType).toBe('CSM_IDVTC');
+
+    const cm = await fetchOperators(ctx({ moduleType: 'cm' }));
+    expect(cm.operators[0].operatorType).toBe('CM_EEO');
+  });
+
+  it('falls back to CC when curveId is unknown for the module', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ curveId: 99n })]);
+
+    const entry = await fetchOperators(ctx({ moduleType: 'cm' }));
+    expect(entry.operators[0].operatorType).toBe('CC');
   });
 
   it('owner = manager when extendedManagerPermissions true', async () => {

@@ -540,8 +540,18 @@ input:focus {
   --ribbon-color: #64748b;
 }
 
-.operator-row.kind-ics { --ribbon-color: var(--accent); }
-.operator-row.kind-lea { --ribbon-color: var(--success); }
+.operator-row.kind-csm-def   { --ribbon-color: #6366f1; } /* indigo */
+.operator-row.kind-csm-lea   { --ribbon-color: var(--success); }
+.operator-row.kind-csm-ics   { --ribbon-color: var(--accent); }
+.operator-row.kind-csm-idvtc { --ribbon-color: #06b6d4; } /* cyan */
+.operator-row.kind-cm-po     { --ribbon-color: #f59e0b; } /* amber */
+.operator-row.kind-cm-pto    { --ribbon-color: #f97316; } /* orange */
+.operator-row.kind-cm-pgo    { --ribbon-color: #f43f5e; } /* rose */
+.operator-row.kind-cm-do     { --ribbon-color: #3b82f6; } /* blue */
+.operator-row.kind-cm-eeo    { --ribbon-color: #14b8a6; } /* teal */
+.operator-row.kind-cm-iodc   { --ribbon-color: #ec4899; } /* pink */
+.operator-row.kind-cm-iodcp  { --ribbon-color: #d946ef; } /* fuchsia */
+.operator-row.kind-cc        { --ribbon-color: #64748b; } /* slate (unknown / community curve) */
 
 .operator-row:hover {
   background: var(--surface);

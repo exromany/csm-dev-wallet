@@ -30,7 +30,7 @@ export type CachedOperator = {
   extendedManagerPermissions: boolean;
   ownerAddress: Address; // manager or rewards, whichever has extended perms
   curveId: string; // bigint serialized
-  operatorType: string; // CSM_DEF|CSM_LEA|CSM_ICS|CM_PO|CM_PTO|CM_PGO|CM_DO|CM_MODC|CM_IODC|CC
+  operatorType: string; // OPERATOR_TYPE from @lidofinance/lido-csm-sdk — scoped to moduleType, falls back to "CC"
 };
 
 export type OperatorCacheEntry = {

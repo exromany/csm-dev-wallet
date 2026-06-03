@@ -3,8 +3,8 @@ import {
   COMMON_ADDRESSES,
   MODULE_CONFIG,
   MODULE_NAME,
-  OPERATOR_TYPE_CURVE_ID,
-  type OPERATOR_TYPE,
+  OPERATOR_TYPE,
+  getOperatorTypeByCurveId,
 } from '@lidofinance/lido-csm-sdk/common';
 import { SMDiscoveryAbi } from '@lidofinance/lido-csm-sdk/abi';
 import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
@@ -76,9 +76,10 @@ export async function setModuleAvailabilityCache(
   await chrome.storage.local.set({ [key]: { ...modules, checkedAt: Date.now() } });
 }
 
-function resolveOperatorType(curveId: bigint): OPERATOR_TYPE {
-  const entry = Object.entries(OPERATOR_TYPE_CURVE_ID).find(([, id]) => id === curveId);
-  return (entry?.[0] ?? 'CC') as OPERATOR_TYPE;
+// Curve IDs overlap between CSM_* and CM_* entries — must scope by module.
+// Anything outside the module's known curves is treated as Community Curve (unknown to widget).
+function resolveOperatorType(moduleType: ModuleType, curveId: bigint): OPERATOR_TYPE {
+  return getOperatorTypeByCurveId(MODULE_NAMES[moduleType], curveId) ?? OPERATOR_TYPE.CC;
 }
 
 export function storageKey(ctx: CacheContext): string {
@@ -164,7 +165,7 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
       extendedManagerPermissions: info.extendedManagerPermissions,
       ownerAddress,
       curveId: curveId.toString(),
-      operatorType: resolveOperatorType(curveId),
+      operatorType: resolveOperatorType(ctx.moduleType, curveId),
     };
   });
 
