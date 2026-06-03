@@ -3,6 +3,7 @@ import type { Address } from 'viem';
 import { isAddress } from 'viem';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
+import { LabelEditor } from './LabelEditor.js';
 
 type Props = {
   addresses: Address[];
@@ -76,18 +77,23 @@ export function ManualAddresses({
           <div className="section-label spaced">Anvil accounts (pre-funded)</div>
           {anvilAccounts.map((address, i) => {
             const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
-            const label = addressLabels[address.toLowerCase()];
+            const label = addressLabels[address.toLowerCase()] ?? '';
             const copied = isCopied(address);
             return (
               <div
                 key={address}
-                className={`manual-entry ${selected ? 'selected' : ''}`}
+                className={`manual-entry ${selected ? 'selected' : ''} ${label ? '' : 'no-name'}`}
                 onClick={() => onSelectAnvil?.(address, i)}
               >
                 <span className="anvil-index">#{i}</span>
                 <div className="body">
-                  {label && <div className="name">{label}</div>}
-                  <div className={`addr ${label ? '' : 'no-name'}`}>{truncateAddress(address)}</div>
+                  <LabelEditor
+                    label={label}
+                    onSave={(l) => onSetLabel(address, l)}
+                    className="entry-label"
+                    placeholder="Name this account…"
+                  />
+                  <div className="addr">{truncateAddress(address)}</div>
                 </div>
                 <button
                   className={`btn-copy ${copied ? 'copied' : ''}`}
@@ -105,7 +111,7 @@ export function ManualAddresses({
       {addresses.length > 0 && <div className="section-label spaced">Saved</div>}
       {addresses.map((address) => {
         const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
-        const label = addressLabels[address.toLowerCase()];
+        const label = addressLabels[address.toLowerCase()] ?? '';
         const copied = isCopied(address);
         return (
           <div
@@ -114,8 +120,13 @@ export function ManualAddresses({
             onClick={() => onSelect(address)}
           >
             <div className="body">
-              {label && <div className="name">{label}</div>}
-              <div className={`addr ${label ? '' : 'no-name'}`}>{truncateAddress(address)}</div>
+              <LabelEditor
+                label={label}
+                onSave={(l) => onSetLabel(address, l)}
+                className="entry-label"
+                placeholder="Name this address…"
+              />
+              <div className="addr">{truncateAddress(address)}</div>
             </div>
             <button
               className={`btn-copy ${copied ? 'copied' : ''}`}

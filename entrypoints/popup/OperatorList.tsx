@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
+import { LabelEditor } from './LabelEditor.js';
 
 type Props = {
   operators: CachedOperator[];
@@ -163,7 +164,11 @@ function OperatorRow({
           {op.operatorType && (
             <span className="operator-type">{op.operatorType.replace(/^CSM_|^CM_/, '')}</span>
           )}
-          <OperatorLabelEditor label={label} onSave={onLabel} />
+          <LabelEditor
+            label={label}
+            onSave={onLabel}
+            placeholder="Label this operator…"
+          />
           <div className="spacer" />
           <button
             className={`btn-star ${isFavorite ? 'active' : ''}`}
@@ -251,56 +256,3 @@ function AddressChip({
   );
 }
 
-function OperatorLabelEditor({ label, onSave }: { label: string; onSave: (l: string) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(label);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setDraft(label); }, [label]);
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
-
-  // Save policy: blur saves only non-empty edits (preserves the existing label
-  // if the user accidentally clears the field and clicks away). Pressing Enter
-  // commits whatever is typed — that's the only way to clear a label, which
-  // matches users' expectation that deletion is an explicit, deliberate action.
-  const commit = (allowEmpty: boolean) => {
-    const next = draft.trim();
-    setEditing(false);
-    if (next === label) return;
-    if (!next && !allowEmpty) {
-      setDraft(label);
-      return;
-    }
-    onSave(next);
-  };
-  const cancel = () => { setDraft(label); setEditing(false); };
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        className="operator-label-input"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => commit(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit(true);
-          if (e.key === 'Escape') cancel();
-        }}
-        onClick={(e) => e.stopPropagation()}
-        placeholder="Label this operator…"
-      />
-    );
-  }
-
-  return (
-    <button
-      className={`operator-label ${label ? '' : 'empty'}`}
-      onClick={(e) => { e.stopPropagation(); setDraft(label); setEditing(true); }}
-      title={label ? 'Edit label' : 'Click to label this operator'}
-    >
-      {label && <span className="text">{label}</span>}
-      <span className="pencil">{label ? '✎' : '+ label'}</span>
-    </button>
-  );
-}
