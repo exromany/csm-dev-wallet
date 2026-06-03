@@ -106,6 +106,7 @@ export function NetworkModulePanel({
           <button
             key={n.id}
             className={`netmod-option ${n.id === chainId ? 'active' : ''}`}
+            data-chain-id={n.id}
             disabled={disabledAnvil}
             onClick={() => onSwitchNetwork(n.id)}
           >
@@ -121,6 +122,7 @@ export function NetworkModulePanel({
           <button
             key={m.type}
             className={`netmod-option mod ${m.type === moduleType ? 'active' : ''}`}
+            data-module-type={m.type}
             disabled={disabled}
             onClick={() => onSwitchModule(m.type)}
           >

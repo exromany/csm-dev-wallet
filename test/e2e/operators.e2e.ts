@@ -54,7 +54,7 @@ async function main() {
     await test('Search by "#3" — exactly 1 match', async () => {
       const page = await openPopup(context, extensionId);
       await page.waitForSelector('.operator-row');
-      await page.fill('.search-bar', '#3');
+      await page.fill('.search-bar input', '#3');
       await page.waitForTimeout(300);
 
       const rows = await page.locator('.operator-row').count();
@@ -70,7 +70,7 @@ async function main() {
     await test('Search by address substring — correct matches', async () => {
       const page = await openPopup(context, extensionId);
       await page.waitForSelector('.operator-row');
-      await page.fill('.search-bar', '1111');
+      await page.fill('.search-bar input', '1111');
       await page.waitForTimeout(300);
 
       const rows = await page.locator('.operator-row').count();
@@ -86,7 +86,7 @@ async function main() {
     await test('Search by type "LEA" — only LEA operators', async () => {
       const page = await openPopup(context, extensionId);
       await page.waitForSelector('.operator-row');
-      await page.fill('.search-bar', 'LEA');
+      await page.fill('.search-bar input', 'LEA');
       await page.waitForTimeout(300);
 
       const rows = await page.locator('.operator-row').count();
@@ -104,13 +104,13 @@ async function main() {
     await test('Clear search restores all operators', async () => {
       const page = await openPopup(context, extensionId);
       await page.waitForSelector('.operator-row');
-      await page.fill('.search-bar', 'LEA');
+      await page.fill('.search-bar input', 'LEA');
       await page.waitForTimeout(300);
 
       let rows = await page.locator('.operator-row').count();
       if (rows !== 2) throw new Error(`After search: expected 2, got ${rows}`);
 
-      await page.fill('.search-bar', '');
+      await page.fill('.search-bar input', '');
       await page.waitForTimeout(300);
 
       rows = await page.locator('.operator-row').count();
@@ -124,12 +124,12 @@ async function main() {
       const page = await openPopup(context, extensionId);
       await page.waitForSelector('.operator-row');
 
-      const refreshBtn = page.locator('.filter-btn:has-text("Refresh")');
+      const refreshBtn = page.locator('.refresh-btn');
       await refreshBtn.click();
 
-      // Wait for loading state to appear (button text changes from "Refresh" to "Loading...")
+      // Wait for loading state to appear (button text changes to "loading…")
       const loadingVisible = await page
-        .locator('.filter-btn:has-text("Loading")')
+        .locator('.refresh-btn:has-text("loading")')
         .waitFor({ timeout: 5000 })
         .then(() => true)
         .catch(() => false);
@@ -137,7 +137,7 @@ async function main() {
 
       // Wait for refresh to finish — button returns to "Refresh" after fetch completes
       if (loadingVisible) {
-        await page.locator('.filter-btn:has-text("Refresh")').waitFor({ timeout: 60000 });
+        await page.locator('.refresh-btn').waitFor({ timeout: 60000 });
       }
       await page.close();
 

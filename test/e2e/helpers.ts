@@ -48,8 +48,50 @@ export async function goToTab(page: Page, tab: TabName) {
   await page.click(`button.tab:has-text("${tab}")`);
   // Wait for tab content to settle
   if (tab === 'Settings') await page.waitForSelector('.settings-group');
-  if (tab === 'Manual') await page.waitForSelector('.manual-input-row');
-  if (tab === 'Operators') await page.waitForSelector('.search-bar');
+  if (tab === 'Manual') await page.waitForSelector('.manual-form');
+  if (tab === 'Operators') await page.waitForSelector('.search-bar input');
+}
+
+// ── UI helpers ──────────────────────────────────────────
+//
+// The redesigned popup replaces the native <select> network picker with a
+// chip+panel combo and renames a few elements; these helpers hide the new
+// markup so tests stay declarative.
+
+/** Fill the operator search box (which is now the inner <input> of `.search-bar`). */
+export async function fillSearch(page: Page, value: string) {
+  await page.fill('.search-bar input', value);
+}
+
+/** Open the network/module panel, switch to `chainId`, panel stays open. */
+export async function selectNetwork(page: Page, chainId: number) {
+  // Open the panel if it isn't already (`.netmod-panel` only exists when open).
+  if (!(await page.locator('.netmod-panel').isVisible().catch(() => false))) {
+    await page.click('.netmod-chip');
+    await page.waitForSelector('.netmod-panel');
+  }
+  await page.click(`.netmod-option[data-chain-id="${chainId}"]`);
+}
+
+/** Click the manual-tab add button. */
+export async function clickAdd(page: Page) {
+  await page.click('.btn-add-icon');
+}
+
+/** Locator for the connected-address indicator (the pill below the header). */
+export function connectedPill(page: Page) {
+  return page.locator('.connected-pill');
+}
+
+/** Click an operator address row. The first `.address-chip` is the canonical pick. */
+export async function clickFirstAddress(page: Page) {
+  await page.waitForSelector('.address-chip', { timeout: 10000 });
+  await page.locator('.address-chip').first().click();
+}
+
+/** Click a manual / anvil row by address. */
+export async function clickManualRow(page: Page) {
+  await page.click('.manual-entry');
 }
 
 // ── Storage seeding via service worker ──
