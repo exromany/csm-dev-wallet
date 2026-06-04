@@ -9,7 +9,7 @@ Injects an EIP-1193 provider (`window.ethereum`) so the dapp sees it as a regula
 - Browse all CSM/CM operators with search by ID or address
 - Connect as manager, rewards, or proposed address
 - Favorites operators
-- Manual address entry + Anvil built-in accounts
+- Manual address entry (Manual tab) + Anvil pre-funded accounts (Anvil tab, fork only)
 - Optional signing approval modal (Anvil only)
 - Configurable RPC endpoints
 
@@ -19,9 +19,18 @@ Injects an EIP-1193 provider (`window.ethereum`) so the dapp sees it as a regula
 |---------|---------|
 | Ethereum Mainnet | Watch-only (signing blocked) |
 | Hoodi Testnet | Watch-only (signing blocked) |
-| Anvil Local Fork | Full signing via impersonation |
+| Anvil Local Fork | See signing matrix below |
 
 Anvil fork source is auto-detected.
+
+### Signing on Anvil
+
+Impersonation forges a transaction's `from` field but can't produce real signatures, so message signing needs an account whose key Anvil actually holds.
+
+| Account type | Transactions | Message signing (`personal_sign`, typed data) |
+|--------------|--------------|------------------------------------------------|
+| Operator address (impersonated) | ✅ | ❌ — error 4200, pick an Anvil account instead |
+| Anvil pre-funded (Anvil tab) | ✅ native | ✅ native |
 
 ## Install
 
@@ -59,9 +68,9 @@ npm run build:firefox  # Firefox → .output/firefox-mv3/
 
 1. Click extension icon to open popup
 2. Select network (top right)
-3. Browse operators or switch to Manual tab for arbitrary addresses
+3. Browse operators, or switch to the Manual tab for arbitrary addresses (Anvil tab for pre-funded accounts, fork only)
 4. Click an address to connect — the dapp will see it as the active wallet
-5. For signing (transactions, typed data), use an Anvil fork
+5. For transactions, use an Anvil fork; for message signing (`personal_sign`, typed data), connect via the Anvil tab
 
 ## Development
 
