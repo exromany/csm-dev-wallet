@@ -101,11 +101,9 @@ export function App() {
   }, [availableModules.cm, state.moduleType, send]);
 
   const onAnvil = state.chainId === ANVIL_CHAIN_ID;
-
-  // Anvil tab only exists on the Anvil network — bounce off it if user switches networks
-  useEffect(() => {
-    if (!onAnvil && tab === 'anvil') setTab('operators');
-  }, [onAnvil, tab]);
+  // The Anvil tab only exists on the Anvil network. Derive the active tab so it
+  // falls back the moment the user leaves Anvil — no effect, no blank frame.
+  const activeTab = !onAnvil && tab === 'anvil' ? 'operators' : tab;
 
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
@@ -185,7 +183,7 @@ export function App() {
         ).map(([t, label]) => (
           <button
             key={t}
-            className={`tab ${tab === t ? 'active' : ''}`}
+            className={`tab ${activeTab === t ? 'active' : ''}`}
             onClick={() => { setTab(t); clearError(); }}
           >
             {label}
@@ -194,7 +192,7 @@ export function App() {
       </div>
 
       <div className="content">
-        {tab === 'operators' && (
+        {activeTab === 'operators' && (
           <>
             <div className="search-wrapper">
               <div className="search-row">
@@ -294,7 +292,7 @@ export function App() {
           </>
         )}
 
-        {tab === 'manual' && (
+        {activeTab === 'manual' && (
           <ManualAddresses
             addresses={state.manualAddresses}
             selectedAddress={state.selectedAddress?.address}
@@ -316,7 +314,7 @@ export function App() {
           />
         )}
 
-        {tab === 'anvil' && onAnvil && (
+        {activeTab === 'anvil' && (
           <AnvilAccounts
             accounts={anvilStatus.accounts}
             forkedFrom={anvilStatus.forkedFrom}
@@ -335,7 +333,7 @@ export function App() {
           />
         )}
 
-        {tab === 'settings' && (
+        {activeTab === 'settings' && (
           <Settings
             state={state}
             onSetRpc={(chainId, rpcUrl) =>
