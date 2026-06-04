@@ -23,6 +23,7 @@ export function makeState(overrides: Partial<WalletState> = {}): WalletState {
     selectedAddress: null,
     isConnected: false,
     operatorViewMode: 'list',
+    activeTab: 'operators',
     customRpcUrls: {},
     favorites: [],
     groupFavorites: [],
@@ -41,6 +42,7 @@ export function makeSiteState(overrides: Partial<SiteState> = {}): SiteState {
     selectedAddress: null,
     isConnected: false,
     operatorViewMode: 'list',
+    activeTab: 'operators',
     ...overrides,
   };
 }

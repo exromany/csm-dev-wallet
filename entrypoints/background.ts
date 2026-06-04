@@ -514,6 +514,13 @@ export default defineBackground(() => {
         break;
       }
 
+      case 'set-active-tab': {
+        await setSiteState(command.origin, { activeTab: command.tab });
+        const state = await getComposedState(command.origin);
+        broadcastToPopups({ type: 'state-update', state });
+        break;
+      }
+
       case 'add-manual-address': {
         assertAddress(command.address);
         const normalized = getAddress(command.address);

@@ -49,6 +49,10 @@ export type SelectedAddress = {
 
 export type OperatorViewMode = 'list' | 'grouped';
 
+// Persistable popup tabs. Settings is deliberately excluded — it's a transient
+// destination we never want to land on when the popup reopens.
+export type PopupTab = 'operators' | 'manual' | 'anvil';
+
 // Per-origin state — each site gets its own network/address/view
 export type SiteState = {
   chainId: number;
@@ -56,6 +60,7 @@ export type SiteState = {
   selectedAddress: SelectedAddress | null;
   isConnected: boolean;
   operatorViewMode: OperatorViewMode; // List ⇄ Grouped toggle (CM-only effect)
+  activeTab: PopupTab; // last opened tab, restored on reopen (Settings never persists)
 };
 
 export const DEFAULT_SITE_STATE: SiteState = {
@@ -64,6 +69,7 @@ export const DEFAULT_SITE_STATE: SiteState = {
   selectedAddress: null,
   isConnected: false,
   operatorViewMode: 'list',
+  activeTab: 'operators',
 };
 
 // Shared settings across all sites

@@ -101,6 +101,25 @@ describe('getSiteState / setSiteState', () => {
     expect(site.isConnected).toBe(true);
   });
 
+  it('persists and reads back the active tab', async () => {
+    const { setSiteState } = await importState();
+    await setSiteState('https://app.example.com', { activeTab: 'anvil' });
+    vi.resetModules();
+    const mod2 = await importState();
+    const site = await mod2.getSiteState('https://app.example.com');
+    expect(site.activeTab).toBe('anvil');
+  });
+
+  it('backfills default activeTab for legacy site state missing the field', async () => {
+    // Site state persisted before activeTab existed
+    store['site_states'] = {
+      'https://legacy.com': { chainId: 1, moduleType: 'csm', selectedAddress: null, isConnected: false, operatorViewMode: 'list' },
+    };
+    const { getSiteState } = await importState();
+    const site = await getSiteState('https://legacy.com');
+    expect(site.activeTab).toBe('operators');
+  });
+
   it('different origins have independent state', async () => {
     const { setSiteState, getSiteState } = await importState();
     await setSiteState('https://a.com', { chainId: 1, isConnected: true });

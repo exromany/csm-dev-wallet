@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   useWalletState,
   useOperators,
@@ -21,8 +21,10 @@ import { ManualAddresses } from './ManualAddresses.js';
 import { AnvilAccounts } from './AnvilAccounts.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
+import type { PopupTab } from '../../lib/shared/types.js';
 
-type Tab = 'operators' | 'manual' | 'anvil' | 'settings';
+// Settings is the one tab we never persist — see PopupTab.
+type Tab = PopupTab | 'settings';
 type Theme = 'dark' | 'light';
 
 function readInitialTheme(): Theme {
@@ -57,12 +59,29 @@ export function App() {
     operatorLabels.get,
   );
   const availableModules = useModuleAvailability(port);
-  const [tab, setTab] = useState<Tab>('operators');
+  // `null` until the user picks a tab this session — until then the effective
+  // tab tracks the persisted `state.activeTab`, so reopening lands where we left.
+  const [tab, setTab] = useState<Tab | null>(null);
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [filterGroup, setFilterGroup] = useState<FilterGroup>('all');
   const [netModOpen, setNetModOpen] = useState(false);
   const chipRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Switch tabs locally for an instant response, and persist the choice per-site
+  // so it's restored on reopen. Settings is intentionally not persisted.
+  const selectTab = useCallback(
+    (next: Tab) => {
+      setTab(next);
+      clearError();
+      if (next !== 'settings') send({ type: 'set-active-tab', tab: next });
+    },
+    [send, clearError],
+  );
+  // The Ctrl+K listener is bound once; route it through a ref so it always calls
+  // the latest selectTab without re-subscribing on every send/origin change.
+  const selectTabRef = useRef(selectTab);
+  selectTabRef.current = selectTab;
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -80,7 +99,7 @@ export function App() {
         return;
       }
       e.preventDefault();
-      setTab('operators');
+      selectTabRef.current('operators');
       requestAnimationFrame(() => {
         const input = searchInputRef.current;
         if (input) {
@@ -101,9 +120,11 @@ export function App() {
   }, [availableModules.cm, state.moduleType, send]);
 
   const onAnvil = state.chainId === ANVIL_CHAIN_ID;
+  // Until the user touches a tab this session, follow the persisted choice.
+  const selectedTab = tab ?? state.activeTab;
   // The Anvil tab only exists on the Anvil network. Derive the active tab so it
   // falls back the moment the user leaves Anvil — no effect, no blank frame.
-  const activeTab = !onAnvil && tab === 'anvil' ? 'operators' : tab;
+  const activeTab = !onAnvil && selectedTab === 'anvil' ? 'operators' : selectedTab;
 
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
@@ -184,7 +205,7 @@ export function App() {
           <button
             key={t}
             className={`tab ${activeTab === t ? 'active' : ''}`}
-            onClick={() => { setTab(t); clearError(); }}
+            onClick={() => selectTab(t)}
           >
             {label}
           </button>
