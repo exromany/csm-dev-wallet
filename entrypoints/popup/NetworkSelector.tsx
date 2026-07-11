@@ -1,7 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import type { ModuleType } from '../../lib/shared/types.js';
 import type { ModuleAvailability } from '../../lib/shared/messages.js';
 import { CHAIN_ID, ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
+
+// The chip is a native popover invoker; the panel is the popover it targets.
+// One shared id ties `popovertarget` on the chip to `id` on the panel, and lets
+// CSS anchor-position the panel under the chip — no JS positioning, no layout
+// shift, and the browser handles light-dismiss (click-outside / Esc) for us.
+const PANEL_ID = 'netmod-panel';
 
 type Network = {
   id: number;
@@ -33,8 +39,6 @@ type ChipProps = {
   moduleType: ModuleType;
   forkedFrom?: number | null;
   open: boolean;
-  onToggle: () => void;
-  chipRef?: React.RefObject<HTMLButtonElement | null>;
 };
 
 export function NetworkModuleChip({
@@ -42,16 +46,14 @@ export function NetworkModuleChip({
   moduleType,
   forkedFrom,
   open,
-  onToggle,
-  chipRef,
 }: ChipProps) {
   const net = NETWORKS.find((n) => n.id === chainId);
   const mod = MODULES.find((m) => m.type === moduleType);
   return (
     <button
-      ref={chipRef}
       className="netmod-chip"
-      onClick={onToggle}
+      popoverTarget={PANEL_ID}
+      popoverTargetAction="toggle"
       title="Switch network or module"
     >
       <span className="dot" style={{ background: net?.dot ?? 'var(--dim)' }} />
@@ -70,8 +72,7 @@ type PanelProps = {
   availableModules: ModuleAvailability;
   onSwitchNetwork: (chainId: number) => void;
   onSwitchModule: (moduleType: ModuleType) => void;
-  onClose: () => void;
-  chipRef?: React.RefObject<HTMLButtonElement | null>;
+  onOpenChange: (open: boolean) => void;
 };
 
 export function NetworkModulePanel({
@@ -81,55 +82,51 @@ export function NetworkModulePanel({
   availableModules,
   onSwitchNetwork,
   onSwitchModule,
-  onClose,
-  chipRef,
+  onOpenChange,
 }: PanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (panelRef.current?.contains(target)) return;
-      if (chipRef?.current?.contains(target)) return;
-      onClose();
-    };
-    window.addEventListener('mousedown', onDown);
-    return () => window.removeEventListener('mousedown', onDown);
-  }, [onClose, chipRef]);
-
   return (
-    <div className="netmod-panel" ref={panelRef}>
-      {NETWORKS.map((n) => {
-        const disabledAnvil =
-          n.id === ANVIL_CHAIN_ID && !forkedFrom && chainId !== ANVIL_CHAIN_ID;
-        return (
-          <button
-            key={n.id}
-            className={`netmod-option ${n.id === chainId ? 'active' : ''}`}
-            data-chain-id={n.id}
-            disabled={disabledAnvil}
-            onClick={() => onSwitchNetwork(n.id)}
-          >
-            <span className="dot" style={{ background: n.dot }} />
-            {n.label}
-          </button>
-        );
-      })}
+    <div
+      id={PANEL_ID}
+      // eslint-disable-next-line react/no-unknown-property -- native Popover API
+      popover="auto"
+      className="netmod-panel"
+      onToggle={(e) => onOpenChange(e.nativeEvent.newState === 'open')}
+    >
+      <div className="netmod-networks">
+        {NETWORKS.map((n) => {
+          const disabledAnvil =
+            n.id === ANVIL_CHAIN_ID && !forkedFrom && chainId !== ANVIL_CHAIN_ID;
+          return (
+            <button
+              key={n.id}
+              className={`netmod-option ${n.id === chainId ? 'active' : ''}`}
+              data-chain-id={n.id}
+              disabled={disabledAnvil}
+              onClick={() => onSwitchNetwork(n.id)}
+            >
+              <span className="dot" style={{ background: n.dot }} />
+              {n.label}
+            </button>
+          );
+        })}
+      </div>
       <div className="netmod-divider" />
-      {MODULES.map((m) => {
-        const disabled = availableModules[m.type] === false;
-        return (
-          <button
-            key={m.type}
-            className={`netmod-option mod ${m.type === moduleType ? 'active' : ''}`}
-            data-module-type={m.type}
-            disabled={disabled}
-            onClick={() => onSwitchModule(m.type)}
-          >
-            {m.label}
-          </button>
-        );
-      })}
+      <div className="netmod-modules">
+        {MODULES.map((m) => {
+          const disabled = availableModules[m.type] === false;
+          return (
+            <button
+              key={m.type}
+              className={`netmod-option mod ${m.type === moduleType ? 'active' : ''}`}
+              data-module-type={m.type}
+              disabled={disabled}
+              onClick={() => onSwitchModule(m.type)}
+            >
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

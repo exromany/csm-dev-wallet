@@ -64,8 +64,9 @@ export function App() {
   const [tab, setTab] = useState<Tab | null>(null);
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [filterGroup, setFilterGroup] = useState<FilterGroup>('all');
+  // Tracks the popover's open state — used only to flip the chip's caret. The
+  // browser owns show/hide via the `popovertarget` invoker; this mirrors it.
   const [netModOpen, setNetModOpen] = useState(false);
-  const chipRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Switch tabs locally for an instant response, and persist the choice per-site
@@ -164,12 +165,7 @@ export function App() {
           moduleType={state.moduleType}
           forkedFrom={anvilStatus.forkedFrom}
           open={netModOpen}
-          onToggle={() => setNetModOpen((o) => !o)}
-          chipRef={chipRef}
         />
-      </div>
-
-      {netModOpen && (
         <NetworkModulePanel
           chainId={state.chainId}
           moduleType={state.moduleType}
@@ -177,10 +173,9 @@ export function App() {
           availableModules={availableModules}
           onSwitchNetwork={(chainId) => send({ type: 'switch-network', chainId })}
           onSwitchModule={(moduleType) => send({ type: 'switch-module', moduleType })}
-          onClose={() => setNetModOpen(false)}
-          chipRef={chipRef}
+          onOpenChange={setNetModOpen}
         />
-      )}
+      </div>
 
       {state.selectedAddress && (
         <ConnectedBar
