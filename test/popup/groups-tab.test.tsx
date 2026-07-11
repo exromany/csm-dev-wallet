@@ -71,4 +71,20 @@ describe('App — Groups tab behavior', () => {
       origin: TEST_ORIGIN,
     });
   });
+
+  it('preserves the Pending selection across a round-trip to the Groups tab', async () => {
+    await mountApp(port);
+    seedCm(port);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+
+    // Groups reads Pending as "All" — grouped accordion shows, no empty state flash.
+    expect(screen.getByText('g·3')).toBeInTheDocument();
+    expect(screen.queryByText('No pending changes')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Operators' }));
+
+    expect(screen.getByRole('button', { name: 'Pending' })).toHaveClass('active');
+  });
 });

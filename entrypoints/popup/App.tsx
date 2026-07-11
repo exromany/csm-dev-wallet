@@ -131,18 +131,14 @@ export function App() {
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
 
-  // Pending isn't available in grouped mode — drop back to "All" when the Groups
-  // tab is active so the filter pills match what's actually shown.
-  useEffect(() => {
-    if (activeTab === 'groups' && filterGroup === 'pending') {
-      setFilterGroup('all');
-    }
-  }, [activeTab, filterGroup]);
-
   const displayOperators = useMemo(
     () => filterByGroup(operators, filterGroup, isFavorite, isGroupFavorite),
     [operators, filterGroup, isFavorite, isGroupFavorite],
   );
+
+  // Pending is list-only; on the Groups tab it reads as "All". Derive rather than
+  // mutating filterGroup, so the user's Pending choice survives a round-trip to Groups.
+  const groupScope: FilterGroup = activeTab === 'groups' && filterGroup === 'pending' ? 'all' : filterGroup;
 
   return (
     <div className="app">
@@ -213,7 +209,7 @@ export function App() {
               search={search}
               onSearch={setSearch}
               searchInputRef={searchInputRef}
-              filterGroup={filterGroup}
+              filterGroup={groupScope}
               onFilterGroup={setFilterGroup}
               showPending={activeTab === 'operators'}
               loading={loading}
@@ -232,7 +228,7 @@ export function App() {
                 operators={operators}
                 allOperatorsCount={allOperators.length}
                 loading={loading}
-                scope={filterGroup}
+                scope={groupScope}
                 selectedAddress={state.selectedAddress?.address}
                 favorites={favorites}
                 groupFavorites={groupFavorites}
