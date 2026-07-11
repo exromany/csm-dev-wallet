@@ -47,11 +47,9 @@ export type SelectedAddress = {
   source: AddressSource;
 };
 
-export type OperatorViewMode = 'list' | 'grouped';
-
 // Persistable popup tabs. Settings is deliberately excluded — it's a transient
 // destination we never want to land on when the popup reopens.
-export type PopupTab = 'operators' | 'manual' | 'anvil';
+export type PopupTab = 'operators' | 'groups' | 'manual' | 'anvil';
 
 // Per-origin state — each site gets its own network/address/view
 export type SiteState = {
@@ -59,7 +57,6 @@ export type SiteState = {
   moduleType: ModuleType;
   selectedAddress: SelectedAddress | null;
   isConnected: boolean;
-  operatorViewMode: OperatorViewMode; // List ⇄ Grouped toggle (CM-only effect)
   activeTab: PopupTab; // last opened tab, restored on reopen (Settings never persists)
 };
 
@@ -68,7 +65,6 @@ export const DEFAULT_SITE_STATE: SiteState = {
   moduleType: 'csm',
   selectedAddress: null,
   isConnected: false,
-  operatorViewMode: 'list',
   activeTab: 'operators',
 };
 

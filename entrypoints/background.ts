@@ -507,13 +507,6 @@ export default defineBackground(() => {
         break;
       }
 
-      case 'set-view-mode': {
-        await setSiteState(command.origin, { operatorViewMode: command.mode });
-        const state = await getComposedState(command.origin);
-        broadcastToPopups({ type: 'state-update', state });
-        break;
-      }
-
       case 'set-active-tab': {
         await setSiteState(command.origin, { activeTab: command.tab });
         const state = await getComposedState(command.origin);

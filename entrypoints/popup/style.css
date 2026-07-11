@@ -475,36 +475,6 @@ input:focus {
   padding: 7px 10px;
 }
 
-.view-toggle {
-  display: inline-flex;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2px;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.view-toggle-btn {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--dim);
-  transition: background 120ms, color 120ms;
-}
-
-.view-toggle-btn:hover {
-  color: var(--text);
-}
-
-.view-toggle-btn.active {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
 .search-bar input {
   flex: 1;
   background: transparent;

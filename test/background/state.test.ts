@@ -113,7 +113,7 @@ describe('getSiteState / setSiteState', () => {
   it('backfills default activeTab for legacy site state missing the field', async () => {
     // Site state persisted before activeTab existed
     store['site_states'] = {
-      'https://legacy.com': { chainId: 1, moduleType: 'csm', selectedAddress: null, isConnected: false, operatorViewMode: 'list' },
+      'https://legacy.com': { chainId: 1, moduleType: 'csm', selectedAddress: null, isConnected: false },
     };
     const { getSiteState } = await importState();
     const site = await getSiteState('https://legacy.com');
@@ -255,29 +255,6 @@ describe('forward-compat for new fields', () => {
     expect(settings.groupFavorites).toEqual(['cm:1:3']);
   });
 
-  it('hydrates operatorViewMode default on legacy site state', async () => {
-    store['site_states'] = {
-      'https://legacy.com': {
-        chainId: 1,
-        moduleType: 'cm',
-        selectedAddress: null,
-        isConnected: false,
-      },
-    };
-    const { getSiteState } = await importState();
-    const site = await getSiteState('https://legacy.com');
-    expect(site.operatorViewMode).toBe('list');
-  });
-
-  it('persists operatorViewMode per-origin via setSiteState', async () => {
-    const { setSiteState } = await importState();
-    await setSiteState('https://a.com', { operatorViewMode: 'grouped' });
-    await setSiteState('https://b.com', { operatorViewMode: 'list' });
-    vi.resetModules();
-    const mod2 = await importState();
-    expect((await mod2.getSiteState('https://a.com')).operatorViewMode).toBe('grouped');
-    expect((await mod2.getSiteState('https://b.com')).operatorViewMode).toBe('list');
-  });
 });
 
 describe('broadcast targeting', () => {
