@@ -27,16 +27,16 @@ Communication between layers uses Chrome Messaging API.
 ## Commands
 
 ```bash
-npm run prepare        # Generate WXT types (.wxt/ directory)
-npm run dev            # WXT dev mode with hot reload
-npm run build          # Production build → .output/chrome-mv3/
-npm run zip            # Build + zip for distribution
-npm run test           # vitest single run
-npm run test:watch     # vitest watch mode
-npm run test:e2e       # build + Playwright e2e suite (all *.e2e.ts files)
-npm run lint           # oxlint
-npm run typecheck      # tsc --noEmit
-npm run build:package  # build extension + playwright helpers → dist/
+pnpm run prepare        # Generate WXT types (.wxt/ directory)
+pnpm run dev            # WXT dev mode with hot reload
+pnpm run build          # Production build → .output/chrome-mv3/
+pnpm run zip            # Build + zip for distribution
+pnpm run test           # vitest single run
+pnpm run test:watch     # vitest watch mode
+pnpm run test:e2e       # build + Playwright e2e suite (all *.e2e.ts files)
+pnpm run lint           # oxlint
+pnpm run typecheck      # tsc --noEmit
+pnpm run build:package  # build extension + playwright helpers → dist/
 ```
 
 Requires Node >=24. Load unpacked from `.output/chrome-mv3-dev/` (dev) or `.output/chrome-mv3/` (prod) in `chrome://extensions`.
@@ -77,11 +77,11 @@ test/
 
 ## Testing
 
-- `npm run test` / `npm run test:watch` — vitest with jsdom
+- `pnpm run test` / `pnpm run test:watch` — vitest with jsdom
 - Chrome API mocked in `test/setup.ts` (`chrome.runtime`, `chrome.storage`)
 - Test fixtures in `test/fixtures.ts` (`makeOperator()`, `makeState()`)
 - Tests in `test/popup/` — not type-checked (excluded from tsconfig)
-- `npm run test:e2e` — Playwright e2e tests (builds first, runs all `test/e2e/*.e2e.ts`)
+- `pnpm run test:e2e` — Playwright e2e tests (builds first, runs all `test/e2e/*.e2e.ts`)
 - E2E uses raw `playwright` + custom runner (no `@playwright/test` — extensions need `launchPersistentContext`)
 - E2E seeds operator data via `sw.evaluate()` into `chrome.storage.local`; wallet state changes go through UI interactions
 - E2E helpers in `test/e2e/helpers.ts` (`launchExtension`, `openPopup`, `goToTab`, `seedOperators`, etc.)

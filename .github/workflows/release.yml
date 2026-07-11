@@ -14,21 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run test
 
-      - run: npm run build:package
+      - run: pnpm run build:package
 
-      - run: npm run zip
-      - run: npm run zip:firefox
+      - run: pnpm run zip
+      - run: pnpm run zip:firefox
 
       - name: Create versioned release
         env:

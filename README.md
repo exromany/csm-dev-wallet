@@ -59,9 +59,9 @@ Then in `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** �
 ```bash
 git clone https://github.com/exromany/csm-dev-wallet.git
 cd csm-dev-wallet
-npm install
-npm run build          # Chrome → .output/chrome-mv3/
-npm run build:firefox  # Firefox → .output/firefox-mv3/
+pnpm install
+pnpm run build          # Chrome → .output/chrome-mv3/
+pnpm run build:firefox  # Firefox → .output/firefox-mv3/
 ```
 
 ## Usage
@@ -76,17 +76,17 @@ npm run build:firefox  # Firefox → .output/firefox-mv3/
 
 Requires Node >= 24.
 
-For dev mode with hot reload: `npm run dev`, load from `.output/chrome-mv3-dev/`.
+For dev mode with hot reload: `pnpm run dev`, load from `.output/chrome-mv3-dev/`.
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | WXT dev mode with hot reload |
-| `npm run build` | Production build |
-| `npm run test` | Run tests |
-| `npm run test:e2e` | Build + Playwright e2e tests |
-| `npm run lint` | Lint with oxlint |
-| `npm run typecheck` | TypeScript check |
-| `npm run build:package` | Build extension + playwright helpers → dist/ |
+| `pnpm run dev` | WXT dev mode with hot reload |
+| `pnpm run build` | Production build |
+| `pnpm run test` | Run tests |
+| `pnpm run test:e2e` | Build + Playwright e2e tests |
+| `pnpm run lint` | Lint with oxlint |
+| `pnpm run typecheck` | TypeScript check |
+| `pnpm run build:package` | Build extension + playwright helpers → dist/ |
 
 ## Playwright Testing API
 

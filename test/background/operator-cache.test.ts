@@ -30,8 +30,7 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
       560048: { contractAddresses: {}, moduleId: 2n },
     },
   },
-  OPERATOR_TYPE: { CC: 'CC' },
-  getOperatorTypeByCurveId: (moduleName: 'CSM' | 'CM', curveId: bigint) => {
+  getOperatorTypeByCurveId: (_chainId: number, moduleName: 'CSM' | 'CM', curveId: bigint) => {
     const table: Record<string, bigint> = {
       CSM_DEF: 0n,
       CSM_LEA: 1n,
