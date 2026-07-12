@@ -22,7 +22,6 @@ export function makeState(overrides: Partial<WalletState> = {}): WalletState {
     moduleType: 'csm',
     selectedAddress: null,
     isConnected: false,
-    operatorViewMode: 'list',
     activeTab: 'operators',
     customRpcUrls: {},
     favorites: [],
@@ -41,7 +40,6 @@ export function makeSiteState(overrides: Partial<SiteState> = {}): SiteState {
     moduleType: 'csm',
     selectedAddress: null,
     isConnected: false,
-    operatorViewMode: 'list',
     activeTab: 'operators',
     ...overrides,
   };

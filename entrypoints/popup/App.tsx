@@ -4,7 +4,6 @@ import {
   useOperators,
   useFavorites,
   useGroupFavorites,
-  useViewMode,
   useModuleAvailability,
   useAnvilStatus,
   useOperatorLabels,
@@ -16,7 +15,7 @@ import { formatTimeAgo } from '../../lib/popup/utils.js';
 import { NetworkModuleChip, NetworkModulePanel } from './NetworkSelector.js';
 import { ConnectedBar } from './ConnectedBar.js';
 import { OperatorList } from './OperatorList.js';
-import { OperatorGroups, ViewToggle } from './OperatorGroups.js';
+import { OperatorGroups } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { AnvilAccounts } from './AnvilAccounts.js';
 import { Settings } from './Settings.js';
@@ -40,7 +39,6 @@ export function App() {
   const anvilStatus = useAnvilStatus(port);
   const favorites = useFavorites(state, send, anvilStatus.forkedFrom);
   const groupFavorites = useGroupFavorites(state, send, anvilStatus.forkedFrom);
-  const [viewMode, setViewMode] = useViewMode(state, send);
   const operatorLabels = useOperatorLabels(state, send, anvilStatus.forkedFrom);
   const {
     operators,
@@ -64,8 +62,9 @@ export function App() {
   const [tab, setTab] = useState<Tab | null>(null);
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [filterGroup, setFilterGroup] = useState<FilterGroup>('all');
+  // Tracks the popover's open state — used only to flip the chip's caret. The
+  // browser owns show/hide via the `popovertarget` invoker; this mirrors it.
   const [netModOpen, setNetModOpen] = useState(false);
-  const chipRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Switch tabs locally for an instant response, and persist the choice per-site
@@ -120,30 +119,26 @@ export function App() {
   }, [availableModules.cm, state.moduleType, send]);
 
   const onAnvil = state.chainId === ANVIL_CHAIN_ID;
+  const showGroups = state.moduleType === 'cm';
   // Until the user touches a tab this session, follow the persisted choice.
   const selectedTab = tab ?? state.activeTab;
-  // The Anvil tab only exists on the Anvil network. Derive the active tab so it
-  // falls back the moment the user leaves Anvil — no effect, no blank frame.
-  const activeTab = !onAnvil && selectedTab === 'anvil' ? 'operators' : selectedTab;
+  // Derive so tabs that don't exist in the current context fall back cleanly —
+  // Anvil only on the Anvil network, Groups only for CM. No effect, no blank frame.
+  let activeTab: Tab = selectedTab;
+  if (!onAnvil && activeTab === 'anvil') activeTab = 'operators';
+  if (!showGroups && activeTab === 'groups') activeTab = 'operators';
 
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
-  // Grouped view only makes sense for CM (where operators have groups).
-  // Force list view for CSM so the toggle is a no-op there.
-  const effectiveViewMode = state.moduleType === 'cm' ? viewMode : 'list';
-
-  // Pending isn't available in grouped mode — drop the user back to "All" so
-  // the filter pill they have selected matches what's actually shown.
-  useEffect(() => {
-    if (effectiveViewMode === 'grouped' && filterGroup === 'pending') {
-      setFilterGroup('all');
-    }
-  }, [effectiveViewMode, filterGroup]);
 
   const displayOperators = useMemo(
     () => filterByGroup(operators, filterGroup, isFavorite, isGroupFavorite),
     [operators, filterGroup, isFavorite, isGroupFavorite],
   );
+
+  // Pending is list-only; on the Groups tab it reads as "All". Derive rather than
+  // mutating filterGroup, so the user's Pending choice survives a round-trip to Groups.
+  const groupScope: FilterGroup = activeTab === 'groups' && filterGroup === 'pending' ? 'all' : filterGroup;
 
   return (
     <div className="app">
@@ -164,12 +159,7 @@ export function App() {
           moduleType={state.moduleType}
           forkedFrom={anvilStatus.forkedFrom}
           open={netModOpen}
-          onToggle={() => setNetModOpen((o) => !o)}
-          chipRef={chipRef}
         />
-      </div>
-
-      {netModOpen && (
         <NetworkModulePanel
           chainId={state.chainId}
           moduleType={state.moduleType}
@@ -177,10 +167,9 @@ export function App() {
           availableModules={availableModules}
           onSwitchNetwork={(chainId) => send({ type: 'switch-network', chainId })}
           onSwitchModule={(moduleType) => send({ type: 'switch-module', moduleType })}
-          onClose={() => setNetModOpen(false)}
-          chipRef={chipRef}
+          onOpenChange={setNetModOpen}
         />
-      )}
+      </div>
 
       {state.selectedAddress && (
         <ConnectedBar
@@ -197,6 +186,7 @@ export function App() {
         {(
           [
             ['operators', 'Operators'],
+            ...(showGroups ? ([['groups', 'Groups']] as const) : []),
             ['manual', 'Manual'],
             ...(onAnvil ? ([['anvil', 'Anvil']] as const) : []),
             ['settings', 'Settings'],
@@ -213,61 +203,19 @@ export function App() {
       </div>
 
       <div className="content">
-        {activeTab === 'operators' && (
+        {(activeTab === 'operators' || activeTab === 'groups') && (
           <>
-            <div className="search-wrapper">
-              <div className="search-row">
-                <div className="search-bar">
-                  <span className="search-icon">⌕</span>
-                  <input
-                    ref={searchInputRef}
-                    placeholder="Search #ID, address, label…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  {search ? (
-                    <button className="search-clear" onClick={() => setSearch('')}>×</button>
-                  ) : (
-                    <kbd className="kbd">⌘K</kbd>
-                  )}
-                </div>
-                {state.moduleType === 'cm' && (
-                  <ViewToggle mode={viewMode} onChange={setViewMode} />
-                )}
-              </div>
-              <div className="filter-bar">
-                <button
-                  className={`filter-btn ${filterGroup === 'all' ? 'active' : ''}`}
-                  onClick={() => setFilterGroup('all')}
-                >
-                  All
-                </button>
-                <button
-                  className={`filter-btn ${filterGroup === 'favorites' ? 'active' : ''}`}
-                  onClick={() => setFilterGroup('favorites')}
-                >
-                  Favorites
-                </button>
-                {effectiveViewMode === 'list' && (
-                  <button
-                    className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
-                    onClick={() => setFilterGroup('pending')}
-                    title="Operators with pending P-MGR or P-RWD role-change proposals"
-                  >
-                    Pending
-                  </button>
-                )}
-                <div className="spacer" />
-                {lastFetchedAt && (
-                  <span className="staleness-label">
-                    updated {formatTimeAgo(lastFetchedAt)}
-                  </span>
-                )}
-                <button className="refresh-btn" onClick={refresh} disabled={loading}>
-                  {loading ? 'loading…' : '↻ refresh'}
-                </button>
-              </div>
-            </div>
+            <SearchToolbar
+              search={search}
+              onSearch={setSearch}
+              searchInputRef={searchInputRef}
+              filterGroup={groupScope}
+              onFilterGroup={setFilterGroup}
+              showPending={activeTab === 'operators'}
+              loading={loading}
+              lastFetchedAt={lastFetchedAt}
+              onRefresh={refresh}
+            />
             {state.chainId === ANVIL_CHAIN_ID && !anvilStatus.forkedFrom && !loading && (
               <div className="empty-state">
                 Anvil not detected.
@@ -275,12 +223,12 @@ export function App() {
                 Start a local fork to browse operators.
               </div>
             )}
-            {effectiveViewMode === 'grouped' ? (
+            {activeTab === 'groups' ? (
               <OperatorGroups
                 operators={operators}
                 allOperatorsCount={allOperators.length}
                 loading={loading}
-                scope={filterGroup}
+                scope={groupScope}
                 selectedAddress={state.selectedAddress?.address}
                 favorites={favorites}
                 groupFavorites={groupFavorites}
@@ -365,6 +313,81 @@ export function App() {
             }
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+function SearchToolbar({
+  search,
+  onSearch,
+  searchInputRef,
+  filterGroup,
+  onFilterGroup,
+  showPending,
+  loading,
+  lastFetchedAt,
+  onRefresh,
+}: {
+  search: string;
+  onSearch: (value: string) => void;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  filterGroup: FilterGroup;
+  onFilterGroup: (group: FilterGroup) => void;
+  showPending: boolean;
+  loading: boolean;
+  lastFetchedAt: number | null;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="search-wrapper">
+      <div className="search-row">
+        <div className="search-bar">
+          <span className="search-icon">⌕</span>
+          <input
+            ref={searchInputRef}
+            placeholder="Search #ID, address, label…"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+          />
+          {search ? (
+            <button className="search-clear" onClick={() => onSearch('')}>×</button>
+          ) : (
+            <kbd className="kbd">⌘K</kbd>
+          )}
+        </div>
+      </div>
+      <div className="filter-bar">
+        <button
+          className={`filter-btn ${filterGroup === 'all' ? 'active' : ''}`}
+          onClick={() => onFilterGroup('all')}
+        >
+          All
+        </button>
+        <button
+          className={`filter-btn ${filterGroup === 'favorites' ? 'active' : ''}`}
+          onClick={() => onFilterGroup('favorites')}
+        >
+          Favorites
+        </button>
+        {showPending && (
+          <button
+            className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
+            onClick={() => onFilterGroup('pending')}
+            title="Operators with pending P-MGR or P-RWD role-change proposals"
+          >
+            Pending
+          </button>
+        )}
+        <div className="spacer" />
+        {lastFetchedAt && (
+          <span className="staleness-label">
+            updated {formatTimeAgo(lastFetchedAt)}
+          </span>
+        )}
+        <button className="refresh-btn" onClick={onRefresh} disabled={loading}>
+          {loading ? 'loading…' : '↻ refresh'}
+        </button>
       </div>
     </div>
   );

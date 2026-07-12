@@ -255,37 +255,3 @@ function UngroupedSection({
     </div>
   );
 }
-
-export function ViewToggle({
-  mode,
-  onChange,
-}: {
-  mode: 'list' | 'grouped';
-  onChange: (mode: 'list' | 'grouped') => void;
-}) {
-  return (
-    <div className="view-toggle">
-      <button
-        className={`view-toggle-btn ${mode === 'list' ? 'active' : ''}`}
-        onClick={() => onChange('list')}
-        title="List view"
-        aria-label="List view"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-          <path d="M2 3.5h10M2 7h10M2 10.5h10" />
-        </svg>
-      </button>
-      <button
-        className={`view-toggle-btn ${mode === 'grouped' ? 'active' : ''}`}
-        onClick={() => onChange('grouped')}
-        title="Grouped view"
-        aria-label="Grouped view"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="2" width="10" height="4" rx="1" />
-          <path d="M4 9h8M4 11.5h8" />
-        </svg>
-      </button>
-    </div>
-  );
-}

@@ -160,6 +160,7 @@ input:focus {
 
 /* Unified network + module chip */
 .netmod-chip {
+  anchor-name: --netmod-chip;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -203,19 +204,46 @@ input:focus {
   font-size: 9px;
 }
 
+/* Popover anchored under the chip — top-layer, so it overlays content instead
+   of pushing it down. Right-aligned to the chip's right edge; flips above if it
+   would run off the bottom. Appearance lives here; `display` is scoped to the
+   open state below so the UA's `[popover]:not(:popover-open){display:none}`
+   keeps it hidden when closed. */
 .netmod-panel {
-  margin: 0 14px 10px;
+  position-anchor: --netmod-chip;
+  inset: auto;
+  top: anchor(bottom);
+  right: anchor(right);
+  margin: 6px 0 0;
+  position-try-fallbacks: flip-block;
+  width: 190px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.netmod-panel:popover-open {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.netmod-networks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.netmod-modules {
+  display: flex;
+  gap: 4px;
 }
 
 .netmod-option {
-  flex: 1;
-  padding: 8px 6px;
+  width: 100%;
+  padding: 7px 8px;
   font-size: 11px;
   font-weight: 500;
   background: transparent;
@@ -224,8 +252,8 @@ input:focus {
   color: var(--text);
   display: flex;
   align-items: center;
-  gap: 6px;
-  justify-content: center;
+  gap: 7px;
+  justify-content: flex-start;
 }
 
 .netmod-option:hover {
@@ -242,19 +270,21 @@ input:focus {
 }
 
 .netmod-option .dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
 .netmod-divider {
-  width: 1px;
+  height: 1px;
   background: var(--border);
-  margin: 2px 2px;
+  margin: 3px 2px;
 }
 
 .netmod-option.mod {
+  flex: 1;
   font-weight: 600;
+  justify-content: center;
 }
 
 .netmod-option.mod.active {
@@ -443,36 +473,6 @@ input:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 7px 10px;
-}
-
-.view-toggle {
-  display: inline-flex;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2px;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.view-toggle-btn {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--dim);
-  transition: background 120ms, color 120ms;
-}
-
-.view-toggle-btn:hover {
-  color: var(--text);
-}
-
-.view-toggle-btn.active {
-  background: var(--accent);
-  color: var(--on-accent);
 }
 
 .search-bar input {

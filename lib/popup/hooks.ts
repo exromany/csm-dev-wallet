@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type RefObject } from 'react';
-import type { WalletState, CachedOperator, ModuleType, OperatorViewMode } from '../shared/types.js';
+import type { WalletState, CachedOperator, ModuleType } from '../shared/types.js';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
@@ -319,19 +319,6 @@ export function useGroupFavorites(
   );
 
   return { toggle, isFavorite };
-}
-
-// ── useViewMode ──
-
-export function useViewMode(
-  state: WalletState,
-  send: (cmd: PopupCommandInput) => void,
-): [OperatorViewMode, (mode: OperatorViewMode) => void] {
-  const set = useCallback(
-    (mode: OperatorViewMode) => send({ type: 'set-view-mode', mode }),
-    [send],
-  );
-  return [state.operatorViewMode, set];
 }
 
 // ── useOperatorLabels ──

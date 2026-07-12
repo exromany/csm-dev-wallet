@@ -17,7 +17,7 @@ async function mountApp(port: MockPort) {
   await act(async () => {});
 }
 
-function tab(name: 'Operators' | 'Manual' | 'Anvil' | 'Settings') {
+function tab(name: 'Operators' | 'Groups' | 'Manual' | 'Anvil' | 'Settings') {
   return screen.getByRole('button', { name });
 }
 
@@ -111,5 +111,39 @@ describe('App — active tab persistence', () => {
     expect(port.postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'set-active-tab' }),
     );
+  });
+});
+
+describe('App — Groups tab', () => {
+  let port: MockPort;
+  beforeEach(() => { port = createMockPort(); });
+
+  it('shows the Groups tab right after Operators when the module is CM', async () => {
+    await mountApp(port);
+    act(() => {
+      port._emit({ type: 'state-update', state: makeState({ moduleType: 'cm' }) } satisfies PopupEvent);
+    });
+
+    const tabs = screen.getAllByRole('button').filter((b) =>
+      ['Operators', 'Groups', 'Manual', 'Settings'].includes(b.textContent ?? ''),
+    );
+    expect(tabs.map((b) => b.textContent)).toEqual(['Operators', 'Groups', 'Manual', 'Settings']);
+  });
+
+  it('hides the Groups tab for CSM', async () => {
+    await mountApp(port);
+    act(() => {
+      port._emit({ type: 'state-update', state: makeState({ moduleType: 'csm' }) } satisfies PopupEvent);
+    });
+    expect(screen.queryByRole('button', { name: 'Groups' })).toBeNull();
+  });
+
+  it('falls back to Operators when the persisted tab is Groups but the module is CSM', async () => {
+    await mountApp(port);
+    act(() => {
+      port._emit({ type: 'state-update', state: makeState({ moduleType: 'csm', activeTab: 'groups' }) } satisfies PopupEvent);
+    });
+    expect(screen.queryByRole('button', { name: 'Groups' })).toBeNull();
+    expect(tab('Operators')).toHaveClass('active');
   });
 });
