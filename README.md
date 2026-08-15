@@ -4,6 +4,8 @@ Chrome extension for testing the Lido CSM widget. Connect to any dapp as any CSM
 
 Injects an EIP-1193 provider (`window.ethereum`) so the dapp sees it as a regular wallet.
 
+See [PRIVACY.md](./PRIVACY.md) for the privacy policy.
+
 ## Features
 
 - Browse all CSM/CM operators with search by ID or address

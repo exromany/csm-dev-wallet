@@ -34,6 +34,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "test:e2e": "wxt build && npx tsx test/e2e/run-all.ts",
+    "screenshot:store": "wxt build && npx tsx scripts/store-screenshot.ts",
     "test:e2e:only": "npx tsx",
     "prepare": "wxt prepare",
     "build:playwright": "tsup playwright/index.ts --format esm --dts --outDir dist/playwright --external playwright --external viem",

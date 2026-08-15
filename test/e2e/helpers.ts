@@ -110,7 +110,7 @@ export async function seedSiteState(sw: Worker, extensionId: string, state: Part
   await sw.evaluate(async ([o, patch]) => {
     const defaults = { chainId: 1, moduleType: 'csm', selectedAddress: null, isConnected: false };
     const data = await chrome.storage.local.get('site_states');
-    const sites = data.site_states ?? {};
+    const sites = (data.site_states ?? {}) as Record<string, unknown>;
     const current = sites[o] ?? defaults;
     await chrome.storage.local.set({ site_states: { ...sites, [o]: { ...current, ...patch } } });
   }, [origin, state] as const);
