@@ -24,8 +24,12 @@ export default defineConfig({
       browser_specific_settings: {
         gecko: {
           id: 'csm-dev-wallet@lido.fi',
-          strict_min_version: '121.0',
+          // 140 desktop / 142 Android: first versions understanding data_collection_permissions
+          strict_min_version: '140.0',
           data_collection_permissions: { required: ['none'] },
+        },
+        gecko_android: {
+          strict_min_version: '142.0',
         },
       },
     }),

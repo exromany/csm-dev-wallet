@@ -52,7 +52,7 @@ curl -sL https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm
 
 Then load unpacked from `~/csm-dev-wallet` in `chrome://extensions` (enable Developer mode). Re-run to update, then click the reload icon.
 
-### Firefox (121+)
+### Firefox (140+)
 
 ```bash
 curl -sL https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm-dev-wallet-firefox.zip -o /tmp/csm-dev-wallet-firefox.zip && unzip -o /tmp/csm-dev-wallet-firefox.zip -d ~/csm-dev-wallet-firefox
