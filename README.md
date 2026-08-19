@@ -36,9 +36,13 @@ Impersonation forges a transaction's `from` field but can't produce real signatu
 
 ## Install
 
-**Option 1: Pre-built (recommended)**
+**Option 1: Chrome Web Store (recommended)**
 
-Download the latest `.zip` from [Releases](https://github.com/exromany/csm-dev-wallet/releases) and load it as an unpacked extension.
+[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/csm-dev-wallet/makdjhggppfdjnjfgghgmekcenfekmfg) — auto-updates, no Developer mode needed.
+
+**Option 2: Pre-built zip**
+
+Download the latest `.zip` from [Releases](https://github.com/exromany/csm-dev-wallet/releases) and load it as an unpacked extension. Use this for Firefox, or to get a build ahead of store review.
 
 ### Chrome / Chromium
 
@@ -56,7 +60,7 @@ curl -sL https://github.com/exromany/csm-dev-wallet/releases/download/latest/csm
 
 Then in `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → pick `manifest.json` from `~/csm-dev-wallet-firefox`. Note: Firefox unloads temporary extensions on browser restart.
 
-**Option 2: Build from source**
+**Option 3: Build from source**
 
 ```bash
 git clone https://github.com/exromany/csm-dev-wallet.git
