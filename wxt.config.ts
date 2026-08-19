@@ -25,6 +25,7 @@ export default defineConfig({
         gecko: {
           id: 'csm-dev-wallet@lido.fi',
           strict_min_version: '121.0',
+          data_collection_permissions: { required: ['none'] },
         },
       },
     }),
