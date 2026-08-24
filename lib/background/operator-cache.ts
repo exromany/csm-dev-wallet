@@ -67,6 +67,10 @@ export async function getModuleAvailabilityCache(
   return entry ? { csm: entry.csm, cm: entry.cm } : null;
 }
 
+export function clearAvailabilityCache(): void {
+  availabilityCache.clear();
+}
+
 export async function setModuleAvailabilityCache(
   chainId: number,
   modules: { csm: boolean; cm: boolean },

@@ -7,6 +7,7 @@ import {
   useModuleAvailability,
   useAnvilStatus,
   useOperatorLabels,
+  useSharedAddresses,
   filterByGroup,
   type FilterGroup,
 } from '../../lib/popup/hooks.js';
@@ -18,6 +19,7 @@ import { OperatorList } from './OperatorList.js';
 import { OperatorGroups } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { AnvilAccounts } from './AnvilAccounts.js';
+import { SharedAddresses } from './SharedAddresses.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
 import type { PopupTab } from '../../lib/shared/types.js';
@@ -66,6 +68,7 @@ export function App() {
   // browser owns show/hide via the `popovertarget` invoker; this mirrors it.
   const [netModOpen, setNetModOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const sharedVisitedRef = useRef(false);
 
   // Switch tabs locally for an instant response, and persist the choice per-site
   // so it's restored on reopen. Settings is intentionally not persisted.
@@ -128,6 +131,18 @@ export function App() {
   if (!onAnvil && activeTab === 'anvil') activeTab = 'operators';
   if (!showGroups && activeTab === 'groups') activeTab = 'operators';
 
+  // Sticky: once visited, keep fetching so switching away and back doesn't
+  // re-request. Avoids firing the Shared tab's cross-module fetch (and its
+  // duplicate CSM request alongside the Operators tab) on every popup open.
+  sharedVisitedRef.current ||= activeTab === 'shared';
+  const sharedAddrs = useSharedAddresses(
+    port,
+    origin,
+    state.chainId,
+    availableModules.cm,
+    sharedVisitedRef.current,
+  );
+
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
 
@@ -153,6 +168,13 @@ export function App() {
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
         >
           {theme === 'dark' ? '☾' : '☀'}
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => selectTab('settings')}
+          title="Settings"
+        >
+          ⚙
         </button>
         <NetworkModuleChip
           chainId={state.chainId}
@@ -187,9 +209,9 @@ export function App() {
           [
             ['operators', 'Operators'],
             ...(showGroups ? ([['groups', 'Groups']] as const) : []),
+            ['shared', 'Shared'],
             ['manual', 'Manual'],
             ...(onAnvil ? ([['anvil', 'Anvil']] as const) : []),
-            ['settings', 'Settings'],
           ] satisfies ReadonlyArray<readonly [Tab, string]>
         ).map(([t, label]) => (
           <button
@@ -278,6 +300,33 @@ export function App() {
                 type: 'select-address',
                 address,
                 source: { type: 'manual' },
+              })
+            }
+          />
+        )}
+
+        {activeTab === 'shared' && (
+          <SharedAddresses
+            addresses={sharedAddrs.addresses}
+            loading={sharedAddrs.loading}
+            lastFetchedAt={sharedAddrs.lastFetchedAt}
+            cmMissing={sharedAddrs.cmMissing}
+            addressLabels={state.addressLabels}
+            selectedAddress={state.selectedAddress?.address}
+            selectedOperatorId={
+              state.selectedAddress?.source.type === 'operator'
+                ? state.selectedAddress.source.operatorId
+                : undefined
+            }
+            siteModuleType={state.moduleType}
+            onRefresh={sharedAddrs.refresh}
+            onSelect={(address, operatorId, role, moduleType) =>
+              send({
+                type: 'select-address',
+                address,
+                source: { type: 'operator', operatorId, role },
+                // Only sent when it differs, so same-module picks keep the existing behaviour.
+                ...(moduleType !== state.moduleType ? { moduleType } : {}),
               })
             }
           />

@@ -49,10 +49,12 @@ entrypoints/
   content.ts           — content script bridge (WXT defineContentScript)
   inpage.ts            — EIP-1193 provider injected into MAIN world
   popup/               — React UI
+    SharedAddresses.tsx  — Shared tab: addresses attached to >1 operator, across modules
 lib/
   background/          — service worker modules (state, rpc-handler, rpc, operator-cache, anvil)
   popup/               — React hooks and utils
   shared/              — types, messages, network configs (used by all layers)
+    attachments.ts       — address → attachments reverse index (both module caches)
 test/
   setup.ts             — Chrome API mocks + jest-dom
   fixtures.ts          — makeOperator(), makeState(), address constants
@@ -96,6 +98,15 @@ test/
 - **CM module:** May not be deployed on all networks — `fetchAllOperators` catches and re-throws after caching empty result
 - **Favorites scoping:** Stored as `"moduleType:chainId:operatorId"` (e.g. `"csm:1:42"`). Legacy bare IDs migrated on load.
 - **State migration:** `migrateState()` handles legacy storage formats — don't assume storage shape is current
+- **Operator identity is (id, module):** CSM #7 and CM #7 are different operators. Anything
+  comparing operators across modules — the Shared tab, `buildAttachmentIndex` — must key on the
+  pair, never the bare id.
+- **Proposed roles are attachments:** `P-MGR`/`P-RWD` count in `buildAttachmentIndex`, which is
+  what the Shared tab's Pending filter selects on.
+- **Settings is not a tab:** it lives in the header as an `icon-btn`, because six tabs overflow
+  the 400px popup. `goToTab(page, 'Settings')` in the e2e helpers clicks that button.
+- **Shared tab spans both modules:** it issues `request-operators` for CSM *and* CM and stays in
+  its loading state until both answer, so counts never render half-built.
 
 ## Playwright Testing API
 

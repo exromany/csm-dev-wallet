@@ -43,6 +43,7 @@ vi.mock('../../lib/background/operator-cache.ts', () => ({
   isModuleAvailable: vi.fn().mockResolvedValue(true),
   getModuleAvailabilityCache: vi.fn().mockResolvedValue(null),
   setModuleAvailabilityCache: vi.fn().mockResolvedValue(undefined),
+  clearAvailabilityCache: vi.fn(),
 }));
 
 const handleRpcRequest = vi.fn();

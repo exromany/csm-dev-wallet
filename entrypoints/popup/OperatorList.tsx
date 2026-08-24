@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
+import { roleEntries, operatorKind } from '../../lib/shared/attachments.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
@@ -82,7 +83,7 @@ export function OperatorRow({
   const hasSelected = groups.some(
     (g) => selectedAddress?.toLowerCase() === g.address.toLowerCase(),
   );
-  const kind = typeKind(op.operatorType);
+  const kind = operatorKind(op.operatorType);
   const merged = groups.length === 1 && groups[0].proposedPills.length === 0;
   const firstRow = merged ? [groups[0]] : groups.slice(0, 2);
   const overflowRow = !merged && groups.length > 2 ? groups.slice(2) : [];
@@ -150,59 +151,21 @@ type AddressGroup = {
 };
 
 function groupAddresses(op: CachedOperator): AddressGroup[] {
-  const ownerKey = op.ownerAddress.toLowerCase();
-  const ownerOf = new Set<'MGR' | 'RWD'>();
-  if (op.managerAddress.toLowerCase() === ownerKey) ownerOf.add('MGR');
-  if (op.rewardsAddress.toLowerCase() === ownerKey) ownerOf.add('RWD');
-
-  type Entry = {
-    role: AddressRole;
-    label: 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD';
-    tint: 'mgr' | 'rwd';
-    address: string;
-    proposed: boolean;
-  };
-  const entries: Entry[] = [
-    { role: 'manager', label: 'MGR', tint: 'mgr', address: op.managerAddress, proposed: false },
-    { role: 'rewards', label: 'RWD', tint: 'rwd', address: op.rewardsAddress, proposed: false },
-  ];
-  if (op.proposedManagerAddress) {
-    entries.push({ role: 'proposedManager', label: 'P-MGR', tint: 'mgr', address: op.proposedManagerAddress, proposed: true });
-  }
-  if (op.proposedRewardsAddress) {
-    entries.push({ role: 'proposedRewards', label: 'P-RWD', tint: 'rwd', address: op.proposedRewardsAddress, proposed: true });
-  }
-
   const map = new Map<string, AddressGroup>();
-  for (const e of entries) {
+  for (const e of roleEntries(op)) {
     const key = e.address.toLowerCase();
     let group = map.get(key);
     if (!group) {
-      group = {
-        address: e.address,
-        primaryRole: e.role,
-        rolePills: [],
-        proposedPills: [],
-      };
+      group = { address: e.address, primaryRole: e.role, rolePills: [], proposedPills: [] };
       map.set(key, group);
     }
     if (e.proposed) {
       group.proposedPills.push(e.label);
     } else {
-      const label = e.label as 'MGR' | 'RWD';
-      group.rolePills.push({
-        label,
-        tint: e.tint,
-        owner: ownerOf.has(label),
-      });
+      group.rolePills.push({ label: e.label as 'MGR' | 'RWD', tint: e.tint, owner: e.owner });
     }
   }
   return Array.from(map.values());
-}
-
-// 'CSM_LEA' → 'csm-lea' — drives per-type ribbon color via CSS class.
-function typeKind(operatorType: string): string {
-  return (operatorType || 'cc').toLowerCase().replace(/_/g, '-');
 }
 
 function AddressChip({

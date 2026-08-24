@@ -49,7 +49,7 @@ export type SelectedAddress = {
 
 // Persistable popup tabs. Settings is deliberately excluded — it's a transient
 // destination we never want to land on when the popup reopens.
-export type PopupTab = 'operators' | 'groups' | 'manual' | 'anvil';
+export type PopupTab = 'operators' | 'groups' | 'shared' | 'manual' | 'anvil';
 
 // Per-origin state — each site gets its own network/address/view
 export type SiteState = {

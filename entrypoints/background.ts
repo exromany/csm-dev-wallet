@@ -11,13 +11,16 @@ import {
   resetCaches,
 } from '../lib/background/state.js';
 
-if (typeof self !== 'undefined') Object.assign(self, { __resetStateCaches: resetCaches });
+if (typeof self !== 'undefined') {
+  Object.assign(self, { __resetStateCaches: resetCaches, __resetAvailabilityCache: clearAvailabilityCache });
+}
 import {
   fetchOperators,
   getCachedOperators,
   isStale,
   isModuleAvailable,
   getModuleAvailabilityCache,
+  clearAvailabilityCache,
   setModuleAvailabilityCache,
 } from '../lib/background/operator-cache.js';
 import {
@@ -353,6 +356,7 @@ export default defineBackground(() => {
             source: command.source,
           },
           isConnected: true,
+          ...(command.moduleType ? { moduleType: command.moduleType } : {}),
         });
         const state = await getComposedState(origin);
         broadcastToPopups({ type: 'state-update', state });

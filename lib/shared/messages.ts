@@ -45,7 +45,10 @@ export const PORT_NAME = 'csm-popup';
 // can compose and return the correct per-site + global state view.
 export type PopupCommand =
   | { type: 'get-state'; origin: string }
-  | { type: 'select-address'; origin: string; address: string; source: import('./types.js').AddressSource }
+  // `moduleType` is set when the pick comes from the Shared tab and belongs to the
+  // other module — address and module must land in one write, or the Operators tab
+  // would show a different module than the connected account came from.
+  | { type: 'select-address'; origin: string; address: string; source: import('./types.js').AddressSource; moduleType?: ModuleType }
   | { type: 'disconnect'; origin: string }
   | { type: 'switch-network'; origin: string; chainId: number }
   | { type: 'switch-module'; origin: string; moduleType: ModuleType }
