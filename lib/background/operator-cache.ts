@@ -93,6 +93,12 @@ export function storageKey(ctx: CacheContext): string {
   return `operators_${ctx.moduleType}_${ctx.chainId}`;
 }
 
+function getModuleId(moduleType: ModuleType, chainId: SupportedChainId): bigint {
+  const config = MODULE_CONFIG[MODULE_NAMES[moduleType]][chainId];
+  if (!config) throw new Error(`Module ${moduleType} not deployed on chain ${chainId}`);
+  return config.moduleId;
+}
+
 function getDiscoveryAddress(chainId: SupportedChainId): Address {
   const addresses = COMMON_ADDRESSES[chainId as keyof typeof COMMON_ADDRESSES];
   const addr = addresses?.smDiscovery;
@@ -117,7 +123,7 @@ export async function isModuleAvailable(ctx: CacheContext): Promise<boolean> {
 
   try {
     const discoveryAddress = getDiscoveryAddress(ccid);
-    const moduleId = MODULE_CONFIG[MODULE_NAMES[ctx.moduleType]][ccid].moduleId;
+    const moduleId = getModuleId(ctx.moduleType, ccid);
     const [moduleAddress] = await client.readContract({
       address: discoveryAddress,
       abi: SMDiscoveryAbi,
@@ -138,7 +144,7 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
   const ccid = contractChainId(ctx);
   const client = getClient(ctx);
   const discoveryAddress = getDiscoveryAddress(ccid);
-  const moduleId = MODULE_CONFIG[MODULE_NAMES[ctx.moduleType]][ccid].moduleId;
+  const moduleId = getModuleId(ctx.moduleType, ccid);
 
   // Paginate through all operators
   const allRaw: Awaited<ReturnType<typeof readOperatorBatch>>[number][] = [];
