@@ -6,3 +6,6 @@ dist/
 
 .claude
 .mcp.json
+
+.pnpm-store/
+.design/
