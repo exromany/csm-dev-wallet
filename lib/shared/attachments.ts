@@ -12,17 +12,21 @@ export type RoleEntry = {
   owner: boolean;
 };
 
-/** The (role, address) slots an operator holds — unset proposed roles omitted. */
+/**
+ * The (role, address) slots an operator holds — unset proposed roles omitted.
+ * Exactly one of manager/rewards is the owner; never compare against an address,
+ * since the two roles can share one and both would match.
+ */
 export function roleEntries(op: CachedOperator): RoleEntry[] {
-  const ownerKey = op.ownerAddress.toLowerCase();
+  const managerOwns = op.extendedManagerPermissions;
   const entries: RoleEntry[] = [
     {
       role: 'manager', label: 'MGR', tint: 'mgr', address: op.managerAddress,
-      proposed: false, owner: op.managerAddress.toLowerCase() === ownerKey,
+      proposed: false, owner: managerOwns,
     },
     {
       role: 'rewards', label: 'RWD', tint: 'rwd', address: op.rewardsAddress,
-      proposed: false, owner: op.rewardsAddress.toLowerCase() === ownerKey,
+      proposed: false, owner: !managerOwns,
     },
   ];
   if (op.proposedManagerAddress) {

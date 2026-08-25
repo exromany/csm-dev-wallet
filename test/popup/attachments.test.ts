@@ -20,7 +20,7 @@ describe('roleEntries', () => {
       id: '1',
       managerAddress: ADDR_A,
       rewardsAddress: ADDR_B,
-      ownerAddress: ADDR_A,
+      extendedManagerPermissions: true,
     });
 
     const entries = roleEntries(op);
@@ -35,10 +35,24 @@ describe('roleEntries', () => {
   });
 
   it('marks the rewards address as owner when it holds extended permissions', () => {
-    const op = makeOperator({ id: '2', ownerAddress: ADDR_B, extendedManagerPermissions: false });
+    const op = makeOperator({ id: '2', extendedManagerPermissions: false });
     const entries = roleEntries(op);
     expect(entries.find((e) => e.role === 'manager')?.owner).toBe(false);
     expect(entries.find((e) => e.role === 'rewards')?.owner).toBe(true);
+  });
+
+  it('marks only the manager pill when one address holds both roles and manager owns', () => {
+    const op = makeOperator({
+      id: '6', managerAddress: ADDR_A, rewardsAddress: ADDR_A, extendedManagerPermissions: true,
+    });
+    expect(roleEntries(op).filter((e) => e.owner).map((e) => e.label)).toEqual(['MGR']);
+  });
+
+  it('marks only the rewards pill when one address holds both roles and rewards owns', () => {
+    const op = makeOperator({
+      id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_A, extendedManagerPermissions: false,
+    });
+    expect(roleEntries(op).filter((e) => e.owner).map((e) => e.label)).toEqual(['RWD']);
   });
 
   it('appends proposed roles, never marking them owner', () => {
@@ -88,7 +102,7 @@ describe('attachmentTypeLabel', () => {
 describe('buildAttachmentIndex', () => {
   it('collapses several roles on one operator into a single attachment', () => {
     const index = buildAttachmentIndex({
-      csm: [makeOperator({ id: '31', managerAddress: ADDR_A, rewardsAddress: ADDR_A, ownerAddress: ADDR_A })],
+      csm: [makeOperator({ id: '31', managerAddress: ADDR_A, rewardsAddress: ADDR_A})],
     });
 
     const entry = index.get(ADDR_A.toLowerCase());
@@ -157,12 +171,12 @@ describe('buildAttachmentIndex', () => {
 describe('sharedAddresses', () => {
   const index = buildAttachmentIndex({
     csm: [
-      makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_D, ownerAddress: ADDR_A }),
-      makeOperator({ id: '57', managerAddress: ADDR_D, rewardsAddress: ADDR_A, ownerAddress: ADDR_D }),
+      makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_D}),
+      makeOperator({ id: '57', managerAddress: ADDR_D, rewardsAddress: ADDR_A}),
     ],
     cm: [
-      makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_A, operatorType: 'CM_PO' }),
-      makeOperator({ id: '31', managerAddress: ADDR_C, rewardsAddress: ADDR_C, ownerAddress: ADDR_C, operatorType: 'CM_DO' }),
+      makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B, operatorType: 'CM_PO' }),
+      makeOperator({ id: '31', managerAddress: ADDR_C, rewardsAddress: ADDR_C, operatorType: 'CM_DO' }),
     ],
   });
 
@@ -208,25 +222,25 @@ describe('countLabel', () => {
 
 describe('roleHint', () => {
   it('describes a plain manager address', () => {
-    const op = makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_D });
+    const op = makeOperator({ id: '1', extendedManagerPermissions: false });
     const entry = roleEntries(op).find((e) => e.role === 'manager')!;
     expect(roleHint(entry)).toBe('Manager address');
   });
 
   it('describes a plain rewards address', () => {
-    const op = makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_D });
+    const op = makeOperator({ id: '1', extendedManagerPermissions: true });
     const entry = roleEntries(op).find((e) => e.role === 'rewards')!;
     expect(roleHint(entry)).toBe('Rewards address');
   });
 
   it('appends the owner suffix for an owner manager', () => {
-    const op = makeOperator({ id: '2', managerAddress: ADDR_A, ownerAddress: ADDR_A });
+    const op = makeOperator({ id: '2', extendedManagerPermissions: true });
     const entry = roleEntries(op).find((e) => e.role === 'manager')!;
     expect(roleHint(entry)).toBe('Manager address · owner');
   });
 
   it('appends the owner suffix for an owner rewards', () => {
-    const op = makeOperator({ id: '3', ownerAddress: ADDR_B });
+    const op = makeOperator({ id: '3', extendedManagerPermissions: false });
     const entry = roleEntries(op).find((e) => e.role === 'rewards')!;
     expect(roleHint(entry)).toBe('Rewards address · owner');
   });

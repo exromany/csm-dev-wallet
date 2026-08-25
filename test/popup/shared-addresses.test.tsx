@@ -20,13 +20,13 @@ import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 const addresses = sharedAddresses(
   buildAttachmentIndex({
     csm: [
-      makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_A }),
-      makeOperator({ id: '57', managerAddress: ADDR_C, rewardsAddress: ADDR_A, ownerAddress: ADDR_C, operatorType: 'CSM_ICS' }),
+      makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B}),
+      makeOperator({ id: '57', managerAddress: ADDR_C, rewardsAddress: ADDR_A, operatorType: 'CSM_ICS' }),
     ],
     cm: [
-      makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, ownerAddress: ADDR_A, operatorType: 'CM_PO' }),
-      makeOperator({ id: '23', managerAddress: ADDR_D, rewardsAddress: ADDR_B, ownerAddress: ADDR_D, operatorType: 'CM_PGO' }),
-      makeOperator({ id: '44', managerAddress: ADDR_D, rewardsAddress: ADDR_C, ownerAddress: ADDR_D, operatorType: 'CM_EEO' }),
+      makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, operatorType: 'CM_PO' }),
+      makeOperator({ id: '23', managerAddress: ADDR_D, rewardsAddress: ADDR_B, operatorType: 'CM_PGO' }),
+      makeOperator({ id: '44', managerAddress: ADDR_D, rewardsAddress: ADDR_C, operatorType: 'CM_EEO' }),
     ],
   }),
 );

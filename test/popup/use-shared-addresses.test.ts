@@ -170,12 +170,12 @@ describe('filterSharedAddresses', () => {
   const list = sharedAddresses(
     buildAttachmentIndex({
       csm: [
-        makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_A }),
-        makeOperator({ id: '57', managerAddress: ADDR_B, rewardsAddress: ADDR_C, ownerAddress: ADDR_B }),
+        makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B}),
+        makeOperator({ id: '57', managerAddress: ADDR_B, rewardsAddress: ADDR_C}),
       ],
       cm: [
-        makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, ownerAddress: ADDR_A, operatorType: 'CM_PO' }),
-        makeOperator({ id: '44', managerAddress: ADDR_C, rewardsAddress: ADDR_B, ownerAddress: ADDR_C, proposedManagerAddress: ADDR_B, operatorType: 'CM_EEO' }),
+        makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, operatorType: 'CM_PO' }),
+        makeOperator({ id: '44', managerAddress: ADDR_C, rewardsAddress: ADDR_B, proposedManagerAddress: ADDR_B, operatorType: 'CM_EEO' }),
       ],
     }),
   );

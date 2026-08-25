@@ -10,7 +10,6 @@ export function makeOperator(overrides: Partial<CachedOperator> & { id: string }
     managerAddress: ADDR_A,
     rewardsAddress: ADDR_B,
     extendedManagerPermissions: true,
-    ownerAddress: ADDR_A,
     curveId: '0',
     operatorType: 'CSM_DEF',
     ...overrides,

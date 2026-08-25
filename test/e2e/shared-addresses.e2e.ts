@@ -24,19 +24,19 @@ const PROPOSED_ONLY_MGR = '0x5555555555555555555555555555555555555555';
 const CSM_OPS: CachedOperator[] = [
   {
     id: '12', managerAddress: SHARED, rewardsAddress: OTHER,
-    extendedManagerPermissions: true, ownerAddress: SHARED,
+    extendedManagerPermissions: true,
     curveId: '0', operatorType: 'CSM_DEF',
   },
   {
     id: '99', managerAddress: SOLO, rewardsAddress: SOLO,
-    extendedManagerPermissions: true, ownerAddress: SOLO,
+    extendedManagerPermissions: true,
     curveId: '0', operatorType: 'CSM_DEF',
   },
   // PROPOSED_ONLY's second attachment — a real rewards role, so it also
   // qualifies as shared (>1 attachment) and cross-module.
   {
     id: '13', managerAddress: PROPOSED_ONLY_MGR, rewardsAddress: PROPOSED_ONLY,
-    extendedManagerPermissions: true, ownerAddress: PROPOSED_ONLY_MGR,
+    extendedManagerPermissions: true,
     curveId: '0', operatorType: 'CSM_DEF',
   },
 ];
@@ -44,13 +44,13 @@ const CSM_OPS: CachedOperator[] = [
 const CM_OPS: CachedOperator[] = [
   {
     id: '7', managerAddress: SHARED, rewardsAddress: OTHER,
-    extendedManagerPermissions: true, ownerAddress: SHARED,
+    extendedManagerPermissions: true,
     curveId: '0', operatorType: 'CM_PO',
   },
   {
     id: '44', managerAddress: OTHER, rewardsAddress: OTHER,
     proposedManagerAddress: PROPOSED_ONLY,
-    extendedManagerPermissions: true, ownerAddress: OTHER,
+    extendedManagerPermissions: true,
     curveId: '0', operatorType: 'CM_EEO',
   },
 ];

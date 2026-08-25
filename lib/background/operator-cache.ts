@@ -153,9 +153,6 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
 
   const operators: CachedOperator[] = allRaw.map((info) => {
     const curveId = BigInt(info.curveId);
-    const ownerAddress = info.extendedManagerPermissions
-      ? info.managerAddress
-      : info.rewardAddress;
 
     return {
       id: BigInt(info.id).toString(),
@@ -170,7 +167,6 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
           ? info.proposedRewardAddress
           : undefined,
       extendedManagerPermissions: info.extendedManagerPermissions,
-      ownerAddress,
       curveId: curveId.toString(),
       operatorType: resolveOperatorType(ccid, ctx.moduleType, curveId),
     };

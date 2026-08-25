@@ -22,7 +22,7 @@ Communication between layers uses Chrome Messaging API.
 - **CSM-specific, not generic:** Operator browsing and address role selection (manager/rewards/proposed) are first-class. Uses `SMDiscoveryAbi` and contract addresses from `@lidofinance/lido-csm-sdk` — ABI comes from SDK package, not maintained locally.
 - **Fetch-all + cache:** All operators fetched on popup open, cached per-network in extension storage. Operator count is manageable.
 - **Networks:** Mainnet, Hoodi, local Anvil fork (auto-detect which network it forks). Configurable RPC URLs.
-- **Owner indicator:** Not a separate address — whichever of manager/rewards has extended-manager-permissions is marked as "owner".
+- **Owner indicator:** Not a separate address — `extendedManagerPermissions` alone decides it, so exactly one of MGR/RWD is the owner. Never infer it by comparing addresses: manager and rewards can be the same address and both would match.
 
 ## Commands
 

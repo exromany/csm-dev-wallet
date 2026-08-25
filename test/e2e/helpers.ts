@@ -208,7 +208,6 @@ export function makeTestOperators(count: number): CachedOperator[] {
     managerAddress: ADDRESSES[i * 2] ?? ADDRESSES[0],
     rewardsAddress: ADDRESSES[i * 2 + 1] ?? ADDRESSES[1],
     extendedManagerPermissions: true,
-    ownerAddress: ADDRESSES[i * 2] ?? ADDRESSES[0],
     curveId: '0',
     operatorType: TYPES[i % TYPES.length],
   }));
