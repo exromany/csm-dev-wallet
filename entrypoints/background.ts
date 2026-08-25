@@ -33,13 +33,14 @@ import {
 import { CHAIN_ID, SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, DEFAULT_NETWORKS, type SupportedChainId } from '../lib/shared/networks.js';
 import { errorMessage } from '../lib/shared/errors.js';
 import { toggleFavorite } from '../lib/shared/favorites.js';
-import type { CacheContext, SiteState, GlobalSettings } from '../lib/shared/types.js';
+import type { CacheContext, SiteState, GlobalSettings, ModuleType } from '../lib/shared/types.js';
 import {
   PORT_NAME,
   type RpcRequestMessage,
   type RpcResponseMessage,
   type PopupCommand,
   type PopupEvent,
+  type ModuleAvailability,
   type ApprovalResponse,
 } from '../lib/shared/messages.js';
 import { requestApproval, type PendingApproval } from '../lib/background/approval.js';
@@ -312,14 +313,23 @@ export default defineBackground(() => {
     }
   }
 
-  /** Check CM availability via RPC, persist result, and broadcast. */
+  // CSM is the baseline: deployed on every supported chain and the module we
+  // fall back to, so it is assumed available rather than probed — a transient
+  // RPC failure must never strand the popup with nothing selectable.
+  const PROBED_MODULES: ModuleType[] = ['cm', 'csm02'];
+
+  /** Probe non-baseline module availability via RPC, persist, and broadcast. */
   async function checkModuleAvailability(ctx: CacheContext) {
-    const cmCtx: CacheContext = { ...ctx, moduleType: 'cm' };
-    const cmAvailable = await isModuleAvailable(cmCtx);
-    const modules = { csm: true, cm: cmAvailable };
+    const probed = await Promise.all(
+      PROBED_MODULES.map(async (moduleType) => [
+        moduleType,
+        await isModuleAvailable({ ...ctx, moduleType }),
+      ] as const),
+    );
+    const modules: ModuleAvailability = { csm: true, ...Object.fromEntries(probed) };
     await setModuleAvailabilityCache(ctx.chainId, modules);
     broadcastToPopups({ type: 'module-availability', modules });
-    return cmAvailable;
+    return modules;
   }
 
   async function handlePopupCommand(

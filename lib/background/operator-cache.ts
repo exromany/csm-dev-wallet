@@ -8,6 +8,7 @@ import {
 import { SMDiscoveryAbi, CuratedModuleAbi, MetaRegistryAbi } from '@lidofinance/lido-csm-sdk/abi';
 import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
+import type { ModuleAvailability } from '../shared/messages.js';
 
 const STALE_MS = 30 * 60 * 1000; // 30 minutes
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -16,6 +17,7 @@ const BATCH_SIZE = 500n;
 const MODULE_NAMES: Record<ModuleType, MODULE_NAME> = {
   csm: MODULE_NAME.CSM,
   cm: MODULE_NAME.CM,
+  csm02: MODULE_NAME.CSM_02,
 };
 
 /** The chain whose contracts/ABIs to use — forkedFrom for Anvil, chainId otherwise */
@@ -60,11 +62,13 @@ function availabilityStorageKey(chainId: number): string {
 
 export async function getModuleAvailabilityCache(
   chainId: number,
-): Promise<{ csm: boolean; cm: boolean } | null> {
+): Promise<ModuleAvailability | null> {
   const key = availabilityStorageKey(chainId);
   const data = await chrome.storage.local.get(key);
-  const entry = data[key] as { csm: boolean; cm: boolean; checkedAt: number } | undefined;
-  return entry ? { csm: entry.csm, cm: entry.cm } : null;
+  const entry = data[key] as (ModuleAvailability & { checkedAt: number }) | undefined;
+  if (!entry) return null;
+  const { checkedAt: _checkedAt, ...modules } = entry;
+  return modules;
 }
 
 export function clearAvailabilityCache(): void {
@@ -73,7 +77,7 @@ export function clearAvailabilityCache(): void {
 
 export async function setModuleAvailabilityCache(
   chainId: number,
-  modules: { csm: boolean; cm: boolean },
+  modules: ModuleAvailability,
 ): Promise<void> {
   const key = availabilityStorageKey(chainId);
   await chrome.storage.local.set({ [key]: { ...modules, checkedAt: Date.now() } });
@@ -114,7 +118,7 @@ export async function isModuleAvailable(ctx: CacheContext): Promise<boolean> {
 
   // Check persistent cache — uses ctx.chainId (fixes Anvil/Hoodi sharing bug)
   const persisted = await getModuleAvailabilityCache(ctx.chainId);
-  if (persisted && ctx.moduleType === 'cm' && persisted.cm) {
+  if (persisted?.[ctx.moduleType]) {
     availabilityCache.set(memKey, { available: true, checkedAt: Date.now() });
     return true;
   }

@@ -1,7 +1,7 @@
 import type { Address } from 'viem';
 import type { SupportedChainId } from './networks.js';
 
-export type ModuleType = 'csm' | 'cm';
+export type ModuleType = 'csm' | 'cm' | 'csm02';
 
 export type CacheContext = {
   chainId: number;                  // always the cache namespace (31337 for Anvil)

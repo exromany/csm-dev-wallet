@@ -8,7 +8,7 @@ See [PRIVACY.md](./PRIVACY.md) for the privacy policy.
 
 ## Features
 
-- Browse all CSM/CM operators with search by ID or address
+- Browse all CSM / CSM 0x02 / CM operators with search by ID or address
 - Connect as manager, rewards, or proposed address
 - Favorites operators
 - Manual address entry (Manual tab) + Anvil pre-funded accounts (Anvil tab, fork only)

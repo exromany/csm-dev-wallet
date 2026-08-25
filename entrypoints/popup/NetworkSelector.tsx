@@ -24,6 +24,7 @@ const NETWORKS: Network[] = [
 
 const MODULES: { type: ModuleType; label: string }[] = [
   { type: 'csm', label: 'CSM' },
+  { type: 'csm02', label: 'CSM 0x02' },
   { type: 'cm', label: 'CM' },
 ];
 

@@ -30,8 +30,9 @@ async function main() {
   // Seed both networks' operators (reads from storage — no cache issue)
   await seedOperators(sw, mainnetOps, 1, 'csm');
   await seedOperators(sw, hoodiOps, 560048, 'csm');
-  await seedModuleAvailability(sw, 1, { csm: true, cm: false });
-  await seedModuleAvailability(sw, 560048, { csm: true, cm: false });
+  // CSM 0x02 is Hoodi-only, mirroring the SDK's MODULE_CONFIG
+  await seedModuleAvailability(sw, 1, { csm: true, cm: false, csm02: false });
+  await seedModuleAvailability(sw, 560048, { csm: true, cm: false, csm02: true });
 
   try {
     // ── Test 1: Switch to Hoodi shows 3 operators ──
@@ -104,6 +105,33 @@ async function main() {
 
       const ids = await page.locator('.operator-id').allTextContents();
       if (!ids.includes('#101')) throw new Error(`Expected Hoodi ops, got ${ids}`);
+      await page.close();
+    });
+
+    // ── Test: CSM 0x02 chip ──
+    // Only the Mainnet (disabled) half is asserted: it follows from the SDK's
+    // MODULE_CONFIG having no mainnet CSM_02 entry, so it needs no RPC. Whether
+    // Hoodi reports it available depends on live on-chain discovery state, which
+    // would make the assertion flaky — that path is covered by unit tests.
+
+    await test('CSM 0x02 appears in the picker, disabled on Mainnet', async () => {
+      const page = await openPopup(context, extensionId);
+      await page.waitForSelector('.operator-row');
+
+      // Earlier tests leave the popup persisted on Hoodi — pin the network.
+      // selectNetwork leaves the panel open, so the module chips stay visible.
+      await selectNetwork(page, 1);
+      await page.waitForTimeout(500);
+
+      const chip = page.locator('.netmod-option[data-module-type="csm02"]');
+      if ((await chip.count()) !== 1) throw new Error('CSM 0x02 option missing from picker');
+      if ((await chip.textContent())?.trim() !== 'CSM 0x02') {
+        throw new Error(`Unexpected label: ${await chip.textContent()}`);
+      }
+      // Mainnet has no CSM_02 entry in the SDK's MODULE_CONFIG, so the probe
+      // resolves false without any RPC — deterministic regardless of chain state.
+      if (!(await chip.isDisabled())) throw new Error('CSM 0x02 should be disabled on Mainnet');
+
       await page.close();
     });
 
