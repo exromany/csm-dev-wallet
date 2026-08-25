@@ -4,6 +4,7 @@ import { isAddress } from 'viem';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { IconCheck, IconClose, IconCopy } from './icons.js';
 
 type Props = {
   addresses: Address[];
@@ -93,14 +94,14 @@ export function ManualAddresses({
               onClick={(e) => { e.stopPropagation(); copy(address); }}
               data-hint={copied ? 'Copied' : 'Copy address'}
             >
-              {copied ? '✓' : '⎘'}
+              {copied ? <IconCheck /> : <IconCopy />}
             </button>
             <button
               className="btn-copy danger hint hint-right"
               onClick={(e) => { e.stopPropagation(); onRemove(address); }}
               data-hint="Remove"
             >
-              ×
+              <IconClose />
             </button>
           </div>
         );

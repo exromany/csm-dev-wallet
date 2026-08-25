@@ -4,6 +4,7 @@ import { roleEntries, operatorKind, roleHintByLabel, operatorTypeHint } from '..
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { IconCheck, IconCopy, IconStar } from './icons.js';
 
 type Props = {
   operators: CachedOperator[];
@@ -113,7 +114,7 @@ export function OperatorRow({
             onClick={onToggleFavorite}
             data-hint={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
-            {isFavorite ? '★' : '☆'}
+            <IconStar filled={isFavorite} />
           </button>
         </div>
 
@@ -220,7 +221,7 @@ function AddressChip({
         onClick={(e) => { e.stopPropagation(); copy(g.address); }}
         data-hint={copied ? 'Copied' : 'Copy address'}
       >
-        {copied ? '✓' : '⎘'}
+        {copied ? <IconCheck /> : <IconCopy />}
       </button>
     </div>
   );

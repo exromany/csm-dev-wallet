@@ -133,8 +133,8 @@ async function main() {
       const popup = await context.newPage();
       await popup.goto(`chrome-extension://${extensionId}/popup.html?origin=${encodeURIComponent(dappOrigin)}`);
       await popup.waitForSelector('.app');
-      await popup.waitForSelector('.connected-pill .btn-ghost.danger', { timeout: 5000 });
-      await popup.click('.connected-pill .btn-ghost.danger');
+      await popup.waitForSelector('.connected-pill .pill-act.danger', { timeout: 5000 });
+      await popup.click('.connected-pill .pill-act.danger');
       await popup.close();
 
       // Dapp should receive accountsChanged and reset

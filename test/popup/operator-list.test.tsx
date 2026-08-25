@@ -99,14 +99,14 @@ describe('OperatorList', () => {
   it('shows filled star when favorite', () => {
     const ops = [makeOperator({ id: '1' })];
     const favorites = { toggle: vi.fn(), isFavorite: () => true };
-    render(<OperatorList {...baseProps} operators={ops} favorites={favorites} />);
-    expect(screen.getByText('★')).toBeInTheDocument();
+    const { container } = render(<OperatorList {...baseProps} operators={ops} favorites={favorites} />);
+    expect(container.querySelector('.btn-star')).toHaveAttribute('data-hint', 'Remove from favorites');
   });
 
   it('shows empty star when not favorite', () => {
     const ops = [makeOperator({ id: '1' })];
-    render(<OperatorList {...baseProps} operators={ops} />);
-    expect(screen.getByText('☆')).toBeInTheDocument();
+    const { container } = render(<OperatorList {...baseProps} operators={ops} />);
+    expect(container.querySelector('.btn-star')).toHaveAttribute('data-hint', 'Add to favorites');
   });
 
   it('renders operator label when set', () => {

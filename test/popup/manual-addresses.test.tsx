@@ -83,8 +83,7 @@ describe('ManualAddresses', () => {
       />,
     );
 
-    // Remove button is now an "×" icon (button with data-hint="Remove")
-    fireEvent.click(screen.getByText('×'));
+    fireEvent.click(document.querySelector('[data-hint="Remove"]')!);
     expect(onRemove).toHaveBeenCalledWith(VALID_ADDR);
   });
 });

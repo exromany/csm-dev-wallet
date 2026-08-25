@@ -22,6 +22,7 @@ import { AnvilAccounts } from './AnvilAccounts.js';
 import { SharedAddresses } from './SharedAddresses.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
+import { IconClose, IconMoon, IconSearch, IconSun } from './icons.js';
 import type { PopupTab } from '../../lib/shared/types.js';
 
 // Settings is the one tab we never persist — see PopupTab.
@@ -167,7 +168,7 @@ export function App() {
           onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
           data-hint={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
         >
-          {theme === 'dark' ? '☾' : '☀'}
+          {theme === 'dark' ? <IconMoon size={14} /> : <IconSun size={14} />}
         </button>
         <NetworkModuleChip
           chainId={state.chainId}
@@ -192,6 +193,9 @@ export function App() {
           address={state.selectedAddress}
           chainId={state.chainId}
           label={state.addressLabels[state.selectedAddress.address.toLowerCase()] ?? ''}
+          onSetLabel={(label) =>
+            send({ type: 'set-address-label', address: state.selectedAddress!.address, label })
+          }
           onDisconnect={() => send({ type: 'disconnect' })}
         />
       )}
@@ -385,7 +389,7 @@ function SearchToolbar({
     <div className="search-wrapper">
       <div className="search-row">
         <div className="search-bar">
-          <span className="search-icon">⌕</span>
+          <span className="search-icon"><IconSearch size={14} /></span>
           <input
             ref={searchInputRef}
             placeholder="Search #ID, address, label…"
@@ -393,7 +397,7 @@ function SearchToolbar({
             onChange={(e) => onSearch(e.target.value)}
           />
           {search ? (
-            <button className="search-clear" onClick={() => onSearch('')}>×</button>
+            <button className="search-clear" onClick={() => onSearch('')}><IconClose size={12} /></button>
           ) : (
             <kbd className="kbd">⌘K</kbd>
           )}

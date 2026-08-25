@@ -3,6 +3,7 @@ import type { Address } from 'viem';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { IconCheck, IconCopy } from './icons.js';
 
 type Props = {
   accounts: Address[];
@@ -69,7 +70,7 @@ export function AnvilAccounts({
               onClick={(e) => { e.stopPropagation(); copy(address); }}
               data-hint={copied ? 'Copied' : 'Copy address'}
             >
-              {copied ? '✓' : '⎘'}
+              {copied ? <IconCheck /> : <IconCopy />}
             </button>
           </div>
         );

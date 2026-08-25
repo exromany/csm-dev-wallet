@@ -11,6 +11,7 @@ import {
 import { truncateAddress, formatTimeAgo } from '../../lib/popup/utils.js';
 import { useCopyAddress, filterSharedAddresses, type SharedFilter } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { IconCheck, IconClose, IconCopy, IconSearch } from './icons.js';
 
 type OperatorLabels = {
   get: (operatorId: string, moduleType: ModuleType) => string;
@@ -63,14 +64,14 @@ export function SharedAddresses({
       <div className="search-wrapper">
         <div className="search-row">
           <div className="search-bar">
-            <span className="search-icon">⌕</span>
+            <span className="search-icon"><IconSearch size={14} /></span>
             <input
               placeholder="Search address, label, #ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button className="search-clear" onClick={() => setSearch('')}>×</button>
+              <button className="search-clear" onClick={() => setSearch('')}><IconClose size={12} /></button>
             )}
           </div>
         </div>
@@ -199,7 +200,7 @@ function AddressCard({
           onClick={(e) => { e.stopPropagation(); copy(entry.address); }}
           data-hint={copied ? 'Copied' : 'Copy address'}
         >
-          {copied ? '✓' : '⎘'}
+          {copied ? <IconCheck /> : <IconCopy />}
         </button>
       </div>
 

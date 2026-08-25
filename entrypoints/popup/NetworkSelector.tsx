@@ -2,6 +2,7 @@ import React from 'react';
 import type { ModuleType } from '../../lib/shared/types.js';
 import type { ModuleAvailability } from '../../lib/shared/messages.js';
 import { CHAIN_ID, ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
+import { IconChevronDown, IconSettings } from './icons.js';
 
 // The chip is a native popover invoker; the panel is the popover it targets.
 // One shared id ties `popovertarget` on the chip to `id` on the panel, and lets
@@ -60,7 +61,7 @@ export function NetworkModuleChip({
       <span className="net-label">{netLabel(chainId, forkedFrom)}</span>
       <span className="sep">/</span>
       <span className="mod-label">{mod?.label ?? moduleType.toUpperCase()}</span>
-      <span className="caret">{open ? '▴' : '▾'}</span>
+      <span className={`caret ${open ? 'up' : ''}`}><IconChevronDown size={12} /></span>
     </button>
   );
 }
@@ -136,7 +137,7 @@ export function NetworkModulePanel({
         popoverTargetAction="hide"
         onClick={onOpenSettings}
       >
-        <span className="gear" aria-hidden>⚙</span> Settings
+        <span className="gear"><IconSettings size={13} /></span> Settings
       </button>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { IconPencil } from './icons.js';
 
 type Props = {
   label: string;
@@ -66,7 +67,7 @@ export function LabelEditor({
       data-hint={label ? 'Edit label' : 'Add label'}
     >
       {label && <span className="text">{label}</span>}
-      <span className="pencil">{label ? '✎' : emptyText}</span>
+      <span className="pencil">{label ? <IconPencil size={11} /> : emptyText}</span>
     </button>
   );
 }

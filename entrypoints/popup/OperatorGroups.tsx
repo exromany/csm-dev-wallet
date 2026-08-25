@@ -7,6 +7,7 @@ import {
 } from '../../lib/shared/groups.js';
 import { filterGroupedView, type FilterGroup } from '../../lib/popup/hooks.js';
 import { OperatorRow } from './OperatorList.js';
+import { IconStar } from './icons.js';
 
 type Props = {
   operators: CachedOperator[];
@@ -170,7 +171,7 @@ function GroupSection({
           onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
           data-hint={starred ? 'Unfavourite group' : 'Favourite this group'}
         >
-          {starred ? '★' : '☆'}
+          <IconStar filled={starred} />
         </button>
         <span className="group-title">{groupLabel(group)}</span>
         {group.name && <span className="group-id-tag">g·{group.id}</span>}
