@@ -54,6 +54,17 @@ html, body {
   overflow: hidden;
 }
 
+/* Text is not selectable UI here — the I-beam only ever reads as "this is editable" */
+body {
+  cursor: default;
+}
+
+input:not([type='checkbox'], [type='radio']),
+textarea,
+[contenteditable] {
+  cursor: text;
+}
+
 button {
   cursor: pointer;
   border: none;
