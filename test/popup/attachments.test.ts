@@ -6,6 +6,9 @@ import {
   sharedAddresses,
   moduleCounts,
   countLabel,
+  roleHint,
+  typeHint,
+  countHint,
 } from '../../lib/shared/attachments.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 
@@ -137,6 +140,16 @@ describe('buildAttachmentIndex', () => {
     const index = buildAttachmentIndex({ csm: [makeOperator({ id: '42', managerAddress: ADDR_A, operatorType: 'CSM_LEA' })] });
     expect(index.get(ADDR_A.toLowerCase())?.attachments[0].kind).toBe('csm-lea');
   });
+
+  it('carries the curve id for each attachment', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '42', managerAddress: ADDR_A })],
+      cm: [makeOperator({ id: '43', managerAddress: ADDR_A, curveId: '5', operatorType: 'CM_PO' })],
+    });
+    const attachments = index.get(ADDR_A.toLowerCase())?.attachments;
+    expect(attachments?.[0].curveId).toBe('0');
+    expect(attachments?.[1].curveId).toBe('5');
+  });
 });
 
 describe('sharedAddresses', () => {
@@ -188,5 +201,94 @@ describe('countLabel', () => {
       ],
     });
     expect(countLabel(index.get(ADDR_A.toLowerCase())!)).toBe('2 CM');
+  });
+});
+
+describe('roleHint', () => {
+  it('describes a plain manager address', () => {
+    const op = makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_D });
+    const entry = roleEntries(op).find((e) => e.role === 'manager')!;
+    expect(roleHint(entry)).toBe('Manager address');
+  });
+
+  it('describes a plain rewards address', () => {
+    const op = makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, ownerAddress: ADDR_D });
+    const entry = roleEntries(op).find((e) => e.role === 'rewards')!;
+    expect(roleHint(entry)).toBe('Rewards address');
+  });
+
+  it('appends the owner suffix for an owner manager', () => {
+    const op = makeOperator({ id: '2', managerAddress: ADDR_A, ownerAddress: ADDR_A });
+    const entry = roleEntries(op).find((e) => e.role === 'manager')!;
+    expect(roleHint(entry)).toBe('Manager address · owner — holds extended manager permissions.');
+  });
+
+  it('appends the owner suffix for an owner rewards', () => {
+    const op = makeOperator({ id: '3', ownerAddress: ADDR_B });
+    const entry = roleEntries(op).find((e) => e.role === 'rewards')!;
+    expect(roleHint(entry)).toBe('Rewards address · owner — holds extended manager permissions.');
+  });
+
+  it('describes a proposed manager address, never as owner', () => {
+    const op = makeOperator({ id: '4', proposedManagerAddress: ADDR_C });
+    const entry = roleEntries(op).find((e) => e.role === 'proposedManager')!;
+    expect(roleHint(entry)).toBe('Proposed manager address — pending');
+  });
+
+  it('describes a proposed rewards address, never as owner', () => {
+    const op = makeOperator({ id: '5', proposedRewardsAddress: ADDR_C });
+    const entry = roleEntries(op).find((e) => e.role === 'proposedRewards')!;
+    expect(roleHint(entry)).toBe('Proposed rewards address — pending');
+  });
+});
+
+describe('typeHint', () => {
+  it('shows the raw enum name and its curve id', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '1', managerAddress: ADDR_A, operatorType: 'CSM_DEF', curveId: '0' })],
+    });
+    expect(typeHint(index.get(ADDR_A.toLowerCase())!.attachments[0])).toBe('CSM_DEF · curve id 0');
+  });
+
+  it('handles the CC fallback the same as any other type', () => {
+    const index = buildAttachmentIndex({
+      cm: [makeOperator({ id: '2', managerAddress: ADDR_A, operatorType: 'CC', curveId: '5' })],
+    });
+    expect(typeHint(index.get(ADDR_A.toLowerCase())!.attachments[0])).toBe('CC · curve id 5');
+  });
+});
+
+describe('countHint', () => {
+  it('adds the cross-module clause when the address spans both modules', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A })],
+      cm: [makeOperator({ id: '7', managerAddress: ADDR_A, operatorType: 'CM_PO' })],
+    });
+    expect(countHint(index.get(ADDR_A.toLowerCase())!)).toBe(
+      'Attached to 1 CSM operator and 1 CM operator — spans both modules.',
+    );
+  });
+
+  it('omits the cross-module clause for a single-module address', () => {
+    const index = buildAttachmentIndex({
+      cm: [
+        makeOperator({ id: '7', managerAddress: ADDR_A, operatorType: 'CM_PO' }),
+        makeOperator({ id: '23', managerAddress: ADDR_A, operatorType: 'CM_PGO' }),
+      ],
+    });
+    expect(countHint(index.get(ADDR_A.toLowerCase())!)).toBe('Attached to 2 CM operators.');
+  });
+
+  it('pluralises each module count independently', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A })],
+      cm: [
+        makeOperator({ id: '7', managerAddress: ADDR_A, operatorType: 'CM_PO' }),
+        makeOperator({ id: '23', managerAddress: ADDR_A, operatorType: 'CM_PGO' }),
+      ],
+    });
+    expect(countHint(index.get(ADDR_A.toLowerCase())!)).toBe(
+      'Attached to 1 CSM operator and 2 CM operators — spans both modules.',
+    );
   });
 });

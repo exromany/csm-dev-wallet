@@ -2,7 +2,13 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SharedAddresses } from '../../entrypoints/popup/SharedAddresses.js';
-import { buildAttachmentIndex, sharedAddresses } from '../../lib/shared/attachments.js';
+import {
+  buildAttachmentIndex,
+  countHint,
+  roleHint,
+  sharedAddresses,
+  typeHint,
+} from '../../lib/shared/attachments.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 
 // Four shared addresses, and deliberately only THREE of them cross-module, so the
@@ -27,6 +33,8 @@ const addresses = sharedAddresses(
 
 function renderTab(overrides: Partial<React.ComponentProps<typeof SharedAddresses>> = {}) {
   const onSelect = vi.fn();
+  const onSetAddressLabel = vi.fn();
+  const operatorLabels = { get: () => '', set: vi.fn() };
   const utils = render(
     <SharedAddresses
       addresses={addresses}
@@ -34,13 +42,15 @@ function renderTab(overrides: Partial<React.ComponentProps<typeof SharedAddresse
       lastFetchedAt={null}
       cmMissing={false}
       addressLabels={{}}
+      operatorLabels={operatorLabels}
       siteModuleType="csm"
       onRefresh={() => {}}
       onSelect={onSelect}
+      onSetAddressLabel={onSetAddressLabel}
       {...overrides}
     />,
   );
-  return { ...utils, onSelect };
+  return { ...utils, onSelect, onSetAddressLabel, operatorLabels };
 }
 
 describe('SharedAddresses', () => {
@@ -128,5 +138,78 @@ describe('SharedAddresses', () => {
   it('explains an empty result instead of rendering nothing', () => {
     renderTab({ addresses: [], loading: false });
     expect(screen.getByText(/No shared addresses/i)).toBeInTheDocument();
+  });
+
+  it('renders the operator label on an attachment row', () => {
+    const operatorLabels = {
+      get: (operatorId: string, moduleType: string) =>
+        operatorId === '12' && moduleType === 'csm' ? 'Kiln' : '',
+      set: vi.fn(),
+    };
+    const { container } = renderTab({ operatorLabels });
+    fireEvent.click(container.querySelectorAll('.addr-head')[0]);
+    expect(screen.getByText('Kiln')).toBeInTheDocument();
+  });
+
+  it('shows "+ label" on an attachment row when the operator label is unset', () => {
+    const { container } = renderTab();
+    fireEvent.click(container.querySelectorAll('.addr-head')[0]);
+    const rows = container.querySelectorAll('.attach-row');
+    expect(rows[0].querySelector('.operator-label.empty')).toBeInTheDocument();
+  });
+
+  it('saves an operator label from a CM attachment scoped to the cm module', () => {
+    const { container, operatorLabels } = renderTab();
+    fireEvent.click(container.querySelectorAll('.addr-head')[0]);
+    const cmRow = [...container.querySelectorAll('.attach-row')].find((el) =>
+      el.textContent?.includes('CM·PO'),
+    )!;
+    fireEvent.click(cmRow.querySelector('.operator-label')!);
+    const input = cmRow.querySelector('.operator-label-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'P2P' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(operatorLabels.set).toHaveBeenCalledWith('7', 'P2P', 'cm');
+  });
+
+  it('saves an address label via onSetAddressLabel', () => {
+    const { container, onSetAddressLabel } = renderTab();
+    const head = container.querySelectorAll('.addr-head')[0];
+    fireEvent.click(head.querySelector('.operator-label')!);
+    const input = head.querySelector('.operator-label-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'My wallet' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSetAddressLabel).toHaveBeenCalledWith(ADDR_A, 'My wallet');
+  });
+
+  it('does not toggle the card when the address label control is clicked', () => {
+    const { container } = renderTab();
+    const head = container.querySelectorAll('.addr-head')[0];
+    fireEvent.click(head.querySelector('.operator-label')!);
+    expect(container.querySelector('.addr-body')).not.toBeInTheDocument();
+  });
+
+  it('does not select the row when an attachment label control is clicked', () => {
+    const { container, onSelect } = renderTab();
+    fireEvent.click(container.querySelectorAll('.addr-head')[0]);
+    const row = container.querySelectorAll('.attach-row')[0];
+    fireEvent.click(row.querySelector('.operator-label')!);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('carries hint text from the shared attachments helpers', () => {
+    const { container } = renderTab();
+    const entry = addresses[0];
+    const countPill = container.querySelector('.attach-count')!;
+    expect(countPill.getAttribute('data-hint')).toBe(countHint(entry));
+
+    fireEvent.click(container.querySelectorAll('.addr-head')[0]);
+    const csmRow = [...container.querySelectorAll('.attach-row')].find((el) =>
+      el.textContent?.includes('CSM·DEF'),
+    )!;
+    const att = entry.attachments.find((a) => a.typeLabel === 'CSM·DEF')!;
+    expect(csmRow.querySelector('.attach-type')!.getAttribute('data-hint')).toBe(typeHint(att));
+    expect(csmRow.querySelector('.role-pill')!.getAttribute('data-hint')).toBe(
+      roleHint(att.pills[0]),
+    );
   });
 });

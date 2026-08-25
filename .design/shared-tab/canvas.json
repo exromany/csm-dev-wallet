@@ -1,0 +1,113 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Chosen · B"
+    },
+    {
+      "id": "page-2",
+      "name": "Other directions"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 400,
+      "h": 430,
+      "title": "B · Operator identity",
+      "page": "page-1"
+    },
+    {
+      "file": "Current.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 400,
+      "h": 430,
+      "title": "Today",
+      "page": "page-1"
+    },
+    {
+      "file": "RoleSelect.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 400,
+      "h": 380,
+      "title": "A · Pick the role",
+      "page": "page-2"
+    },
+    {
+      "file": "ModuleStatus.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 400,
+      "h": 400,
+      "title": "C · Honest counts",
+      "page": "page-2"
+    },
+    {
+      "file": "Density.dc.html",
+      "x": 960,
+      "y": 0,
+      "w": 400,
+      "h": 360,
+      "title": "D · Scan without expanding",
+      "page": "page-2"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "chosen-b",
+      "x": 0,
+      "y": -190,
+      "w": 400,
+      "page": "page-1",
+      "text": "B · OPERATOR IDENTITY\nLabel affordance is the shared LabelEditor exactly as the Operators and Manual tabs use it — “+ label” when unset, “✎” revealed on row hover, on both the address head and each attachment row.\nNo owner badge: owner stays the filled pill it already is, and the hover hint is what finally explains it.\nHover any badge for its hint — the #12 MGR pill is pinned open so the hint reads without a cursor."
+    },
+    {
+      "id": "baseline",
+      "x": 480,
+      "y": -190,
+      "w": 400,
+      "page": "page-1",
+      "text": "TODAY\nThe tab as it ships, for comparison: bare #12, no way to name an operator from here, and a filled MGR pill with nothing anywhere saying what filled means."
+    },
+    {
+      "id": "impl-note",
+      "x": 0,
+      "y": 450,
+      "w": 880,
+      "page": "page-1",
+      "text": "Two implementation notes this drawing depends on: .addr-card currently sets overflow: hidden, which would clip every tooltip — it has to become visible. And operatorLabels is not passed to SharedAddresses today, so the tab has to receive it (and its setter) the way OperatorList already does.\nThe type-tag hint shows the SDK enum name and the curveId the extension already holds — the SDK defines no human-readable expansion for DEF / LEA / PO, so inventing one would have been a guess."
+    },
+    {
+      "id": "dir-a",
+      "x": 0,
+      "y": -190,
+      "w": 400,
+      "page": "page-2",
+      "text": "A · PICK THE ROLE  (click the pills)\nNot chosen, still open: selecting an attachment connects as primaryRole — the first role entry — so an address holding MGR and RWD on one operator always connects as manager, silently."
+    },
+    {
+      "id": "dir-c",
+      "x": 480,
+      "y": -190,
+      "w": 400,
+      "page": "page-2",
+      "text": "C · HONEST COUNTS\nNot chosen, but this one is a live bug: a module whose fetch fails settles as answered with no data, so counts render as if complete and an address with CM attachments reads CSM-only."
+    },
+    {
+      "id": "dir-d",
+      "x": 960,
+      "y": -190,
+      "w": 400,
+      "page": "page-2",
+      "text": "D · SCAN WITHOUT EXPANDING\nNot chosen. The count pill says how many, never what, so choosing a fixture costs one expand per address. The busiest of the four."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

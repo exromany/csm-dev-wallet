@@ -50,6 +50,7 @@ export type Attachment = {
   moduleType: ModuleType;
   operatorId: string;
   operatorType: string; // raw, e.g. 'CSM_DEF' or the 'CC' fallback
+  curveId: string; // BigInt kept as string end to end — chrome.storage can't hold BigInts
   typeLabel: string;    // 'CSM·DEF' — module prefix restored for cross-module display
   kind: string;         // 'csm-def' — ribbon colour class suffix
   primaryRole: AddressRole; // role to attribute a selection to
@@ -93,6 +94,7 @@ export function buildAttachmentIndex(
             moduleType,
             operatorId: op.id,
             operatorType: op.operatorType,
+            curveId: op.curveId,
             typeLabel: attachmentTypeLabel(moduleType, op.operatorType),
             kind: operatorKind(op.operatorType),
             primaryRole: e.role,
@@ -151,4 +153,30 @@ export function countLabel(entry: AddressAttachments): string {
   const { csm, cm } = moduleCounts(entry);
   if (csm && cm) return `${csm} CSM · ${cm} CM`;
   return csm ? `${csm} CSM` : `${cm} CM`;
+}
+
+/** Tooltip text for a role pill, e.g. 'Manager address · owner — holds extended manager permissions.' */
+export function roleHint(entry: RoleEntry): string {
+  if (entry.proposed) {
+    return entry.role === 'proposedManager'
+      ? 'Proposed manager address — pending'
+      : 'Proposed rewards address — pending';
+  }
+  const base = entry.role === 'manager' ? 'Manager address' : 'Rewards address';
+  return entry.owner ? `${base} · owner — holds extended manager permissions.` : base;
+}
+
+/** Tooltip text for a type badge, e.g. 'CSM_DEF · curve id 0' — no human-readable expansion exists for the enum. */
+export function typeHint(att: Attachment): string {
+  return `${att.operatorType || 'CC'} · curve id ${att.curveId}`;
+}
+
+/** Tooltip text for the count pill, e.g. 'Attached to 2 CSM operators and 1 CM operator — spans both modules.' */
+export function countHint(entry: AddressAttachments): string {
+  const { csm, cm } = moduleCounts(entry);
+  const parts: string[] = [];
+  if (csm) parts.push(`${csm} CSM operator${csm === 1 ? '' : 's'}`);
+  if (cm) parts.push(`${cm} CM operator${cm === 1 ? '' : 's'}`);
+  const sentence = `Attached to ${parts.join(' and ')}.`;
+  return entry.crossModule ? `${sentence.slice(0, -1)} — spans both modules.` : sentence;
 }

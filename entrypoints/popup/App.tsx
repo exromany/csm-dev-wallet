@@ -306,6 +306,7 @@ export function App() {
             lastFetchedAt={sharedAddrs.lastFetchedAt}
             cmMissing={sharedAddrs.cmMissing}
             addressLabels={state.addressLabels}
+            operatorLabels={operatorLabels}
             selectedAddress={state.selectedAddress?.address}
             siteModuleType={state.moduleType}
             onRefresh={sharedAddrs.refresh}
@@ -317,6 +318,9 @@ export function App() {
                 // Only sent when it differs, so same-module picks keep the existing behaviour.
                 ...(moduleType !== state.moduleType ? { moduleType } : {}),
               })
+            }
+            onSetAddressLabel={(address, label) =>
+              send({ type: 'set-address-label', address, label })
             }
           />
         )}

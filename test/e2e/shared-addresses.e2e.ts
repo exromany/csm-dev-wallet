@@ -151,6 +151,37 @@ async function main() {
       if (!note.includes('CM')) throw new Error(`expected a CM-unavailable note, got "${note}"`);
       await page.close();
     });
+
+    await test('Labelling a CM attachment on the site\'s CSM module writes the cm: key, not csm:', async () => {
+      await seedFresh();
+      const page = await openPopup(context, extensionId);
+      await goToTab(page, 'Shared');
+      await page.waitForSelector('.addr-card');
+
+      const sharedCard = page.locator('.addr-card', { hasText: SHARED.slice(0, 6) });
+      await sharedCard.locator('.addr-head').click();
+      await page.waitForSelector('.attach-row');
+
+      // Clicking .attach-row selects the address — click the label control instead.
+      const cmRow = sharedCard.locator('.attach-row', { hasText: 'CM·PO' });
+      await cmRow.locator('.operator-label').click();
+      await cmRow.locator('.operator-label-input').fill('Kiln');
+      await cmRow.locator('.operator-label-input').press('Enter');
+      await page.waitForTimeout(200);
+
+      const settings = await sw.evaluate(async () => {
+        const data = await chrome.storage.local.get('global_settings');
+        return data.global_settings;
+      });
+
+      if (!('cm:1:7' in settings.operatorLabels)) {
+        throw new Error(`expected cm:1:7 in operatorLabels, got ${JSON.stringify(settings.operatorLabels)}`);
+      }
+      if ('csm:1:7' in settings.operatorLabels) {
+        throw new Error('csm:1:7 must not be written when labelling the CM attachment');
+      }
+      await page.close();
+    });
   } finally {
     await context.close();
   }

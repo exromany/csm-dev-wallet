@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    :root {
+      --bg: #0b0d12; --surface: #12151c; --surface-2: #1a1e27;
+      --border: rgba(255,255,255,0.06); --border-strong: rgba(255,255,255,0.12);
+      --text: #e6e8ee; --dim: #8b91a0; --dim-2: #5f6675;
+      --success: #10b981; --warn: #f59e0b; --accent: #a78bfa; --on-accent: #0b0d12;
+      --radius: 8px; --radius-sm: 5px;
+      --mono: 'SF Mono', 'Consolas', ui-monospace, monospace;
+    }
+    body {
+      margin: 0; width: 400px; background: var(--bg); color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px; letter-spacing: -0.1px;
+    }
+    a { color: var(--accent); } a:hover { color: #c4b5fd; }
+    .tabs { display: flex; padding: 0 14px; gap: 2px; border-bottom: 1px solid var(--border); }
+    .tab { padding: 10px; font-size: 12px; font-weight: 500; background: transparent; border: none;
+      border-bottom: 2px solid transparent; color: var(--dim); margin-bottom: -1px; cursor: pointer; }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .search-wrapper { padding: 10px 14px 6px; background: var(--bg); }
+    .search-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 10px; }
+    .search-ph { flex: 1; font-size: 12px; color: var(--dim-2); }
+    .filter-bar { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+    .filter-btn { font-size: 11px; padding: 3px 9px; border-radius: 99px; background: transparent;
+      border: 1px solid var(--border); color: var(--dim); cursor: pointer; }
+    .filter-btn.active { background: var(--surface-2); border-color: var(--border-strong); color: var(--text); }
+    .stale { font-size: 10px; color: var(--dim-2); white-space: nowrap; }
+    .refresh { font-size: 10px; background: transparent; border: none; color: var(--accent); padding: 2px 4px; cursor: pointer; }
+    .addr-list { padding: 4px 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+    .addr-card { border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+    .addr-head { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 6px 0 7px; cursor: pointer; }
+    .addr-text { font-size: 12px; font-weight: 500; color: var(--text); flex-shrink: 0; }
+    .count { font-family: var(--mono); font-size: 9.5px; font-weight: 600; color: var(--dim);
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; padding: 1px 7px;
+      line-height: 1.5; flex-shrink: 0; }
+    .count.cross { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent);
+      border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+    .addr-body { padding: 3px 6px 5px 7px; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--border); }
+    .attach-row { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 0;
+      border-radius: 6px; border: 1px solid transparent; cursor: pointer; }
+    .ribbon { width: 3px; height: 17px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
+    .aid { font-size: 11px; font-weight: 600; flex-shrink: 0; }
+    .atype { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+      padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+    .pills { display: flex; gap: 2px; flex-shrink: 0; }
+    .pill { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 1px 4px; border-radius: 3px; }
+    .pill.mgr { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); }
+    .pill.rwd { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+    .pill.own-mgr { background: var(--accent); color: var(--on-accent); }
+    .pill.dashed { background: transparent; border: 1px dashed color-mix(in srgb, var(--dim) 50%, transparent); color: var(--dim); }
+    .spacer { flex: 1; }
+    .icon { color: var(--dim); flex-shrink: 0; }
+  </style>
+</helmet>
+<div>
+  <div class="tabs">
+    <button class="tab">Operators</button>
+    <button class="tab">Groups</button>
+    <button class="tab active">Shared</button>
+    <button class="tab">Manual</button>
+  </div>
+  <div class="search-wrapper">
+    <div style="display: flex; align-items: stretch; gap: 8px">
+      <div class="search-bar">
+        <svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="7" cy="7" r="4.4" />
+          <path d="M10.4 10.4L14 14" />
+        </svg>
+        <span class="search-ph">Search address, label, #ID…</span>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active">All</button>
+      <button class="filter-btn">Cross-module</button>
+      <button class="filter-btn">Pending</button>
+      <div class="spacer"></div>
+      <span class="stale">updated just now</span>
+      <button class="refresh">↻ refresh</button>
+    </div>
+  </div>
+  <div class="addr-list">
+    <div class="addr-card">
+      <div class="addr-head">
+        <svg class="icon" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(90deg)">
+          <path d="M3.5 2L7 5L3.5 8" />
+        </svg>
+        <span class="addr-text">0x1111…1111</span>
+        <div class="spacer"></div>
+        <span class="count cross">2 CSM · 1 CM</span>
+        <svg class="icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+          <path d="M10.5 3.5H3.5a1 1 0 00-1 1v7" />
+        </svg>
+      </div>
+      <div class="addr-body">
+        <div class="attach-row">
+          <span class="ribbon" style="background: #6366f1"></span>
+          <span class="aid" style="color: #6366f1">#12</span>
+          <span class="atype" style="color: #6366f1; background: color-mix(in srgb, #6366f1 18%, transparent)">CSM·DEF</span>
+          <div class="pills"><span class="pill own-mgr">MGR</span></div>
+        </div>
+        <div class="attach-row">
+          <span class="ribbon" style="background: #10b981"></span>
+          <span class="aid" style="color: #10b981">#57</span>
+          <span class="atype" style="color: #10b981; background: color-mix(in srgb, #10b981 18%, transparent)">CSM·LEA</span>
+          <div class="pills"><span class="pill mgr">MGR</span><span class="pill rwd">RWD</span></div>
+        </div>
+        <div class="attach-row">
+          <span class="ribbon" style="background: #f59e0b"></span>
+          <span class="aid" style="color: #f59e0b">#7</span>
+          <span class="atype" style="color: #f59e0b; background: color-mix(in srgb, #f59e0b 18%, transparent)">CM·PO</span>
+          <div class="pills"><span class="pill own-mgr">MGR</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="addr-card">
+      <div class="addr-head">
+        <svg class="icon" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.5 2L7 5L3.5 8" />
+        </svg>
+        <span class="addr-text">0x3333…3333</span>
+        <div class="spacer"></div>
+        <span class="count cross">1 CSM · 2 CM</span>
+        <svg class="icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+          <path d="M10.5 3.5H3.5a1 1 0 00-1 1v7" />
+        </svg>
+      </div>
+    </div>
+    <div class="addr-card">
+      <div class="addr-head">
+        <svg class="icon" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.5 2L7 5L3.5 8" />
+        </svg>
+        <span class="addr-text">0x4444…4444</span>
+        <div class="spacer"></div>
+        <span class="count">1 CSM · 1 CM</span>
+        <svg class="icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+          <path d="M10.5 3.5H3.5a1 1 0 00-1 1v7" />
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

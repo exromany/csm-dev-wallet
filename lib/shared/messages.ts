@@ -61,7 +61,7 @@ export type PopupCommand =
   | { type: 'remove-manual-address'; origin: string; address: string }
   | { type: 'set-custom-rpc'; origin: string; chainId: number; rpcUrl: string }
   | { type: 'set-address-label'; origin: string; address: string; label: string }
-  | { type: 'set-operator-label'; origin: string; operatorId: string; label: string }
+  | { type: 'set-operator-label'; origin: string; operatorId: string; label: string; moduleType?: ModuleType }
   | { type: 'set-require-approval'; origin: string; enabled: boolean };
 
 export type ModuleAvailability = Partial<Record<ModuleType, boolean>>;

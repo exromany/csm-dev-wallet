@@ -483,16 +483,16 @@ export function useOperatorLabels(
   const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
     ? forkedFrom
     : state.chainId;
-  const prefix = `${state.moduleType}:${chainIdForPrefix}:`;
 
   const get = useCallback(
-    (operatorId: string) => state.operatorLabels[`${prefix}${operatorId}`] ?? '',
-    [state.operatorLabels, prefix],
+    (operatorId: string, moduleType?: ModuleType) =>
+      state.operatorLabels[`${moduleType ?? state.moduleType}:${chainIdForPrefix}:${operatorId}`] ?? '',
+    [state.operatorLabels, state.moduleType, chainIdForPrefix],
   );
 
   const set = useCallback(
-    (operatorId: string, label: string) =>
-      send({ type: 'set-operator-label', operatorId, label }),
+    (operatorId: string, label: string, moduleType?: ModuleType) =>
+      send({ type: 'set-operator-label', operatorId, label, ...(moduleType ? { moduleType } : {}) }),
     [send],
   );
 

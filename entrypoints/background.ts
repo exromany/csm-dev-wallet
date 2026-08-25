@@ -569,7 +569,7 @@ export default defineBackground(() => {
           site.chainId === ANVIL_CHAIN_ID && forkedFrom
             ? forkedFrom
             : site.chainId;
-        const scopedId = `${site.moduleType}:${chainIdForPrefix}:${command.operatorId}`;
+        const scopedId = `${command.moduleType ?? site.moduleType}:${chainIdForPrefix}:${command.operatorId}`;
         const operatorLabels = { ...globalSettings.operatorLabels };
         if (command.label.trim()) {
           operatorLabels[scopedId] = command.label.trim();
