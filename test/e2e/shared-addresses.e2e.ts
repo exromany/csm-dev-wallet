@@ -121,7 +121,7 @@ async function main() {
       await page.waitForSelector('.attach-row');
 
       const cmRow = sharedCard.locator('.attach-row', { hasText: 'CM·PO' });
-      await cmRow.locator('.attach-use').click();
+      await cmRow.click();
       await page.waitForTimeout(400);
 
       const pill = await page.locator('.connected-pill').innerText();

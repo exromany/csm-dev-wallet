@@ -73,6 +73,7 @@ type PanelProps = {
   onSwitchNetwork: (chainId: number) => void;
   onSwitchModule: (moduleType: ModuleType) => void;
   onOpenChange: (open: boolean) => void;
+  onOpenSettings: () => void;
 };
 
 export function NetworkModulePanel({
@@ -83,6 +84,7 @@ export function NetworkModulePanel({
   onSwitchNetwork,
   onSwitchModule,
   onOpenChange,
+  onOpenSettings,
 }: PanelProps) {
   return (
     <div
@@ -127,6 +129,15 @@ export function NetworkModulePanel({
           );
         })}
       </div>
+      <div className="netmod-divider" />
+      <button
+        className="netmod-option settings"
+        popoverTarget={PANEL_ID}
+        popoverTargetAction="hide"
+        onClick={onOpenSettings}
+      >
+        <span className="gear" aria-hidden>⚙</span> Settings
+      </button>
     </div>
   );
 }

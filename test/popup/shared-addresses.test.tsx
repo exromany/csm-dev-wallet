@@ -67,7 +67,7 @@ describe('SharedAddresses', () => {
     const cmRow = [...container.querySelectorAll('.attach-row')].find((el) =>
       el.textContent?.includes('CM·PO'),
     )!;
-    fireEvent.click(cmRow.querySelector('.attach-use')!);
+    fireEvent.click(cmRow);
     expect(onSelect).toHaveBeenCalledWith(ADDR_A, '7', 'manager', 'cm');
   });
 
@@ -82,7 +82,7 @@ describe('SharedAddresses', () => {
       el.textContent?.includes('CM·PO'),
     )!;
     expect(cmRow.querySelector('.attach-here')).toBeTruthy();
-    expect(cmRow.querySelector('.attach-use')).toBeNull();
+    expect(cmRow.classList.contains('current')).toBe(true);
   });
 
   it('does not confuse CSM #7 with CM #7', () => {
@@ -99,8 +99,9 @@ describe('SharedAddresses', () => {
       siteModuleType: 'cm',
     });
     fireEvent.click(container.querySelectorAll('.addr-head')[0]);
+    expect(container.querySelectorAll('.attach-row')).toHaveLength(2);
     expect(container.querySelectorAll('.attach-here')).toHaveLength(1);
-    expect(container.querySelectorAll('.attach-use')).toHaveLength(1);
+    expect(container.querySelectorAll('.attach-row.current')).toHaveLength(1);
   });
 
   it('narrows to cross-module addresses when the chip is clicked', () => {

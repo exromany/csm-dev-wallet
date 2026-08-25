@@ -103,7 +103,7 @@ describe('App — active tab persistence', () => {
     });
     port.postMessage.mockClear();
 
-    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(document.querySelector('.netmod-option.settings')!);
 
     // Settings is shown locally…
     expect(document.querySelector('.settings-group')).toBeTruthy();
@@ -124,8 +124,8 @@ describe('App — active tab persistence', () => {
     expect(tabLabels).toContain('Shared');
     expect(tabLabels).not.toContain('Settings');
 
-    // Settings is reachable from the header instead.
-    expect(document.querySelector('.icon-btn[title="Settings"]')).toBeTruthy();
+    // Settings is reachable from the network/module panel instead.
+    expect(document.querySelector('.netmod-option.settings')).toBeTruthy();
   });
 
   it('restores the persisted Shared tab on open', async () => {

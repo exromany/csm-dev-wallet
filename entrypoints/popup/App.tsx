@@ -169,13 +169,6 @@ export function App() {
         >
           {theme === 'dark' ? '☾' : '☀'}
         </button>
-        <button
-          className="icon-btn"
-          onClick={() => selectTab('settings')}
-          title="Settings"
-        >
-          ⚙
-        </button>
         <NetworkModuleChip
           chainId={state.chainId}
           moduleType={state.moduleType}
@@ -190,6 +183,7 @@ export function App() {
           onSwitchNetwork={(chainId) => send({ type: 'switch-network', chainId })}
           onSwitchModule={(moduleType) => send({ type: 'switch-module', moduleType })}
           onOpenChange={setNetModOpen}
+          onOpenSettings={() => selectTab('settings')}
         />
       </div>
 

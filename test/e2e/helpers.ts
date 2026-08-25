@@ -45,9 +45,10 @@ export async function openPopup(context: BrowserContext, extensionId: string): P
 export type TabName = 'Operators' | 'Shared' | 'Manual' | 'Settings';
 
 export async function goToTab(page: Page, tab: TabName) {
-  // Settings moved out of the tab bar into a header icon button.
+  // Settings moved out of the tab bar into the network/module popover.
   if (tab === 'Settings') {
-    await page.click('.icon-btn[title="Settings"]');
+    await page.click('.netmod-chip');
+    await page.click('.netmod-option.settings');
     await page.waitForSelector('.settings-group');
     return;
   }

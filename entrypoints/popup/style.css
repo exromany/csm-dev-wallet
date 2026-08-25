@@ -293,6 +293,10 @@ input:focus {
   color: var(--on-accent);
 }
 
+.netmod-option.settings .gear {
+  color: var(--dim);
+}
+
 /* ── Connected pill ─────────────────────────────────────── */
 
 .connected-pill {
@@ -1409,6 +1413,7 @@ input:focus {
   padding: 0 4px 0 0;
   border-radius: 6px;
   border: 1px solid transparent;
+  cursor: pointer;
 }
 
 .attach-row:hover {
@@ -1418,6 +1423,7 @@ input:focus {
 .attach-row.current {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  cursor: default;
 }
 
 .attach-ribbon {
@@ -1455,23 +1461,4 @@ input:focus {
   color: var(--accent);
   flex-shrink: 0;
   padding-right: 3px;
-}
-
-.attach-use {
-  font-size: 10px;
-  color: var(--dim);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 2px 6px;
-  flex-shrink: 0;
-}
-
-.attach-use:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.attach-use.cross {
-  color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 34%, transparent);
 }

@@ -216,7 +216,11 @@ function AttachmentRow({
   const crossModule = att.moduleType !== siteModuleType;
 
   return (
-    <div className={`attach-row kind-${att.kind} ${inUse ? 'current' : ''}`}>
+    <div
+      className={`attach-row kind-${att.kind} ${inUse ? 'current' : ''}`}
+      onClick={inUse ? undefined : onSelect}
+      title={crossModule ? `Switches the module to ${att.moduleType.toUpperCase()}` : undefined}
+    >
       <span className="attach-ribbon" />
       <span className="attach-id mono">#{att.operatorId}</span>
       <span className="attach-type">{att.typeLabel}</span>
@@ -231,17 +235,7 @@ function AttachmentRow({
         ))}
       </div>
       <div className="spacer" />
-      {inUse ? (
-        <span className="attach-here">in use</span>
-      ) : (
-        <button
-          className={`attach-use ${crossModule ? 'cross' : ''}`}
-          onClick={onSelect}
-          title={crossModule ? `Switches the module to ${att.moduleType.toUpperCase()}` : undefined}
-        >
-          {crossModule ? `use in ${att.moduleType.toUpperCase()}` : 'use'}
-        </button>
-      )}
+      {inUse && <span className="attach-here">in use</span>}
     </div>
   );
 }
