@@ -251,20 +251,13 @@ describe('fetchOperators', () => {
     expect(entry.operators[0].operatorType).toBe('CC');
   });
 
-  it('owner = manager when extendedManagerPermissions true', async () => {
-    mockReadContract.mockResolvedValue([rawOperator()]);
-
-    const entry = await fetchOperators(ctx());
-    expect(entry.operators[0].ownerAddress).toBe(ADDR_A);
-  });
-
-  it('owner = rewards when extendedManagerPermissions false', async () => {
+  it('carries extendedManagerPermissions through — owner-ness is derived from it, never stored', async () => {
     mockReadContract.mockResolvedValue([
       rawOperator({ extendedManagerPermissions: false }),
     ]);
 
     const entry = await fetchOperators(ctx());
-    expect(entry.operators[0].ownerAddress).toBe(ADDR_B);
+    expect(entry.operators[0].extendedManagerPermissions).toBe(false);
   });
 
   it('keeps non-zero proposed addresses', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { makeState } from '../fixtures.js';
+import { makeOperator, ADDR_A } from '../fixtures.js';
 
 const TEST_ORIGIN = 'https://stake.lido.fi';
 
@@ -9,7 +9,7 @@ vi.mock('wxt/utils/define-background', () => ({
   defineBackground: (fn: () => void) => { backgroundFn = fn; },
 }));
 
-// ── Module mocks (use .ts paths — vitest resolves before matching) ──
+// ── Module mocks ──
 const getSiteState = vi.fn();
 const setSiteState = vi.fn();
 const getGlobalSettings = vi.fn();
@@ -30,19 +30,21 @@ vi.mock('../../lib/background/state.ts', () => ({
 }));
 
 const detectAnvilFork = vi.fn();
-const getAnvilAccounts = vi.fn();
+const getForkedFrom = vi.fn();
 vi.mock('../../lib/background/anvil.ts', () => ({
   detectAnvilFork,
-  getAnvilAccounts,
+  getAnvilAccounts: vi.fn().mockResolvedValue([]),
   withImpersonation: vi.fn(),
-  getForkedFrom: vi.fn().mockResolvedValue(null),
+  getForkedFrom,
   setForkedFrom: vi.fn().mockResolvedValue(undefined),
   clearForkedFrom: vi.fn().mockResolvedValue(undefined),
 }));
 
+const fetchOperators = vi.fn();
+const getCachedOperators = vi.fn();
 vi.mock('../../lib/background/operator-cache.ts', () => ({
-  fetchOperators: vi.fn(),
-  getCachedOperators: vi.fn().mockResolvedValue(null),
+  fetchOperators,
+  getCachedOperators,
   isStale: vi.fn().mockReturnValue(false),
   isModuleAvailable: vi.fn().mockResolvedValue(true),
   getModuleAvailabilityCache: vi.fn().mockResolvedValue(null),
@@ -72,14 +74,9 @@ let connectListener: (port: chrome.runtime.Port) => void;
 beforeEach(() => {
   vi.clearAllMocks();
 
-  const state = makeState({ chainId: 1 });
-  getSiteState.mockResolvedValue({ chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected });
-  setSiteState.mockImplementation(async (_origin: string, update: Record<string, unknown>) => {
-    const current = await getSiteState(_origin);
-    return { ...current, ...update };
-  });
-  getGlobalSettings.mockResolvedValue({ customRpcUrls: state.customRpcUrls, favorites: state.favorites, manualAddresses: state.manualAddresses, addressLabels: state.addressLabels, requireApproval: state.requireApproval });
-  getComposedState.mockResolvedValue(state);
+  getGlobalSettings.mockResolvedValue({ customRpcUrls: {}, favorites: [], manualAddresses: [], addressLabels: {}, requireApproval: false });
+  getForkedFrom.mockResolvedValue(null);
+  getCachedOperators.mockResolvedValue(null);
 
   chrome.runtime.onConnect = {
     addListener: vi.fn((fn) => { connectListener = fn; }),
@@ -115,51 +112,75 @@ function simulatePort() {
   return port;
 }
 
-describe('switch-network', () => {
-  it('probes Anvil availability when switching to non-anvil network', async () => {
-    detectAnvilFork.mockResolvedValue(560048); // Hoodi fork running
-    getAnvilAccounts.mockResolvedValue([]);
-
+describe('request-operators bail paths', () => {
+  it('broadcasts operators-loading:false for an unsupported chain instead of leaving the popup stuck', async () => {
     await setupBackground();
     const port = simulatePort();
 
-    // Switch to Hoodi (non-anvil) — include origin
-    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
+    port._emit({ type: 'request-operators', origin: TEST_ORIGIN, chainId: 999999, moduleType: 'csm' });
 
-    // Let async handlers settle
     await vi.waitFor(() => {
-      expect(detectAnvilFork).toHaveBeenCalled();
+      expect(port.postMessage).toHaveBeenCalledWith({
+        type: 'operators-loading',
+        chainId: 999999,
+        moduleType: 'csm',
+        loading: false,
+      });
     });
-
-    // Should broadcast anvil-status with forkedFrom (not null)
-    const anvilMessages = port.postMessage.mock.calls
-      .map(([msg]) => msg)
-      .filter((msg: { type: string }) => msg.type === 'anvil-status');
-
-    expect(anvilMessages).toContainEqual(
-      expect.objectContaining({ type: 'anvil-status', forkedFrom: 560048 }),
-    );
+    expect(fetchOperators).not.toHaveBeenCalled();
   });
 
-  it('broadcasts anvil disabled when Anvil is down', async () => {
-    detectAnvilFork.mockResolvedValue(null); // Anvil not running
-    getAnvilAccounts.mockResolvedValue([]);
+  it('broadcasts operators-loading:false for Anvil with no detectable fork', async () => {
+    detectAnvilFork.mockResolvedValue(null);
 
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
+    port._emit({ type: 'request-operators', origin: TEST_ORIGIN, chainId: 31337, moduleType: 'csm' });
 
     await vi.waitFor(() => {
-      expect(detectAnvilFork).toHaveBeenCalled();
+      expect(port.postMessage).toHaveBeenCalledWith({
+        type: 'operators-loading',
+        chainId: 31337,
+        moduleType: 'csm',
+        loading: false,
+      });
+    });
+    expect(fetchOperators).not.toHaveBeenCalled();
+  });
+});
+
+describe('triggerRefresh in-flight dedupe', () => {
+  it('runs only one fetch when two callers request the same module+chain concurrently', async () => {
+    let resolveFetch!: (value: { operators: ReturnType<typeof makeOperator>[]; lastFetchedAt: number }) => void;
+    fetchOperators.mockImplementation(
+      () => new Promise((resolve) => { resolveFetch = resolve; }),
+    );
+
+    await setupBackground();
+    const port = simulatePort();
+
+    port._emit({ type: 'request-operators', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
+    port._emit({ type: 'request-operators', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
+
+    await vi.waitFor(() => {
+      expect(fetchOperators).toHaveBeenCalled();
+    });
+    expect(fetchOperators).toHaveBeenCalledTimes(1);
+
+    resolveFetch({ operators: [makeOperator({ id: '12', managerAddress: ADDR_A })], lastFetchedAt: 1000 });
+
+    await vi.waitFor(() => {
+      const updates = port.postMessage.mock.calls
+        .map(([msg]) => msg as { type: string })
+        .filter((msg) => msg.type === 'operators-update');
+      expect(updates).toHaveLength(1);
     });
 
-    const anvilMessages = port.postMessage.mock.calls
-      .map(([msg]) => msg)
-      .filter((msg: { type: string }) => msg.type === 'anvil-status');
-
-    expect(anvilMessages).toContainEqual(
-      expect.objectContaining({ type: 'anvil-status', forkedFrom: null }),
-    );
+    const loadingFalse = port.postMessage.mock.calls
+      .map(([msg]) => msg as { type: string; loading?: boolean })
+      .filter((msg) => msg.type === 'operators-loading' && msg.loading === false);
+    // Only the single deduped task settles loading — no premature clear from a second caller.
+    expect(loadingFalse).toHaveLength(1);
   });
 });

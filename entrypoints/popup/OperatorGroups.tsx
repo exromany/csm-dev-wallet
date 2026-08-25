@@ -7,6 +7,7 @@ import {
 } from '../../lib/shared/groups.js';
 import { filterGroupedView, type FilterGroup } from '../../lib/popup/hooks.js';
 import { OperatorRow } from './OperatorList.js';
+import { IconStar } from './icons.js';
 
 type Props = {
   operators: CachedOperator[];
@@ -166,17 +167,18 @@ function GroupSection({
           </svg>
         </span>
         <button
-          className={`group-star ${starred ? 'active' : ''}`}
+          className={`group-star hint ${starred ? 'active' : ''}`}
           onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
-          title={starred ? 'Unfavourite group' : 'Favourite this group'}
+          data-hint={starred ? 'Unfavourite group' : 'Favourite this group'}
+          aria-label={starred ? 'Unfavourite group' : 'Favourite this group'}
         >
-          {starred ? '★' : '☆'}
+          <IconStar filled={starred} />
         </button>
         <span className="group-title">{groupLabel(group)}</span>
         {group.name && <span className="group-id-tag">g·{group.id}</span>}
         <div className="spacer" />
         {partial && (
-          <span className="group-partial-hint" title="Only matching operators shown">
+          <span className="group-partial-hint hint hint-right" data-hint="Only matching operators shown">
             {shownCount} of {totalCount}
           </span>
         )}

@@ -7,6 +7,7 @@ import {
   useModuleAvailability,
   useAnvilStatus,
   useOperatorLabels,
+  useSharedAddresses,
   filterByGroup,
   type FilterGroup,
 } from '../../lib/popup/hooks.js';
@@ -18,8 +19,10 @@ import { OperatorList } from './OperatorList.js';
 import { OperatorGroups } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { AnvilAccounts } from './AnvilAccounts.js';
+import { SharedAddresses } from './SharedAddresses.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
+import { IconClose, IconMoon, IconSearch, IconSun } from './icons.js';
 import type { PopupTab } from '../../lib/shared/types.js';
 
 // Settings is the one tab we never persist — see PopupTab.
@@ -66,6 +69,7 @@ export function App() {
   // browser owns show/hide via the `popovertarget` invoker; this mirrors it.
   const [netModOpen, setNetModOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const sharedVisitedRef = useRef(false);
 
   // Switch tabs locally for an instant response, and persist the choice per-site
   // so it's restored on reopen. Settings is intentionally not persisted.
@@ -128,6 +132,23 @@ export function App() {
   if (!onAnvil && activeTab === 'anvil') activeTab = 'operators';
   if (!showGroups && activeTab === 'groups') activeTab = 'operators';
 
+  // Sticky: once visited, keep fetching so switching away and back doesn't
+  // re-request. Avoids firing the Shared tab's cross-module fetch (and its
+  // duplicate CSM request alongside the Operators tab) on every popup open.
+  sharedVisitedRef.current ||= activeTab === 'shared';
+  // The attached-operators panel on the connected bar needs the index too —
+  // enable it whenever an address is connected, even without a Shared visit.
+  // A warm cache is cheap: triggerRefresh broadcasts cached operators before
+  // checking staleness, so this costs one message round-trip, not a refetch.
+  const needAttachments = sharedVisitedRef.current || !!state.selectedAddress;
+  const sharedAddrs = useSharedAddresses(
+    port,
+    origin,
+    state.chainId,
+    availableModules.cm,
+    needAttachments,
+  );
+
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
 
@@ -148,11 +169,12 @@ export function App() {
           <div className="brand-name">CSM Dev</div>
         </div>
         <button
-          className="icon-btn"
+          className="icon-btn hint"
           onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          data-hint={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
         >
-          {theme === 'dark' ? '☾' : '☀'}
+          {theme === 'dark' ? <IconMoon size={14} /> : <IconSun size={14} />}
         </button>
         <NetworkModuleChip
           chainId={state.chainId}
@@ -168,6 +190,7 @@ export function App() {
           onSwitchNetwork={(chainId) => send({ type: 'switch-network', chainId })}
           onSwitchModule={(moduleType) => send({ type: 'switch-module', moduleType })}
           onOpenChange={setNetModOpen}
+          onOpenSettings={() => selectTab('settings')}
         />
       </div>
 
@@ -176,7 +199,22 @@ export function App() {
           address={state.selectedAddress}
           chainId={state.chainId}
           label={state.addressLabels[state.selectedAddress.address.toLowerCase()] ?? ''}
+          onSetLabel={(label) =>
+            send({ type: 'set-address-label', address: state.selectedAddress!.address, label })
+          }
           onDisconnect={() => send({ type: 'disconnect' })}
+          attachments={sharedAddrs.index.get(state.selectedAddress.address.toLowerCase())}
+          attachmentsLoading={sharedAddrs.loading}
+          siteModuleType={state.moduleType}
+          operatorLabel={operatorLabels.get}
+          onSelectAttachment={(operatorId, role, moduleType) =>
+            send({
+              type: 'select-address',
+              address: state.selectedAddress!.address,
+              source: { type: 'operator', operatorId, role },
+              ...(moduleType !== state.moduleType ? { moduleType } : {}),
+            })
+          }
         />
       )}
 
@@ -187,9 +225,9 @@ export function App() {
           [
             ['operators', 'Operators'],
             ...(showGroups ? ([['groups', 'Groups']] as const) : []),
+            ['shared', 'Shared'],
             ['manual', 'Manual'],
             ...(onAnvil ? ([['anvil', 'Anvil']] as const) : []),
-            ['settings', 'Settings'],
           ] satisfies ReadonlyArray<readonly [Tab, string]>
         ).map(([t, label]) => (
           <button
@@ -283,6 +321,32 @@ export function App() {
           />
         )}
 
+        {activeTab === 'shared' && (
+          <SharedAddresses
+            addresses={sharedAddrs.addresses}
+            loading={sharedAddrs.loading}
+            lastFetchedAt={sharedAddrs.lastFetchedAt}
+            cmMissing={sharedAddrs.cmMissing}
+            addressLabels={state.addressLabels}
+            operatorLabels={operatorLabels}
+            selectedAddress={state.selectedAddress?.address}
+            siteModuleType={state.moduleType}
+            onRefresh={sharedAddrs.refresh}
+            onSelect={(address, operatorId, role, moduleType) =>
+              send({
+                type: 'select-address',
+                address,
+                source: { type: 'operator', operatorId, role },
+                // Only sent when it differs, so same-module picks keep the existing behaviour.
+                ...(moduleType !== state.moduleType ? { moduleType } : {}),
+              })
+            }
+            onSetAddressLabel={(address, label) =>
+              send({ type: 'set-address-label', address, label })
+            }
+          />
+        )}
+
         {activeTab === 'anvil' && (
           <AnvilAccounts
             accounts={anvilStatus.accounts}
@@ -343,7 +407,7 @@ function SearchToolbar({
     <div className="search-wrapper">
       <div className="search-row">
         <div className="search-bar">
-          <span className="search-icon">⌕</span>
+          <span className="search-icon"><IconSearch size={14} /></span>
           <input
             ref={searchInputRef}
             placeholder="Search #ID, address, label…"
@@ -351,7 +415,7 @@ function SearchToolbar({
             onChange={(e) => onSearch(e.target.value)}
           />
           {search ? (
-            <button className="search-clear" onClick={() => onSearch('')}>×</button>
+            <button className="search-clear" onClick={() => onSearch('')}><IconClose size={12} /></button>
           ) : (
             <kbd className="kbd">⌘K</kbd>
           )}
@@ -372,9 +436,9 @@ function SearchToolbar({
         </button>
         {showPending && (
           <button
-            className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
+            className={`filter-btn hint ${filterGroup === 'pending' ? 'active' : ''}`}
             onClick={() => onFilterGroup('pending')}
-            title="Operators with pending P-MGR or P-RWD role-change proposals"
+            data-hint="Operators with pending P-MGR or P-RWD role-change proposals"
           >
             Pending
           </button>

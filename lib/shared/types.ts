@@ -27,8 +27,7 @@ export type CachedOperator = {
   rewardsAddress: Address;
   proposedManagerAddress?: Address;
   proposedRewardsAddress?: Address;
-  extendedManagerPermissions: boolean;
-  ownerAddress: Address; // manager or rewards, whichever has extended perms
+  extendedManagerPermissions: boolean; // true → manager is the owner, false → rewards is
   curveId: string; // bigint serialized
   operatorType: string; // OPERATOR_TYPE from @lidofinance/lido-csm-sdk — scoped to moduleType, falls back to "CC"
   // CM-only: MetaRegistry group membership. Absent for CSM operators and
@@ -49,7 +48,7 @@ export type SelectedAddress = {
 
 // Persistable popup tabs. Settings is deliberately excluded — it's a transient
 // destination we never want to land on when the popup reopens.
-export type PopupTab = 'operators' | 'groups' | 'manual' | 'anvil';
+export type PopupTab = 'operators' | 'groups' | 'shared' | 'manual' | 'anvil';
 
 // Per-origin state — each site gets its own network/address/view
 export type SiteState = {

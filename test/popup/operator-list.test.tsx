@@ -48,41 +48,65 @@ describe('OperatorList', () => {
     expect(addressRows).toHaveLength(1);
   });
 
-  it('marks MGR pill as owner when ownerAddress matches managerAddress', () => {
+  it('marks MGR pill as owner when the manager holds extended permissions', () => {
     const ops = [makeOperator({
       id: '1',
       managerAddress: ADDR_A,
       rewardsAddress: ADDR_B,
-      ownerAddress: ADDR_A,
+      extendedManagerPermissions: true,
     })];
     render(<OperatorList {...baseProps} operators={ops} />);
     expect(screen.getByText('MGR').className).toContain('owner');
     expect(screen.getByText('RWD').className).not.toContain('owner');
   });
 
-  it('marks RWD pill as owner when ownerAddress matches rewardsAddress', () => {
+  it('carries owner wording as data-hint on an owner role pill', () => {
     const ops = [makeOperator({
       id: '1',
       managerAddress: ADDR_A,
       rewardsAddress: ADDR_B,
-      ownerAddress: ADDR_B,
+      extendedManagerPermissions: true,
+    })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('MGR')).toHaveAttribute('data-hint', 'Manager address · owner');
+  });
+
+  it('marks RWD pill as owner when the manager lacks extended permissions', () => {
+    const ops = [makeOperator({
+      id: '1',
+      managerAddress: ADDR_A,
+      rewardsAddress: ADDR_B,
+      extendedManagerPermissions: false,
     })];
     render(<OperatorList {...baseProps} operators={ops} />);
     expect(screen.getByText('MGR').className).not.toContain('owner');
     expect(screen.getByText('RWD').className).toContain('owner');
   });
 
+  it('marks a single owner pill when one address holds both roles', () => {
+    const ops = [makeOperator({
+      id: '1',
+      managerAddress: ADDR_A,
+      rewardsAddress: ADDR_A,
+      extendedManagerPermissions: true,
+    })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('MGR').className).toContain('owner');
+    expect(screen.getByText('RWD').className).not.toContain('owner');
+    expect(screen.getByText('RWD')).toHaveAttribute('data-hint', 'Rewards address');
+  });
+
   it('shows filled star when favorite', () => {
     const ops = [makeOperator({ id: '1' })];
     const favorites = { toggle: vi.fn(), isFavorite: () => true };
-    render(<OperatorList {...baseProps} operators={ops} favorites={favorites} />);
-    expect(screen.getByText('★')).toBeInTheDocument();
+    const { container } = render(<OperatorList {...baseProps} operators={ops} favorites={favorites} />);
+    expect(container.querySelector('.btn-star')).toHaveAttribute('data-hint', 'Remove from favorites');
   });
 
   it('shows empty star when not favorite', () => {
     const ops = [makeOperator({ id: '1' })];
-    render(<OperatorList {...baseProps} operators={ops} />);
-    expect(screen.getByText('☆')).toBeInTheDocument();
+    const { container } = render(<OperatorList {...baseProps} operators={ops} />);
+    expect(container.querySelector('.btn-star')).toHaveAttribute('data-hint', 'Add to favorites');
   });
 
   it('renders operator label when set', () => {

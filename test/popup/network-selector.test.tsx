@@ -41,9 +41,9 @@ describe('NetworkModuleChip', () => {
 
   it('flips the caret to reflect the open state', () => {
     const { container, rerender } = render(<NetworkModuleChip {...base} open={false} />);
-    expect(container.querySelector('.caret')?.textContent).toBe('▾');
+    expect(container.querySelector('.caret')?.className).not.toContain('up');
     rerender(<NetworkModuleChip {...base} open={true} />);
-    expect(container.querySelector('.caret')?.textContent).toBe('▴');
+    expect(container.querySelector('.caret')?.className).toContain('up');
   });
 
   it('is a declarative popover invoker that toggles the panel', () => {

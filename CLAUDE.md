@@ -22,7 +22,7 @@ Communication between layers uses Chrome Messaging API.
 - **CSM-specific, not generic:** Operator browsing and address role selection (manager/rewards/proposed) are first-class. Uses `SMDiscoveryAbi` and contract addresses from `@lidofinance/lido-csm-sdk` — ABI comes from SDK package, not maintained locally.
 - **Fetch-all + cache:** All operators fetched on popup open, cached per-network in extension storage. Operator count is manageable.
 - **Networks:** Mainnet, Hoodi, local Anvil fork (auto-detect which network it forks). Configurable RPC URLs.
-- **Owner indicator:** Not a separate address — whichever of manager/rewards has extended-manager-permissions is marked as "owner".
+- **Owner indicator:** Not a separate address — `extendedManagerPermissions` alone decides it, so exactly one of MGR/RWD is the owner. Never infer it by comparing addresses: manager and rewards can be the same address and both would match.
 
 ## Commands
 
@@ -49,10 +49,12 @@ entrypoints/
   content.ts           — content script bridge (WXT defineContentScript)
   inpage.ts            — EIP-1193 provider injected into MAIN world
   popup/               — React UI
+    SharedAddresses.tsx  — Shared tab: addresses attached to >1 operator, across modules
 lib/
   background/          — service worker modules (state, rpc-handler, rpc, operator-cache, anvil)
   popup/               — React hooks and utils
   shared/              — types, messages, network configs (used by all layers)
+    attachments.ts       — address → attachments reverse index (both module caches)
 test/
   setup.ts             — Chrome API mocks + jest-dom
   fixtures.ts          — makeOperator(), makeState(), address constants
@@ -96,6 +98,24 @@ test/
 - **CM module:** May not be deployed on all networks — `fetchAllOperators` catches and re-throws after caching empty result
 - **Favorites scoping:** Stored as `"moduleType:chainId:operatorId"` (e.g. `"csm:1:42"`). Legacy bare IDs migrated on load.
 - **State migration:** `migrateState()` handles legacy storage formats — don't assume storage shape is current
+- **Operator identity is (id, module):** CSM #7 and CM #7 are different operators. Anything
+  comparing operators across modules — the Shared tab, `buildAttachmentIndex` — must key on the
+  pair, never the bare id.
+- **Proposed roles are attachments:** `P-MGR`/`P-RWD` count in `buildAttachmentIndex`, which is
+  what the Shared tab's Pending filter selects on.
+- **Settings is not a tab:** six tabs overflow the 400px popup, so it lives as a row inside the
+  network/module popover. `goToTab(page, 'Settings')` in the e2e helpers opens `.netmod-chip`
+  and clicks `.netmod-option.settings`.
+- **Shared tab spans both modules:** it issues `request-operators` for CSM *and* CM and stays in
+  its loading state until both answer, so counts never render half-built.
+- **`.attach-row` is not unique:** `AttachmentRow` renders on the Shared tab *and* in the
+  connected bar's hover panel, whose copies sit in the DOM permanently and hidden. Scope e2e
+  waits to the owning card — an unscoped `waitForSelector('.attach-row')` can latch onto a
+  hidden panel row and hang.
+- **Connected address, not connected operator:** the extension only knows the address it exposed
+  to the dapp — the widget resolves that address to an operator on its own. `operatorId` in
+  `AddressSource` records the provenance of the click, not what's active; no UI may claim a
+  specific operator is currently in use.
 
 ## Playwright Testing API
 

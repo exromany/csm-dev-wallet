@@ -2,6 +2,7 @@ import React from 'react';
 import type { ModuleType } from '../../lib/shared/types.js';
 import type { ModuleAvailability } from '../../lib/shared/messages.js';
 import { CHAIN_ID, ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
+import { IconChevronDown, IconSettings } from './icons.js';
 
 // The chip is a native popover invoker; the panel is the popover it targets.
 // One shared id ties `popovertarget` on the chip to `id` on the panel, and lets
@@ -51,16 +52,16 @@ export function NetworkModuleChip({
   const mod = MODULES.find((m) => m.type === moduleType);
   return (
     <button
-      className="netmod-chip"
+      className="netmod-chip hint hint-right"
       popoverTarget={PANEL_ID}
       popoverTargetAction="toggle"
-      title="Switch network or module"
+      data-hint="Switch network or module"
     >
       <span className="dot" style={{ background: net?.dot ?? 'var(--dim)' }} />
       <span className="net-label">{netLabel(chainId, forkedFrom)}</span>
       <span className="sep">/</span>
       <span className="mod-label">{mod?.label ?? moduleType.toUpperCase()}</span>
-      <span className="caret">{open ? '▴' : '▾'}</span>
+      <span className={`caret ${open ? 'up' : ''}`}><IconChevronDown size={12} /></span>
     </button>
   );
 }
@@ -73,6 +74,7 @@ type PanelProps = {
   onSwitchNetwork: (chainId: number) => void;
   onSwitchModule: (moduleType: ModuleType) => void;
   onOpenChange: (open: boolean) => void;
+  onOpenSettings: () => void;
 };
 
 export function NetworkModulePanel({
@@ -83,6 +85,7 @@ export function NetworkModulePanel({
   onSwitchNetwork,
   onSwitchModule,
   onOpenChange,
+  onOpenSettings,
 }: PanelProps) {
   return (
     <div
@@ -127,6 +130,15 @@ export function NetworkModulePanel({
           );
         })}
       </div>
+      <div className="netmod-divider" />
+      <button
+        className="netmod-option settings"
+        popoverTarget={PANEL_ID}
+        popoverTargetAction="hide"
+        onClick={onOpenSettings}
+      >
+        <span className="gear"><IconSettings size={13} /></span> Settings
+      </button>
     </div>
   );
 }

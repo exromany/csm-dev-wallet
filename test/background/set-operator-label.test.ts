@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { makeState } from '../fixtures.js';
+import { makeSiteState, makeGlobalSettings } from '../fixtures.js';
 
 const TEST_ORIGIN = 'https://stake.lido.fi';
 
@@ -9,7 +9,7 @@ vi.mock('wxt/utils/define-background', () => ({
   defineBackground: (fn: () => void) => { backgroundFn = fn; },
 }));
 
-// ── Module mocks (use .ts paths — vitest resolves before matching) ──
+// ── Module mocks ──
 const getSiteState = vi.fn();
 const setSiteState = vi.fn();
 const getGlobalSettings = vi.fn();
@@ -29,11 +29,9 @@ vi.mock('../../lib/background/state.ts', () => ({
   resetCaches: vi.fn(),
 }));
 
-const detectAnvilFork = vi.fn();
-const getAnvilAccounts = vi.fn();
 vi.mock('../../lib/background/anvil.ts', () => ({
-  detectAnvilFork,
-  getAnvilAccounts,
+  detectAnvilFork: vi.fn(),
+  getAnvilAccounts: vi.fn(),
   withImpersonation: vi.fn(),
   getForkedFrom: vi.fn().mockResolvedValue(null),
   setForkedFrom: vi.fn().mockResolvedValue(undefined),
@@ -72,15 +70,6 @@ let connectListener: (port: chrome.runtime.Port) => void;
 beforeEach(() => {
   vi.clearAllMocks();
 
-  const state = makeState({ chainId: 1 });
-  getSiteState.mockResolvedValue({ chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected });
-  setSiteState.mockImplementation(async (_origin: string, update: Record<string, unknown>) => {
-    const current = await getSiteState(_origin);
-    return { ...current, ...update };
-  });
-  getGlobalSettings.mockResolvedValue({ customRpcUrls: state.customRpcUrls, favorites: state.favorites, manualAddresses: state.manualAddresses, addressLabels: state.addressLabels, requireApproval: state.requireApproval });
-  getComposedState.mockResolvedValue(state);
-
   chrome.runtime.onConnect = {
     addListener: vi.fn((fn) => { connectListener = fn; }),
     removeListener: vi.fn(),
@@ -115,51 +104,44 @@ function simulatePort() {
   return port;
 }
 
-describe('switch-network', () => {
-  it('probes Anvil availability when switching to non-anvil network', async () => {
-    detectAnvilFork.mockResolvedValue(560048); // Hoodi fork running
-    getAnvilAccounts.mockResolvedValue([]);
-
-    await setupBackground();
-    const port = simulatePort();
-
-    // Switch to Hoodi (non-anvil) — include origin
-    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
-
-    // Let async handlers settle
-    await vi.waitFor(() => {
-      expect(detectAnvilFork).toHaveBeenCalled();
-    });
-
-    // Should broadcast anvil-status with forkedFrom (not null)
-    const anvilMessages = port.postMessage.mock.calls
-      .map(([msg]) => msg)
-      .filter((msg: { type: string }) => msg.type === 'anvil-status');
-
-    expect(anvilMessages).toContainEqual(
-      expect.objectContaining({ type: 'anvil-status', forkedFrom: 560048 }),
-    );
+describe('set-operator-label', () => {
+  beforeEach(() => {
+    const site = makeSiteState({ moduleType: 'csm', chainId: 1 });
+    getSiteState.mockResolvedValue(site);
+    getGlobalSettings.mockResolvedValue(makeGlobalSettings());
+    setGlobalSettings.mockResolvedValue(undefined);
+    getComposedState.mockResolvedValue({ ...site, ...makeGlobalSettings() });
   });
 
-  it('broadcasts anvil disabled when Anvil is down', async () => {
-    detectAnvilFork.mockResolvedValue(null); // Anvil not running
-    getAnvilAccounts.mockResolvedValue([]);
-
+  it('writes the site-module-scoped key when moduleType is omitted', async () => {
     await setupBackground();
     const port = simulatePort();
 
-    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
+    port._emit({ type: 'set-operator-label', origin: TEST_ORIGIN, operatorId: '7', label: 'Kiln' });
 
     await vi.waitFor(() => {
-      expect(detectAnvilFork).toHaveBeenCalled();
+      expect(setGlobalSettings).toHaveBeenCalledWith({
+        operatorLabels: { 'csm:1:7': 'Kiln' },
+      });
+    });
+  });
+
+  it('writes the explicit module key when the label comes from the Shared tab', async () => {
+    await setupBackground();
+    const port = simulatePort();
+
+    port._emit({
+      type: 'set-operator-label',
+      origin: TEST_ORIGIN,
+      operatorId: '7',
+      label: 'P2P.org',
+      moduleType: 'cm',
     });
 
-    const anvilMessages = port.postMessage.mock.calls
-      .map(([msg]) => msg)
-      .filter((msg: { type: string }) => msg.type === 'anvil-status');
-
-    expect(anvilMessages).toContainEqual(
-      expect.objectContaining({ type: 'anvil-status', forkedFrom: null }),
-    );
+    await vi.waitFor(() => {
+      expect(setGlobalSettings).toHaveBeenCalledWith({
+        operatorLabels: { 'cm:1:7': 'P2P.org' },
+      });
+    });
   });
 });

@@ -1,8 +1,10 @@
 import React from 'react';
 import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
+import { roleEntries, operatorKind, roleHintByLabel, operatorTypeHint } from '../../lib/shared/attachments.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { IconCheck, IconCopy, IconStar } from './icons.js';
 
 type Props = {
   operators: CachedOperator[];
@@ -82,7 +84,7 @@ export function OperatorRow({
   const hasSelected = groups.some(
     (g) => selectedAddress?.toLowerCase() === g.address.toLowerCase(),
   );
-  const kind = typeKind(op.operatorType);
+  const kind = operatorKind(op.operatorType);
   const merged = groups.length === 1 && groups[0].proposedPills.length === 0;
   const firstRow = merged ? [groups[0]] : groups.slice(0, 2);
   const overflowRow = !merged && groups.length > 2 ? groups.slice(2) : [];
@@ -94,7 +96,12 @@ export function OperatorRow({
         <div className="operator-header">
           <span className="operator-id">#{op.id}</span>
           {op.operatorType && (
-            <span className="operator-type">{op.operatorType.replace(/^CSM_|^CM_/, '')}</span>
+            <span
+              className="operator-type hint"
+              data-hint={operatorTypeHint(op.operatorType, op.curveId)}
+            >
+              {op.operatorType.replace(/^CSM_|^CM_/, '')}
+            </span>
           )}
           <LabelEditor
             label={label}
@@ -103,11 +110,12 @@ export function OperatorRow({
           />
           <div className="spacer" />
           <button
-            className={`btn-star ${isFavorite ? 'active' : ''}`}
+            className={`btn-star hint hint-right ${isFavorite ? 'active' : ''}`}
             onClick={onToggleFavorite}
-            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            data-hint={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
-            {isFavorite ? '★' : '☆'}
+            <IconStar filled={isFavorite} />
           </button>
         </div>
 
@@ -150,59 +158,21 @@ type AddressGroup = {
 };
 
 function groupAddresses(op: CachedOperator): AddressGroup[] {
-  const ownerKey = op.ownerAddress.toLowerCase();
-  const ownerOf = new Set<'MGR' | 'RWD'>();
-  if (op.managerAddress.toLowerCase() === ownerKey) ownerOf.add('MGR');
-  if (op.rewardsAddress.toLowerCase() === ownerKey) ownerOf.add('RWD');
-
-  type Entry = {
-    role: AddressRole;
-    label: 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD';
-    tint: 'mgr' | 'rwd';
-    address: string;
-    proposed: boolean;
-  };
-  const entries: Entry[] = [
-    { role: 'manager', label: 'MGR', tint: 'mgr', address: op.managerAddress, proposed: false },
-    { role: 'rewards', label: 'RWD', tint: 'rwd', address: op.rewardsAddress, proposed: false },
-  ];
-  if (op.proposedManagerAddress) {
-    entries.push({ role: 'proposedManager', label: 'P-MGR', tint: 'mgr', address: op.proposedManagerAddress, proposed: true });
-  }
-  if (op.proposedRewardsAddress) {
-    entries.push({ role: 'proposedRewards', label: 'P-RWD', tint: 'rwd', address: op.proposedRewardsAddress, proposed: true });
-  }
-
   const map = new Map<string, AddressGroup>();
-  for (const e of entries) {
+  for (const e of roleEntries(op)) {
     const key = e.address.toLowerCase();
     let group = map.get(key);
     if (!group) {
-      group = {
-        address: e.address,
-        primaryRole: e.role,
-        rolePills: [],
-        proposedPills: [],
-      };
+      group = { address: e.address, primaryRole: e.role, rolePills: [], proposedPills: [] };
       map.set(key, group);
     }
     if (e.proposed) {
       group.proposedPills.push(e.label);
     } else {
-      const label = e.label as 'MGR' | 'RWD';
-      group.rolePills.push({
-        label,
-        tint: e.tint,
-        owner: ownerOf.has(label),
-      });
+      group.rolePills.push({ label: e.label as 'MGR' | 'RWD', tint: e.tint, owner: e.owner });
     }
   }
   return Array.from(map.values());
-}
-
-// 'CSM_LEA' → 'csm-lea' — drives per-type ribbon color via CSS class.
-function typeKind(operatorType: string): string {
-  return (operatorType || 'cc').toLowerCase().replace(/_/g, '-');
 }
 
 function AddressChip({
@@ -230,24 +200,30 @@ function AddressChip({
         {g.rolePills.map((p) => (
           <span
             key={p.label}
-            className={`role-pill tint-${p.tint} ${p.owner ? 'owner' : ''}`}
+            className={`role-pill hint tint-${p.tint} ${p.owner ? 'owner' : ''}`}
+            data-hint={roleHintByLabel(p.label, p.owner)}
           >
             {p.label}
           </span>
         ))}
         {g.proposedPills.map((label) => (
-          <span key={label} className="role-pill dashed">
+          <span
+            key={label}
+            className="role-pill hint dashed"
+            data-hint={roleHintByLabel(label as 'P-MGR' | 'P-RWD', false)}
+          >
             {label}
           </span>
         ))}
       </div>
       <span className="chip-addr">{truncateAddress(g.address)}</span>
       <button
-        className={`chip-copy ${copied ? 'copied' : ''}`}
+        className={`chip-copy hint hint-right ${copied ? 'copied' : ''}`}
         onClick={(e) => { e.stopPropagation(); copy(g.address); }}
-        title="Copy address"
+        data-hint={copied ? 'Copied' : 'Copy address'}
+        aria-label={copied ? 'Copied' : 'Copy address'}
       >
-        {copied ? '✓' : '⎘'}
+        {copied ? <IconCheck /> : <IconCopy />}
       </button>
     </div>
   );

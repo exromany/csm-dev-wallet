@@ -42,14 +42,20 @@ export async function openPopup(context: BrowserContext, extensionId: string): P
   return page;
 }
 
-export type TabName = 'Operators' | 'Manual' | 'Settings';
+export type TabName = 'Operators' | 'Shared' | 'Manual' | 'Settings';
 
 export async function goToTab(page: Page, tab: TabName) {
+  // Settings moved out of the tab bar into the network/module popover.
+  if (tab === 'Settings') {
+    await page.click('.netmod-chip');
+    await page.click('.netmod-option.settings');
+    await page.waitForSelector('.settings-group');
+    return;
+  }
   await page.click(`button.tab:has-text("${tab}")`);
-  // Wait for tab content to settle
-  if (tab === 'Settings') await page.waitForSelector('.settings-group');
   if (tab === 'Manual') await page.waitForSelector('.manual-form');
   if (tab === 'Operators') await page.waitForSelector('.search-bar input');
+  if (tab === 'Shared') await page.waitForSelector('.filter-bar');
 }
 
 // ── UI helpers ──────────────────────────────────────────
@@ -164,6 +170,8 @@ export async function seedModuleAvailability(
   const key = `module_availability_${chainId}`;
   await sw.evaluate(
     async ([k, v]) => {
+      // The worker memoises availability for 5min — storage alone won't be re-read.
+      (self as any).__resetAvailabilityCache?.();
       await chrome.storage.local.set({ [k]: v });
     },
     [key, { ...modules, checkedAt: Date.now() }] as const,
@@ -200,7 +208,6 @@ export function makeTestOperators(count: number): CachedOperator[] {
     managerAddress: ADDRESSES[i * 2] ?? ADDRESSES[0],
     rewardsAddress: ADDRESSES[i * 2 + 1] ?? ADDRESSES[1],
     extendedManagerPermissions: true,
-    ownerAddress: ADDRESSES[i * 2] ?? ADDRESSES[0],
     curveId: '0',
     operatorType: TYPES[i % TYPES.length],
   }));

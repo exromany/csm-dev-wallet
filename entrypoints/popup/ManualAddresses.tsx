@@ -4,6 +4,7 @@ import { isAddress } from 'viem';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { IconCheck, IconClose, IconCopy } from './icons.js';
 
 type Props = {
   addresses: Address[];
@@ -58,10 +59,11 @@ export function ManualAddresses({
             placeholder="0x address…"
           />
           <button
-            className="btn-add-icon"
+            className="btn-add-icon hint hint-right"
             disabled={!valid}
             onClick={handleAdd}
-            title="Add address"
+            data-hint="Add address"
+            aria-label="Add address"
           >
             +
           </button>
@@ -89,18 +91,20 @@ export function ManualAddresses({
               <div className="addr">{truncateAddress(address)}</div>
             </div>
             <button
-              className={`btn-copy ${copied ? 'copied' : ''}`}
+              className={`btn-copy hint hint-right ${copied ? 'copied' : ''}`}
               onClick={(e) => { e.stopPropagation(); copy(address); }}
-              title="Copy address"
+              data-hint={copied ? 'Copied' : 'Copy address'}
+              aria-label={copied ? 'Copied' : 'Copy address'}
             >
-              {copied ? '✓' : '⎘'}
+              {copied ? <IconCheck /> : <IconCopy />}
             </button>
             <button
-              className="btn-copy danger"
+              className="btn-copy danger hint hint-right"
               onClick={(e) => { e.stopPropagation(); onRemove(address); }}
-              title="Remove"
+              data-hint="Remove"
+              aria-label="Remove"
             >
-              ×
+              <IconClose />
             </button>
           </div>
         );

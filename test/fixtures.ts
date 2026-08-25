@@ -3,13 +3,13 @@ import type { CachedOperator, WalletState, SiteState, GlobalSettings } from '../
 export const ADDR_A = '0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa' as const;
 export const ADDR_B = '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB' as const;
 export const ADDR_C = '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC' as const;
+export const ADDR_D = '0xDdDdddDdDDdDDDDdDdDdDDdDDdDdDDDdDddDdDDD' as const;
 
 export function makeOperator(overrides: Partial<CachedOperator> & { id: string }): CachedOperator {
   return {
     managerAddress: ADDR_A,
     rewardsAddress: ADDR_B,
     extendedManagerPermissions: true,
-    ownerAddress: ADDR_A,
     curveId: '0',
     operatorType: 'CSM_DEF',
     ...overrides,

@@ -4,6 +4,11 @@ import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
 import type { Address } from 'viem';
+import {
+  buildAttachmentIndex,
+  sharedAddresses,
+  type AddressAttachments,
+} from '../shared/attachments.js';
 
 // Strip `origin` from PopupCommand — the hook injects it automatically
 type WithoutOrigin<T> = T extends { origin: string }
@@ -216,6 +221,154 @@ export function useOperators(
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
 }
 
+// ── useSharedAddresses ──
+
+export type SharedFilter = 'all' | 'cross' | 'pending';
+
+const SHARED_MODULES: ModuleType[] = ['csm', 'cm'];
+
+/**
+ * Addresses attached to more than one operator, across BOTH modules.
+ *
+ * Reuses `request-operators` (which already takes an arbitrary moduleType) rather
+ * than adding a protocol message, so cold and stale caches fetch through exactly
+ * the same path as the Operators tab.
+ */
+export function useSharedAddresses(
+  port: chrome.runtime.Port | null,
+  origin: string | null,
+  chainId: number,
+  cmAvailable: boolean | undefined,
+  enabled: boolean,
+) {
+  const [byModule, setByModule] = useState<Partial<Record<ModuleType, CachedOperator[]>>>({});
+  const [loadingModules, setLoadingModules] = useState<ModuleType[]>([]);
+  const [settledModules, setSettledModules] = useState<ModuleType[]>([]);
+  const [fetchedAt, setFetchedAt] = useState<Partial<Record<ModuleType, number>>>({});
+
+  const cmMissing = cmAvailable === false;
+  // Availability starts unknown — the main effect holds off entirely until it
+  // resolves (see the `cmAvailable === undefined` guard below), so this never
+  // fires a CM request that background would reject/error on a CM-less network.
+  const wanted = useMemo<ModuleType[]>(
+    () => (cmAvailable ? SHARED_MODULES : ['csm']),
+    [cmAvailable],
+  );
+  const chainIdRef = useRef(chainId);
+  chainIdRef.current = chainId;
+
+  useEffect(() => {
+    // Held off until the Shared tab is actually visited, so a popup that never
+    // opens it doesn't fire a redundant CSM fetch (Operators tab already does)
+    // plus a full CM fetch on every open. Also held off until CM availability
+    // is known, so `wanted` doesn't change identity mid-flight and re-request.
+    if (!port || !origin || !enabled || cmAvailable === undefined) return;
+
+    setByModule({});
+    setLoadingModules([]);
+    setSettledModules([]);
+    setFetchedAt({});
+
+    const settle = (moduleType: ModuleType) =>
+      setSettledModules((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
+
+    const handler = (event: PopupEvent) => {
+      if (event.type === 'operators-update') {
+        if (event.chainId !== chainIdRef.current) return;
+        if (!wanted.includes(event.moduleType)) return;
+        setByModule((prev) => ({ ...prev, [event.moduleType]: event.operators }));
+        settle(event.moduleType);
+        setFetchedAt((prev) => ({ ...prev, [event.moduleType]: event.lastFetchedAt }));
+      }
+      if (event.type === 'operators-loading') {
+        if (event.chainId !== chainIdRef.current) return;
+        if (!wanted.includes(event.moduleType)) return;
+        setLoadingModules((prev) =>
+          event.loading
+            ? (prev.includes(event.moduleType) ? prev : [...prev, event.moduleType])
+            : prev.filter((m) => m !== event.moduleType),
+        );
+        // A failed fetch broadcasts loading:false with no operators-update — still
+        // counts as settled, or a stuck cache never lets `loading` clear.
+        if (!event.loading) settle(event.moduleType);
+      }
+    };
+
+    port.onMessage.addListener(handler);
+    for (const moduleType of wanted) {
+      try {
+        port.postMessage({ type: 'request-operators', origin, chainId, moduleType } satisfies PopupCommand);
+      } catch {
+        // Port disconnected — useWalletState reopens on focus
+      }
+    }
+    return () => port.onMessage.removeListener(handler);
+  }, [port, origin, chainId, wanted, enabled, cmAvailable]);
+
+  const refresh = useCallback(() => {
+    if (!port || !origin || cmAvailable === undefined) return;
+    for (const moduleType of wanted) {
+      try {
+        port.postMessage({ type: 'refresh-operators', origin, chainId, moduleType } satisfies PopupCommand);
+      } catch {
+        // Port disconnected — useWalletState reopens on focus
+      }
+    }
+  }, [port, origin, chainId, wanted, cmAvailable]);
+
+  const index = useMemo(() => buildAttachmentIndex(byModule), [byModule]);
+  const addresses = useMemo(() => sharedAddresses(index), [index]);
+
+  // Report the STALEST module, so "updated Xm ago" never overstates freshness.
+  // A module that settled without an operators-update (e.g. a failed fetch)
+  // has no stamp — null out rather than silently reporting a partial index.
+  const lastFetchedAt = useMemo(() => {
+    const stamps = wanted.map((m) => fetchedAt[m]);
+    if (stamps.some((t) => t === undefined)) return null;
+    return Math.min(...(stamps as number[]));
+  }, [fetchedAt, wanted]);
+
+  // Counts must never render half-built, so a module that hasn't settled yet
+  // (update received, or a failed fetch) keeps the whole tab in its loading state.
+  const answered = wanted.filter((m) => settledModules.includes(m)).length;
+  const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
+
+  return { addresses, index, loading, lastFetchedAt, cmMissing, refresh };
+}
+
+/** Scope + search filter for the Shared tab. */
+export function filterSharedAddresses(
+  list: AddressAttachments[],
+  search: string,
+  filter: SharedFilter,
+  addressLabels: Record<string, string> = {},
+): AddressAttachments[] {
+  const scoped = list.filter((e) => {
+    if (filter === 'cross') return e.crossModule;
+    if (filter === 'pending') return e.pending;
+    return true;
+  });
+
+  const raw = search.trim();
+  if (!raw) return scoped;
+
+  // #N → exact operator ID match, mirroring filterOperators
+  if (raw.startsWith('#')) {
+    const id = raw.slice(1);
+    return scoped.filter((e) => e.attachments.some((a) => a.operatorId === id));
+  }
+
+  const q = raw.toLowerCase();
+  return scoped.filter(
+    (e) =>
+      e.address.toLowerCase().includes(q) ||
+      (addressLabels[e.address.toLowerCase()] ?? '').toLowerCase().includes(q) ||
+      e.attachments.some(
+        (a) => a.operatorId.includes(q) || a.typeLabel.toLowerCase().includes(q),
+      ),
+  );
+}
+
 // ── useModuleAvailability ──
 
 export function useModuleAvailability(port: chrome.runtime.Port | null) {
@@ -333,16 +486,16 @@ export function useOperatorLabels(
   const chainIdForPrefix = (state.chainId === ANVIL_CHAIN_ID && forkedFrom)
     ? forkedFrom
     : state.chainId;
-  const prefix = `${state.moduleType}:${chainIdForPrefix}:`;
 
   const get = useCallback(
-    (operatorId: string) => state.operatorLabels[`${prefix}${operatorId}`] ?? '',
-    [state.operatorLabels, prefix],
+    (operatorId: string, moduleType?: ModuleType) =>
+      state.operatorLabels[`${moduleType ?? state.moduleType}:${chainIdForPrefix}:${operatorId}`] ?? '',
+    [state.operatorLabels, state.moduleType, chainIdForPrefix],
   );
 
   const set = useCallback(
-    (operatorId: string, label: string) =>
-      send({ type: 'set-operator-label', operatorId, label }),
+    (operatorId: string, label: string, moduleType?: ModuleType) =>
+      send({ type: 'set-operator-label', operatorId, label, ...(moduleType ? { moduleType } : {}) }),
     [send],
   );
 
