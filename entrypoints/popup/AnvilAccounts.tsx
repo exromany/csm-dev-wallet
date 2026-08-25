@@ -65,9 +65,9 @@ export function AnvilAccounts({
               <div className="addr">{truncateAddress(address)}</div>
             </div>
             <button
-              className={`btn-copy ${copied ? 'copied' : ''}`}
+              className={`btn-copy hint hint-right ${copied ? 'copied' : ''}`}
               onClick={(e) => { e.stopPropagation(); copy(address); }}
-              title="Copy address"
+              data-hint={copied ? 'Copied' : 'Copy address'}
             >
               {copied ? '✓' : '⎘'}
             </button>

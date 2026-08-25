@@ -166,9 +166,9 @@ function GroupSection({
           </svg>
         </span>
         <button
-          className={`group-star ${starred ? 'active' : ''}`}
+          className={`group-star hint ${starred ? 'active' : ''}`}
           onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
-          title={starred ? 'Unfavourite group' : 'Favourite this group'}
+          data-hint={starred ? 'Unfavourite group' : 'Favourite this group'}
         >
           {starred ? '★' : '☆'}
         </button>
@@ -176,7 +176,7 @@ function GroupSection({
         {group.name && <span className="group-id-tag">g·{group.id}</span>}
         <div className="spacer" />
         {partial && (
-          <span className="group-partial-hint" title="Only matching operators shown">
+          <span className="group-partial-hint hint hint-right" data-hint="Only matching operators shown">
             {shownCount} of {totalCount}
           </span>
         )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
-import { roleEntries, operatorKind } from '../../lib/shared/attachments.js';
+import { roleEntries, operatorKind, roleHintByLabel, operatorTypeHint } from '../../lib/shared/attachments.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
@@ -95,7 +95,12 @@ export function OperatorRow({
         <div className="operator-header">
           <span className="operator-id">#{op.id}</span>
           {op.operatorType && (
-            <span className="operator-type">{op.operatorType.replace(/^CSM_|^CM_/, '')}</span>
+            <span
+              className="operator-type hint"
+              data-hint={operatorTypeHint(op.operatorType, op.curveId)}
+            >
+              {op.operatorType.replace(/^CSM_|^CM_/, '')}
+            </span>
           )}
           <LabelEditor
             label={label}
@@ -104,9 +109,9 @@ export function OperatorRow({
           />
           <div className="spacer" />
           <button
-            className={`btn-star ${isFavorite ? 'active' : ''}`}
+            className={`btn-star hint hint-right ${isFavorite ? 'active' : ''}`}
             onClick={onToggleFavorite}
-            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            data-hint={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             {isFavorite ? '★' : '☆'}
           </button>
@@ -193,22 +198,27 @@ function AddressChip({
         {g.rolePills.map((p) => (
           <span
             key={p.label}
-            className={`role-pill tint-${p.tint} ${p.owner ? 'owner' : ''}`}
+            className={`role-pill hint tint-${p.tint} ${p.owner ? 'owner' : ''}`}
+            data-hint={roleHintByLabel(p.label, p.owner)}
           >
             {p.label}
           </span>
         ))}
         {g.proposedPills.map((label) => (
-          <span key={label} className="role-pill dashed">
+          <span
+            key={label}
+            className="role-pill hint dashed"
+            data-hint={roleHintByLabel(label as 'P-MGR' | 'P-RWD', false)}
+          >
             {label}
           </span>
         ))}
       </div>
       <span className="chip-addr">{truncateAddress(g.address)}</span>
       <button
-        className={`chip-copy ${copied ? 'copied' : ''}`}
+        className={`chip-copy hint hint-right ${copied ? 'copied' : ''}`}
         onClick={(e) => { e.stopPropagation(); copy(g.address); }}
-        title="Copy address"
+        data-hint={copied ? 'Copied' : 'Copy address'}
       >
         {copied ? '✓' : '⎘'}
       </button>

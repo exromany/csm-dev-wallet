@@ -7,7 +7,9 @@ import {
   moduleCounts,
   countLabel,
   roleHint,
+  roleHintByLabel,
   typeHint,
+  operatorTypeHint,
   countHint,
 } from '../../lib/shared/attachments.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
@@ -242,6 +244,37 @@ describe('roleHint', () => {
   });
 });
 
+describe('roleHintByLabel', () => {
+  it('describes a plain manager and rewards address', () => {
+    expect(roleHintByLabel('MGR', false)).toBe('Manager address');
+    expect(roleHintByLabel('RWD', false)).toBe('Rewards address');
+  });
+
+  it('appends the owner suffix when owner', () => {
+    expect(roleHintByLabel('MGR', true)).toBe(
+      'Manager address · owner — holds extended manager permissions.',
+    );
+    expect(roleHintByLabel('RWD', true)).toBe(
+      'Rewards address · owner — holds extended manager permissions.',
+    );
+  });
+
+  it('describes proposed roles as pending, ignoring owner', () => {
+    expect(roleHintByLabel('P-MGR', false)).toBe('Proposed manager address — pending');
+    expect(roleHintByLabel('P-RWD', false)).toBe('Proposed rewards address — pending');
+  });
+});
+
+describe('operatorTypeHint', () => {
+  it('shows the raw enum name and its curve id', () => {
+    expect(operatorTypeHint('CSM_DEF', '0')).toBe('CSM_DEF · curve id 0');
+  });
+
+  it('falls back to CC for an empty type', () => {
+    expect(operatorTypeHint('', '5')).toBe('CC · curve id 5');
+  });
+});
+
 describe('typeHint', () => {
   it('shows the raw enum name and its curve id', () => {
     const index = buildAttachmentIndex({
@@ -255,6 +288,25 @@ describe('typeHint', () => {
       cm: [makeOperator({ id: '2', managerAddress: ADDR_A, operatorType: 'CC', curveId: '5' })],
     });
     expect(typeHint(index.get(ADDR_A.toLowerCase())!.attachments[0])).toBe('CC · curve id 5');
+  });
+});
+
+describe('typeHint cross-module clause', () => {
+  const att = () =>
+    buildAttachmentIndex({
+      cm: [makeOperator({ id: '7', managerAddress: ADDR_A, operatorType: 'CM_PO', curveId: '0' })],
+    }).get(ADDR_A.toLowerCase())!.attachments[0];
+
+  it('warns that selecting will move the site when the module differs', () => {
+    expect(typeHint(att(), 'csm')).toBe('CM_PO · curve id 0 — selecting this switches the site to CM');
+  });
+
+  it('stays bare when the attachment is in the site module', () => {
+    expect(typeHint(att(), 'cm')).toBe('CM_PO · curve id 0');
+  });
+
+  it('stays bare with no site module given', () => {
+    expect(typeHint(att())).toBe('CM_PO · curve id 0');
   });
 });
 

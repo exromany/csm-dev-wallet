@@ -84,9 +84,9 @@ export function SharedAddresses({
           ).map(([value, label]) => (
             <button
               key={value}
-              className={`filter-btn ${filter === value ? 'active' : ''}`}
+              className={`filter-btn ${value === 'pending' ? 'hint' : ''} ${filter === value ? 'active' : ''}`}
               onClick={() => setFilter(value)}
-              title={
+              data-hint={
                 value === 'pending'
                   ? 'Addresses caught up in a proposed role change'
                   : undefined
@@ -195,9 +195,9 @@ function AddressCard({
           {countLabel(entry)}
         </span>
         <button
-          className={`chip-copy ${copied ? 'copied' : ''}`}
+          className={`chip-copy hint hint-right ${copied ? 'copied' : ''}`}
           onClick={(e) => { e.stopPropagation(); copy(entry.address); }}
-          title="Copy address"
+          data-hint={copied ? 'Copied' : 'Copy address'}
         >
           {copied ? '✓' : '⎘'}
         </button>
@@ -236,30 +236,28 @@ function AttachmentRow({
   onSetLabel: (label: string) => void;
   onSelect: () => void;
 }) {
-  const crossModule = att.moduleType !== siteModuleType;
 
   return (
     <div
       className={`attach-row kind-${att.kind}`}
       onClick={onSelect}
-      title={crossModule ? `Switches the module to ${att.moduleType.toUpperCase()}` : undefined}
     >
       <span className="attach-ribbon" />
       <span className="attach-id mono">#{att.operatorId}</span>
-      <span className="attach-type hint" data-hint={typeHint(att)}>{att.typeLabel}</span>
+      <span className="attach-type hint" data-hint={typeHint(att, siteModuleType)}>{att.typeLabel}</span>
       <LabelEditor label={label} onSave={onSetLabel} className="operator-label" />
+      <div className="spacer" />
       <div className="chip-pills">
         {att.pills.map((p) => (
           <span
             key={p.label}
-            className={`role-pill hint ${p.proposed ? 'dashed' : `tint-${p.tint}`} ${p.owner ? 'owner' : ''}`}
+            className={`role-pill hint hint-right ${p.proposed ? 'dashed' : `tint-${p.tint}`} ${p.owner ? 'owner' : ''}`}
             data-hint={roleHint(p)}
           >
             {p.label}
           </span>
         ))}
       </div>
-      <div className="spacer" />
     </div>
   );
 }

@@ -60,6 +60,20 @@ describe('OperatorList', () => {
     expect(screen.getByText('RWD').className).not.toContain('owner');
   });
 
+  it('carries owner wording as data-hint on an owner role pill', () => {
+    const ops = [makeOperator({
+      id: '1',
+      managerAddress: ADDR_A,
+      rewardsAddress: ADDR_B,
+      ownerAddress: ADDR_A,
+    })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('MGR')).toHaveAttribute(
+      'data-hint',
+      'Manager address · owner — holds extended manager permissions.',
+    );
+  });
+
   it('marks RWD pill as owner when ownerAddress matches rewardsAddress', () => {
     const ops = [makeOperator({
       id: '1',

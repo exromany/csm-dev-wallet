@@ -61,9 +61,9 @@ export function LabelEditor({
 
   return (
     <button
-      className={`${className} ${label ? '' : 'empty'}`}
+      className={`${className} hint ${label ? '' : 'empty'}`}
       onClick={(e) => { e.stopPropagation(); setDraft(label); setEditing(true); }}
-      title={label ? 'Edit label' : 'Add label'}
+      data-hint={label ? 'Edit label' : 'Add label'}
     >
       {label && <span className="text">{label}</span>}
       <span className="pencil">{label ? '✎' : emptyText}</span>

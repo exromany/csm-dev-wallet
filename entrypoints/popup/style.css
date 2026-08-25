@@ -1376,17 +1376,6 @@ input:focus {
   flex-shrink: 0;
 }
 
-.addr-label {
-  font-size: 11px;
-  color: var(--dim);
-  font-style: italic;
-  min-width: 0;
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .attach-count {
   font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
   font-size: 9.5px;
@@ -1505,5 +1494,11 @@ input:focus {
 .hint.hint-right::after {
   left: auto;
   right: 0;
+}
+
+/* Unused for now — opens the bubble upward for a row near the bottom edge. */
+.hint.hint-above::after {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 

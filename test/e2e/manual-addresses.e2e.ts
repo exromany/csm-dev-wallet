@@ -69,8 +69,8 @@ async function main() {
       await goToTab(page, 'Manual');
 
       // First remove any existing addresses from previous tests
-      while (await page.locator('.btn-copy.danger[title="Remove"]').count() > 0) {
-        await page.click('.btn-copy.danger[title="Remove"]');
+      while (await page.locator('.btn-copy.danger[data-hint="Remove"]').count() > 0) {
+        await page.click('.btn-copy.danger[data-hint="Remove"]');
         await page.waitForTimeout(200);
       }
 
@@ -124,8 +124,8 @@ async function main() {
       }
 
       // Remove all addresses
-      while (await page.locator('.btn-copy.danger[title="Remove"]').count() > 0) {
-        await page.click('.btn-copy.danger[title="Remove"]');
+      while (await page.locator('.btn-copy.danger[data-hint="Remove"]').count() > 0) {
+        await page.click('.btn-copy.danger[data-hint="Remove"]');
         await page.waitForTimeout(300);
       }
 

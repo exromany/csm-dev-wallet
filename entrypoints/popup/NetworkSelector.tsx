@@ -51,10 +51,10 @@ export function NetworkModuleChip({
   const mod = MODULES.find((m) => m.type === moduleType);
   return (
     <button
-      className="netmod-chip"
+      className="netmod-chip hint hint-right"
       popoverTarget={PANEL_ID}
       popoverTargetAction="toggle"
-      title="Switch network or module"
+      data-hint="Switch network or module"
     >
       <span className="dot" style={{ background: net?.dot ?? 'var(--dim)' }} />
       <span className="net-label">{netLabel(chainId, forkedFrom)}</span>

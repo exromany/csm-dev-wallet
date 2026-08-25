@@ -26,9 +26,9 @@ export function ConnectedBar({ address, chainId, label, onDisconnect }: Props) {
       </span>
       <div className="spacer" />
       <button
-        className={`btn-copy ${copied ? 'copied' : ''}`}
+        className={`btn-copy hint ${copied ? 'copied' : ''}`}
         onClick={() => copy(address.address)}
-        title="Copy address"
+        data-hint={copied ? 'Copied' : 'Copy address'}
       >
         {copied ? '✓' : '⎘'}
       </button>

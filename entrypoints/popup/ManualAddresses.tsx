@@ -58,10 +58,10 @@ export function ManualAddresses({
             placeholder="0x address…"
           />
           <button
-            className="btn-add-icon"
+            className="btn-add-icon hint hint-right"
             disabled={!valid}
             onClick={handleAdd}
-            title="Add address"
+            data-hint="Add address"
           >
             +
           </button>
@@ -89,16 +89,16 @@ export function ManualAddresses({
               <div className="addr">{truncateAddress(address)}</div>
             </div>
             <button
-              className={`btn-copy ${copied ? 'copied' : ''}`}
+              className={`btn-copy hint hint-right ${copied ? 'copied' : ''}`}
               onClick={(e) => { e.stopPropagation(); copy(address); }}
-              title="Copy address"
+              data-hint={copied ? 'Copied' : 'Copy address'}
             >
               {copied ? '✓' : '⎘'}
             </button>
             <button
-              className="btn-copy danger"
+              className="btn-copy danger hint hint-right"
               onClick={(e) => { e.stopPropagation(); onRemove(address); }}
-              title="Remove"
+              data-hint="Remove"
             >
               ×
             </button>

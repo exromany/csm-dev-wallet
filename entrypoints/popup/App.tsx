@@ -163,9 +163,9 @@ export function App() {
           <div className="brand-name">CSM Dev</div>
         </div>
         <button
-          className="icon-btn"
+          className="icon-btn hint"
           onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          data-hint={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
         >
           {theme === 'dark' ? '☾' : '☀'}
         </button>
@@ -414,9 +414,9 @@ function SearchToolbar({
         </button>
         {showPending && (
           <button
-            className={`filter-btn ${filterGroup === 'pending' ? 'active' : ''}`}
+            className={`filter-btn hint ${filterGroup === 'pending' ? 'active' : ''}`}
             onClick={() => onFilterGroup('pending')}
-            title="Operators with pending P-MGR or P-RWD role-change proposals"
+            data-hint="Operators with pending P-MGR or P-RWD role-change proposals"
           >
             Pending
           </button>

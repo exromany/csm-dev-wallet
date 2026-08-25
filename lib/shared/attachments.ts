@@ -156,19 +156,26 @@ export function countLabel(entry: AddressAttachments): string {
 }
 
 /** Tooltip text for a role pill, e.g. 'Manager address · owner — holds extended manager permissions.' */
+export function roleHintByLabel(label: RoleLabel, owner: boolean): string {
+  if (label === 'P-MGR') return 'Proposed manager address — pending';
+  if (label === 'P-RWD') return 'Proposed rewards address — pending';
+  const base = label === 'MGR' ? 'Manager address' : 'Rewards address';
+  return owner ? `${base} · owner — holds extended manager permissions.` : base;
+}
+
 export function roleHint(entry: RoleEntry): string {
-  if (entry.proposed) {
-    return entry.role === 'proposedManager'
-      ? 'Proposed manager address — pending'
-      : 'Proposed rewards address — pending';
-  }
-  const base = entry.role === 'manager' ? 'Manager address' : 'Rewards address';
-  return entry.owner ? `${base} · owner — holds extended manager permissions.` : base;
+  return roleHintByLabel(entry.label, entry.owner);
 }
 
 /** Tooltip text for a type badge, e.g. 'CSM_DEF · curve id 0' — no human-readable expansion exists for the enum. */
-export function typeHint(att: Attachment): string {
-  return `${att.operatorType || 'CC'} · curve id ${att.curveId}`;
+export function operatorTypeHint(operatorType: string, curveId: string): string {
+  return `${operatorType || 'CC'} · curve id ${curveId}`;
+}
+
+export function typeHint(att: Attachment, siteModuleType?: ModuleType): string {
+  const base = operatorTypeHint(att.operatorType, att.curveId);
+  if (!siteModuleType || att.moduleType === siteModuleType) return base;
+  return `${base} — selecting this switches the site to ${att.moduleType.toUpperCase()}`;
 }
 
 /** Tooltip text for the count pill, e.g. 'Attached to 2 CSM operators and 1 CM operator — spans both modules.' */
