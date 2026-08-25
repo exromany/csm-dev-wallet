@@ -10,7 +10,8 @@ import {
 import { clearClientCache, fetchOperators } from './operator-cache.js';
 import { DEFAULT_NETWORKS, ANVIL_NETWORK, ANVIL_CHAIN_ID } from '../shared/networks.js';
 import type { SupportedChainId } from '../shared/networks.js';
-import type { AddressSource, AddressRole } from '../shared/types.js';
+import type { AddressSource, AddressRole, ModuleType } from '../shared/types.js';
+import { MODULE_ORDER } from '../shared/modules.js';
 import type { Address } from 'viem';
 
 export const NOT_HANDLED: unique symbol = Symbol('NOT_HANDLED');
@@ -51,6 +52,15 @@ const ROLE_FIELDS: Record<AddressRole, string> = {
   proposedManager: 'proposedManagerAddress',
   proposedRewards: 'proposedRewardsAddress',
 };
+
+/** Validates an explicit moduleType param; an omitted one is left for the caller to fall back. */
+function checkModuleType(moduleType: unknown): { code: number; message: string } | null {
+  if (moduleType === undefined || MODULE_ORDER.includes(moduleType as ModuleType)) return null;
+  return {
+    code: -32602,
+    message: `Invalid moduleType: "${moduleType}". Must be one of: ${MODULE_ORDER.join(', ')}`,
+  };
+}
 
 export async function handleTestRpc(
   origin: string,
@@ -121,8 +131,10 @@ export async function handleTestRpc(
       const p = (params?.[0] ?? {}) as {
         operators: unknown[];
         chainId: number;
-        moduleType: string;
+        moduleType: ModuleType;
       };
+      const moduleTypeError = checkModuleType(p.moduleType);
+      if (moduleTypeError) return { error: moduleTypeError };
       const key = `operators_${p.moduleType}_${p.chainId}`;
       await chrome.storage.local.set({
         [key]: { operators: p.operators, lastFetchedAt: Date.now() },
@@ -133,9 +145,11 @@ export async function handleTestRpc(
     case 'wallet_testRefreshOperators': {
       const p = (params?.[0] ?? {}) as {
         chainId?: number;
-        moduleType?: string;
+        moduleType?: ModuleType;
         rpcUrl?: string;
       };
+      const moduleTypeError = checkModuleType(p.moduleType);
+      if (moduleTypeError) return { error: moduleTypeError };
       const [site, settings] = await Promise.all([getSiteState(origin), getGlobalSettings()]);
       const chainId = p.chainId ?? site.chainId;
       const moduleType = p.moduleType ?? site.moduleType;
@@ -149,7 +163,7 @@ export async function handleTestRpc(
           ? ANVIL_NETWORK.rpcUrl
           : DEFAULT_NETWORKS[chainId as SupportedChainId]?.rpcUrl ?? ANVIL_NETWORK.rpcUrl;
       }
-      const entry = await fetchOperators({ chainId, moduleType: moduleType as any, rpcUrl });
+      const entry = await fetchOperators({ chainId, moduleType, rpcUrl });
       return { result: entry.operators };
     }
 
@@ -174,7 +188,7 @@ export async function handleTestRpc(
         operatorId?: string;
         role?: unknown;
         chainId?: number;
-        moduleType?: string;
+        moduleType?: ModuleType;
       };
       if (!p.operatorId) {
         return { error: { code: -32602, message: 'Missing operatorId parameter' } };
@@ -187,6 +201,8 @@ export async function handleTestRpc(
           },
         };
       }
+      const moduleTypeError = checkModuleType(p.moduleType);
+      if (moduleTypeError) return { error: moduleTypeError };
       const role = p.role as AddressRole;
       const site = await getSiteState(origin);
       const chainId = p.chainId ?? site.chainId;
@@ -220,11 +236,13 @@ export async function handleTestRpc(
       const p = (params?.[0] ?? {}) as {
         operatorId?: string;
         chainId?: number;
-        moduleType?: string;
+        moduleType?: ModuleType;
       };
       if (!p.operatorId) {
         return { error: { code: -32602, message: 'Missing operatorId parameter' } };
       }
+      const moduleTypeError = checkModuleType(p.moduleType);
+      if (moduleTypeError) return { error: moduleTypeError };
       const site = await getSiteState(origin);
       const chainId = p.chainId ?? site.chainId;
       const moduleType = p.moduleType ?? site.moduleType;
@@ -242,7 +260,9 @@ export async function handleTestRpc(
     }
 
     case 'wallet_testGetOperators': {
-      const p = (params?.[0] ?? {}) as { chainId?: number; moduleType?: string };
+      const p = (params?.[0] ?? {}) as { chainId?: number; moduleType?: ModuleType };
+      const moduleTypeError = checkModuleType(p.moduleType);
+      if (moduleTypeError) return { error: moduleTypeError };
       const site = await getSiteState(origin);
       const chainId = p.chainId ?? site.chainId;
       const moduleType = p.moduleType ?? site.moduleType;

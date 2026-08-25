@@ -120,7 +120,7 @@ await wallet.setup({
   account: '0x...',                  // auto-connects, no popup
   signingMode: 'approve',           // 'approve' | 'reject' | 'error' | 'prompt'
   operators: [...],                  // optional: seed operator cache
-  moduleAvailability: { csm: true, cm: false }, // optional
+  moduleAvailability: { csm: true, csm02: false, cm: false }, // optional
 });
 ```
 
@@ -139,6 +139,7 @@ const state = await wallet.getState(page);     // current wallet state
 ### Operator queries (mid-test)
 
 Read cached operators, look up a single operator, or select an account by operator+role.
+Module type is `'csm' | 'csm02' | 'cm'`, defaulting to `'csm'`.
 
 ```typescript
 const ops = await wallet.getOperators(page);              // all cached operators
