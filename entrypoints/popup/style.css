@@ -1710,7 +1710,8 @@ input:focus {
   transition: opacity 120ms, visibility 120ms;
 }
 
-.hint:hover::after {
+.hint:hover::after,
+.hint:focus-visible::after {
   opacity: 1;
   visibility: visible;
 }

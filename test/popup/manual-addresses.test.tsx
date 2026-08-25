@@ -28,7 +28,7 @@ describe('ManualAddresses', () => {
 
     const input = screen.getByPlaceholderText(/0x address/i);
     fireEvent.change(input, { target: { value: VALID_ADDR } });
-    fireEvent.click(screen.getByRole('button', { name: '+' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add address' }));
 
     expect(onAdd).toHaveBeenCalledWith(VALID_ADDR);
     expect(input).toHaveValue('');
@@ -40,7 +40,7 @@ describe('ManualAddresses', () => {
 
     const input = screen.getByPlaceholderText(/0x address/i);
     fireEvent.change(input, { target: { value: 'not-an-address' } });
-    fireEvent.click(screen.getByRole('button', { name: '+' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add address' }));
 
     expect(onAdd).not.toHaveBeenCalled();
   });

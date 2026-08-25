@@ -193,6 +193,7 @@ function AddressCard({
           className={`chip-copy hint hint-right ${copied ? 'copied' : ''}`}
           onClick={(e) => { e.stopPropagation(); copy(entry.address); }}
           data-hint={copied ? 'Copied' : 'Copy address'}
+          aria-label={copied ? 'Copied' : 'Copy address'}
         >
           {copied ? <IconCheck /> : <IconCopy />}
         </button>

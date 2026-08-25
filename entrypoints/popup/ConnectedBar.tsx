@@ -72,10 +72,11 @@ export function ConnectedBar({
         className={`pill-act hint hint-right ${copied ? 'copied' : ''}`}
         onClick={() => copy(address.address)}
         data-hint={copied ? 'Copied' : 'Copy address'}
+        aria-label={copied ? 'Copied' : 'Copy address'}
       >
         {copied ? <IconCheck /> : <IconCopy />}
       </button>
-      <button className="pill-act danger hint hint-right" data-hint="Disconnect" onClick={onDisconnect}>
+      <button className="pill-act danger hint hint-right" data-hint="Disconnect" aria-label="Disconnect" onClick={onDisconnect}>
         <IconClose />
       </button>
     </div>

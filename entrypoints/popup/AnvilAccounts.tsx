@@ -69,6 +69,7 @@ export function AnvilAccounts({
               className={`btn-copy hint hint-right ${copied ? 'copied' : ''}`}
               onClick={(e) => { e.stopPropagation(); copy(address); }}
               data-hint={copied ? 'Copied' : 'Copy address'}
+              aria-label={copied ? 'Copied' : 'Copy address'}
             >
               {copied ? <IconCheck /> : <IconCopy />}
             </button>

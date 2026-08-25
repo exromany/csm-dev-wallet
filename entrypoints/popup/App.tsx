@@ -172,6 +172,7 @@ export function App() {
           className="icon-btn hint"
           onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
           data-hint={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
         >
           {theme === 'dark' ? <IconMoon size={14} /> : <IconSun size={14} />}
         </button>

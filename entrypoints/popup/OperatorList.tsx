@@ -113,6 +113,7 @@ export function OperatorRow({
             className={`btn-star hint hint-right ${isFavorite ? 'active' : ''}`}
             onClick={onToggleFavorite}
             data-hint={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <IconStar filled={isFavorite} />
           </button>
@@ -220,6 +221,7 @@ function AddressChip({
         className={`chip-copy hint hint-right ${copied ? 'copied' : ''}`}
         onClick={(e) => { e.stopPropagation(); copy(g.address); }}
         data-hint={copied ? 'Copied' : 'Copy address'}
+        aria-label={copied ? 'Copied' : 'Copy address'}
       >
         {copied ? <IconCheck /> : <IconCopy />}
       </button>

@@ -170,6 +170,7 @@ function GroupSection({
           className={`group-star hint ${starred ? 'active' : ''}`}
           onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
           data-hint={starred ? 'Unfavourite group' : 'Favourite this group'}
+          aria-label={starred ? 'Unfavourite group' : 'Favourite this group'}
         >
           <IconStar filled={starred} />
         </button>
