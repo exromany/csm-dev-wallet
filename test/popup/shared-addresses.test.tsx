@@ -71,18 +71,19 @@ describe('SharedAddresses', () => {
     expect(onSelect).toHaveBeenCalledWith(ADDR_A, '7', 'manager', 'cm');
   });
 
-  it('marks the connected attachment as in use rather than selectable', () => {
-    const { container } = renderTab({
+  it('marks the connected address at the card level, leaving every attachment selectable', () => {
+    const { container, onSelect } = renderTab({
       selectedAddress: ADDR_A,
-      selectedOperatorId: '7',
       siteModuleType: 'cm',
     });
-    fireEvent.click(container.querySelectorAll('.addr-head')[0]);
-    const cmRow = [...container.querySelectorAll('.attach-row')].find((el) =>
+    const card = container.querySelectorAll('.addr-card')[0];
+    expect(card.classList.contains('selected')).toBe(true);
+    fireEvent.click(card.querySelector('.addr-head')!);
+    const cmRow = [...card.querySelectorAll('.attach-row')].find((el) =>
       el.textContent?.includes('CM·PO'),
     )!;
-    expect(cmRow.querySelector('.attach-here')).toBeTruthy();
-    expect(cmRow.classList.contains('current')).toBe(true);
+    fireEvent.click(cmRow);
+    expect(onSelect).toHaveBeenCalledWith(ADDR_A, '7', 'manager', 'cm');
   });
 
   it('does not confuse CSM #7 with CM #7', () => {
@@ -92,16 +93,18 @@ describe('SharedAddresses', () => {
         cm: [makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, operatorType: 'CM_PO' })],
       }),
     );
-    const { container } = renderTab({
-      addresses: both,
-      selectedAddress: ADDR_A,
-      selectedOperatorId: '7',
-      siteModuleType: 'cm',
-    });
+    const { container, onSelect } = renderTab({ addresses: both });
     fireEvent.click(container.querySelectorAll('.addr-head')[0]);
-    expect(container.querySelectorAll('.attach-row')).toHaveLength(2);
-    expect(container.querySelectorAll('.attach-here')).toHaveLength(1);
-    expect(container.querySelectorAll('.attach-row.current')).toHaveLength(1);
+    const rows = container.querySelectorAll('.attach-row');
+    expect(rows).toHaveLength(2);
+
+    const csmRow = [...rows].find((el) => el.textContent?.includes('CSM·DEF'))!;
+    fireEvent.click(csmRow);
+    expect(onSelect).toHaveBeenLastCalledWith(ADDR_A, '7', 'manager', 'csm');
+
+    const cmRow = [...rows].find((el) => el.textContent?.includes('CM·PO'))!;
+    fireEvent.click(cmRow);
+    expect(onSelect).toHaveBeenLastCalledWith(ADDR_A, '7', 'manager', 'cm');
   });
 
   it('narrows to cross-module addresses when the chip is clicked', () => {

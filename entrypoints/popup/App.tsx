@@ -307,11 +307,6 @@ export function App() {
             cmMissing={sharedAddrs.cmMissing}
             addressLabels={state.addressLabels}
             selectedAddress={state.selectedAddress?.address}
-            selectedOperatorId={
-              state.selectedAddress?.source.type === 'operator'
-                ? state.selectedAddress.source.operatorId
-                : undefined
-            }
             siteModuleType={state.moduleType}
             onRefresh={sharedAddrs.refresh}
             onSelect={(address, operatorId, role, moduleType) =>

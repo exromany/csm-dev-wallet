@@ -107,6 +107,10 @@ test/
   the 400px popup. `goToTab(page, 'Settings')` in the e2e helpers clicks that button.
 - **Shared tab spans both modules:** it issues `request-operators` for CSM *and* CM and stays in
   its loading state until both answer, so counts never render half-built.
+- **Connected address, not connected operator:** the extension only knows the address it exposed
+  to the dapp — the widget resolves that address to an operator on its own. `operatorId` in
+  `AddressSource` records the provenance of the click, not what's active; no UI may claim a
+  specific operator is currently in use.
 
 ## Playwright Testing API
 

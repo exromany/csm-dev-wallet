@@ -69,6 +69,10 @@ Expanded, one row per attachment: type-coloured ribbon, `#<id>`, a `CSM·DEF`-st
 tag, the role pills that address holds on that operator, and a select button. The currently
 connected attachment shows `in use` instead.
 
+_Dropped during implementation: the extension only knows the connected address, not the operator
+the dapp/widget actually resolves it to, so attachment-level "in use" was unsound — every row
+stayed selectable, and only the address-level connected marker on the card shipped._
+
 ### Module+type tag
 
 `OperatorRow` strips the module prefix (`operatorType.replace(/^CSM_|^CM_/, '')` → `DEF`). In a

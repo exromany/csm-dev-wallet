@@ -11,7 +11,6 @@ type Props = {
   cmMissing: boolean;
   addressLabels: Record<string, string>;
   selectedAddress?: string;
-  selectedOperatorId?: string;
   siteModuleType: ModuleType;
   onRefresh: () => void;
   onSelect: (
@@ -29,7 +28,6 @@ export function SharedAddresses({
   cmMissing,
   addressLabels,
   selectedAddress,
-  selectedOperatorId,
   siteModuleType,
   onRefresh,
   onSelect,
@@ -119,7 +117,6 @@ export function SharedAddresses({
                 open={openKey === key}
                 onToggle={() => setOpenKey(openKey === key ? null : key)}
                 selectedAddress={selectedAddress}
-                selectedOperatorId={selectedOperatorId}
                 siteModuleType={siteModuleType}
                 onSelect={onSelect}
               />
@@ -137,7 +134,6 @@ function AddressCard({
   open,
   onToggle,
   selectedAddress,
-  selectedOperatorId,
   siteModuleType,
   onSelect,
 }: {
@@ -146,7 +142,6 @@ function AddressCard({
   open: boolean;
   onToggle: () => void;
   selectedAddress?: string;
-  selectedOperatorId?: string;
   siteModuleType: ModuleType;
   onSelect: Props['onSelect'];
 }) {
@@ -184,12 +179,6 @@ function AddressCard({
             <AttachmentRow
               key={`${att.moduleType}:${att.operatorId}`}
               attachment={att}
-              // (id, module) — CSM #7 and CM #7 are different operators.
-              inUse={
-                connected &&
-                selectedOperatorId === att.operatorId &&
-                siteModuleType === att.moduleType
-              }
               siteModuleType={siteModuleType}
               onSelect={() =>
                 onSelect(entry.address, att.operatorId, att.primaryRole, att.moduleType)
@@ -204,12 +193,10 @@ function AddressCard({
 
 function AttachmentRow({
   attachment: att,
-  inUse,
   siteModuleType,
   onSelect,
 }: {
   attachment: Attachment;
-  inUse: boolean;
   siteModuleType: ModuleType;
   onSelect: () => void;
 }) {
@@ -217,8 +204,8 @@ function AttachmentRow({
 
   return (
     <div
-      className={`attach-row kind-${att.kind} ${inUse ? 'current' : ''}`}
-      onClick={inUse ? undefined : onSelect}
+      className={`attach-row kind-${att.kind}`}
+      onClick={onSelect}
       title={crossModule ? `Switches the module to ${att.moduleType.toUpperCase()}` : undefined}
     >
       <span className="attach-ribbon" />
@@ -235,7 +222,6 @@ function AttachmentRow({
         ))}
       </div>
       <div className="spacer" />
-      {inUse && <span className="attach-here">in use</span>}
     </div>
   );
 }
