@@ -1530,17 +1530,6 @@ input:focus {
 
 /* ── Shared addresses tab ─────────────────────────── */
 
-.scope-note {
-  margin: 6px 14px 0;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--warn) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warn) 26%, transparent);
-  font-size: 10.5px;
-  line-height: 1.45;
-  color: var(--dim);
-}
-
 .addr-list {
   padding: 4px 10px 14px;
   display: flex;

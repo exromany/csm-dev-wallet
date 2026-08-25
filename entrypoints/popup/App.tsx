@@ -327,7 +327,6 @@ export function App() {
             addresses={sharedAddrs.addresses}
             loading={sharedAddrs.loading}
             lastFetchedAt={sharedAddrs.lastFetchedAt}
-            missingModules={sharedAddrs.missingModules}
             addressLabels={state.addressLabels}
             operatorLabels={operatorLabels}
             selectedAddress={state.selectedAddress?.address}

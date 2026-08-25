@@ -251,11 +251,6 @@ export function useSharedAddresses(
   const resolved = PROBED_MODULES.every((m) => availableModules[m] !== undefined);
   const wantedKey = MODULE_ORDER.filter((m) => m === BASELINE_MODULE || availableModules[m]).join(',');
   const wanted = useMemo<ModuleType[]>(() => wantedKey.split(',') as ModuleType[], [wantedKey]);
-  const missingKey = MODULE_ORDER.filter((m) => availableModules[m] === false).join(',');
-  const missingModules = useMemo<ModuleType[]>(
-    () => (missingKey ? (missingKey.split(',') as ModuleType[]) : []),
-    [missingKey],
-  );
   const chainIdRef = useRef(chainId);
   chainIdRef.current = chainId;
 
@@ -336,7 +331,7 @@ export function useSharedAddresses(
   const answered = wanted.filter((m) => settledModules.includes(m)).length;
   const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
 
-  return { addresses, index, loading, lastFetchedAt, missingModules, refresh };
+  return { addresses, index, loading, lastFetchedAt, refresh };
 }
 
 /** Scope + search filter for the Shared tab. */

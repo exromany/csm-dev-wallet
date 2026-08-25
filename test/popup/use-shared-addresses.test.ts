@@ -34,12 +34,11 @@ describe('useSharedAddresses', () => {
     expect(requests.map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm', 'csm02', 'cm']);
   });
 
-  it('requests CSM only when the others are unavailable, and reports them missing', () => {
-    const { result } = render(CM_MISSING);
+  it('requests CSM only when the others are unavailable', () => {
+    render(CM_MISSING);
     const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
     const requests = sent.filter((c) => c.type === 'request-operators');
     expect(requests.map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm']);
-    expect(result.current.missingModules).toEqual(['csm02', 'cm']);
   });
 
   it('holds off every request until every module availability is known, and stays loading', () => {
@@ -48,7 +47,6 @@ describe('useSharedAddresses', () => {
     const requests = sent.filter((c) => c.type === 'request-operators');
     expect(requests).toHaveLength(0);
     expect(result.current.loading).toBe(true);
-    expect(result.current.missingModules).toEqual([]);
   });
 
   it('holds off when one probed module is still unresolved, even if others answered', () => {

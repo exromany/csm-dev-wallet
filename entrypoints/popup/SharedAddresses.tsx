@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { AddressRole, ModuleType } from '../../lib/shared/types.js';
-import { countHint, countLabel, joinList, type AddressAttachments } from '../../lib/shared/attachments.js';
-import { MODULE_ORDER, MODULE_LABEL } from '../../lib/shared/modules.js';
+import { countHint, countLabel, type AddressAttachments } from '../../lib/shared/attachments.js';
 import { truncateAddress, formatTimeAgo } from '../../lib/popup/utils.js';
 import { useCopyAddress, filterSharedAddresses, type SharedFilter } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
@@ -17,7 +16,6 @@ type Props = {
   addresses: AddressAttachments[];
   loading: boolean;
   lastFetchedAt: number | null;
-  missingModules: ModuleType[];
   addressLabels: Record<string, string>;
   operatorLabels: OperatorLabels;
   selectedAddress?: string;
@@ -36,7 +34,6 @@ export function SharedAddresses({
   addresses,
   loading,
   lastFetchedAt,
-  missingModules,
   addressLabels,
   operatorLabels,
   selectedAddress,
@@ -100,16 +97,6 @@ export function SharedAddresses({
           </button>
         </div>
       </div>
-
-      {missingModules.length > 0 && (
-        <div className="scope-note">
-          {`${joinList(missingModules.map((m) => MODULE_LABEL[m]))} ${
-            missingModules.length === 1 ? 'is' : 'are'
-          } not deployed on this network — showing ${joinList(
-            MODULE_ORDER.filter((m) => !missingModules.includes(m)).map((m) => MODULE_LABEL[m]),
-          )} only.`}
-        </div>
-      )}
 
       {loading && shown.length === 0 ? (
         <div className="loading">
