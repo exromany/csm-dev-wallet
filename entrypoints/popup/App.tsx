@@ -136,12 +136,17 @@ export function App() {
   // re-request. Avoids firing the Shared tab's cross-module fetch (and its
   // duplicate CSM request alongside the Operators tab) on every popup open.
   sharedVisitedRef.current ||= activeTab === 'shared';
+  // The attached-operators panel on the connected bar needs the index too —
+  // enable it whenever an address is connected, even without a Shared visit.
+  // A warm cache is cheap: triggerRefresh broadcasts cached operators before
+  // checking staleness, so this costs one message round-trip, not a refetch.
+  const needAttachments = sharedVisitedRef.current || !!state.selectedAddress;
   const sharedAddrs = useSharedAddresses(
     port,
     origin,
     state.chainId,
     availableModules.cm,
-    sharedVisitedRef.current,
+    needAttachments,
   );
 
   const { isFavorite } = favorites;
@@ -197,6 +202,18 @@ export function App() {
             send({ type: 'set-address-label', address: state.selectedAddress!.address, label })
           }
           onDisconnect={() => send({ type: 'disconnect' })}
+          attachments={sharedAddrs.index.get(state.selectedAddress.address.toLowerCase())}
+          attachmentsLoading={sharedAddrs.loading}
+          siteModuleType={state.moduleType}
+          operatorLabel={operatorLabels.get}
+          onSelectAttachment={(operatorId, role, moduleType) =>
+            send({
+              type: 'select-address',
+              address: state.selectedAddress!.address,
+              source: { type: 'operator', operatorId, role },
+              ...(moduleType !== state.moduleType ? { moduleType } : {}),
+            })
+          }
         />
       )}
 

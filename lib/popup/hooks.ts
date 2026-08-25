@@ -314,10 +314,8 @@ export function useSharedAddresses(
     }
   }, [port, origin, chainId, wanted]);
 
-  const addresses = useMemo(
-    () => sharedAddresses(buildAttachmentIndex(byModule)),
-    [byModule],
-  );
+  const index = useMemo(() => buildAttachmentIndex(byModule), [byModule]);
+  const addresses = useMemo(() => sharedAddresses(index), [index]);
 
   // Report the STALEST module, so "updated Xm ago" never overstates freshness.
   const lastFetchedAt = useMemo(() => {
@@ -330,7 +328,7 @@ export function useSharedAddresses(
   const answered = wanted.filter((m) => settledModules.includes(m)).length;
   const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
 
-  return { addresses, loading, lastFetchedAt, cmMissing, refresh };
+  return { addresses, index, loading, lastFetchedAt, cmMissing, refresh };
 }
 
 /** Scope + search filter for the Shared tab. */

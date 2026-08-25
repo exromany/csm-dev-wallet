@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ConnectedBar } from '../../entrypoints/popup/ConnectedBar.js';
 import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
-import { ADDR_A } from '../fixtures.js';
+import { buildAttachmentIndex } from '../../lib/shared/attachments.js';
+import { makeOperator, ADDR_A } from '../fixtures.js';
 import type { SelectedAddress } from '../../lib/shared/types.js';
 
 const selectedAddress: SelectedAddress = {
@@ -82,5 +83,31 @@ describe('ConnectedBar', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onSetLabel).toHaveBeenCalledWith('Bob');
+  });
+
+  it('renders the attached-operators trigger when attachments are passed', () => {
+    const entry = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A })],
+    }).get(ADDR_A.toLowerCase());
+
+    const { container } = render(
+      <ConnectedBar
+        {...defaultProps}
+        attachments={entry}
+        attachmentsLoading={false}
+        siteModuleType="csm"
+        operatorLabel={() => ''}
+        onSelectAttachment={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.ops-trigger')).toBeInTheDocument();
+  });
+
+  it('leaves the bar unchanged when no attachment props are passed', () => {
+    const { container } = render(<ConnectedBar {...defaultProps} />);
+
+    expect(container.querySelector('.ops-trigger')).not.toBeInTheDocument();
+    expect(container.querySelector('.ops-anchor')).not.toBeInTheDocument();
   });
 });

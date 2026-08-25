@@ -1,9 +1,11 @@
 import React from 'react';
-import type { SelectedAddress } from '../../lib/shared/types.js';
+import type { AddressRole, ModuleType, SelectedAddress } from '../../lib/shared/types.js';
+import type { AddressAttachments } from '../../lib/shared/attachments.js';
 import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { AttachedOperators } from './AttachedOperators.js';
 import { IconCheck, IconClose, IconCopy, IconEye, IconKey } from './icons.js';
 
 type Props = {
@@ -12,9 +14,25 @@ type Props = {
   label?: string;
   onSetLabel: (label: string) => void;
   onDisconnect: () => void;
+  attachments?: AddressAttachments;
+  attachmentsLoading?: boolean;
+  siteModuleType?: ModuleType;
+  operatorLabel?: (operatorId: string, moduleType: ModuleType) => string;
+  onSelectAttachment?: (operatorId: string, role: AddressRole, moduleType: ModuleType) => void;
 };
 
-export function ConnectedBar({ address, chainId, label, onSetLabel, onDisconnect }: Props) {
+export function ConnectedBar({
+  address,
+  chainId,
+  label,
+  onSetLabel,
+  onDisconnect,
+  attachments,
+  attachmentsLoading = false,
+  siteModuleType,
+  operatorLabel,
+  onSelectAttachment,
+}: Props) {
   const isAnvil = chainId === ANVIL_CHAIN_ID;
   const { copy, isCopied } = useCopyAddress();
   const copied = isCopied(address.address);
@@ -41,6 +59,15 @@ export function ConnectedBar({ address, chainId, label, onSetLabel, onDisconnect
         {isAnvil ? <IconKey /> : <IconEye />}
         {isAnvil ? 'anvil' : 'watch'}
       </span>
+      {siteModuleType && operatorLabel && onSelectAttachment && (
+        <AttachedOperators
+          entry={attachments}
+          loading={attachmentsLoading}
+          siteModuleType={siteModuleType}
+          operatorLabel={operatorLabel}
+          onSelect={onSelectAttachment}
+        />
+      )}
       <button
         className={`pill-act hint hint-right ${copied ? 'copied' : ''}`}
         onClick={() => copy(address.address)}

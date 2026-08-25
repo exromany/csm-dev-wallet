@@ -1,16 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import type { AddressRole, ModuleType } from '../../lib/shared/types.js';
-import {
-  countHint,
-  countLabel,
-  roleHint,
-  typeHint,
-  type AddressAttachments,
-  type Attachment,
-} from '../../lib/shared/attachments.js';
+import { countHint, countLabel, type AddressAttachments } from '../../lib/shared/attachments.js';
 import { truncateAddress, formatTimeAgo } from '../../lib/popup/utils.js';
 import { useCopyAddress, filterSharedAddresses, type SharedFilter } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
+import { AttachmentRow } from './AttachmentRow.js';
 import { IconCheck, IconClose, IconCopy, IconSearch } from './icons.js';
 
 type OperatorLabels = {
@@ -220,45 +214,6 @@ function AddressCard({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function AttachmentRow({
-  attachment: att,
-  siteModuleType,
-  label,
-  onSetLabel,
-  onSelect,
-}: {
-  attachment: Attachment;
-  siteModuleType: ModuleType;
-  label: string;
-  onSetLabel: (label: string) => void;
-  onSelect: () => void;
-}) {
-
-  return (
-    <div
-      className={`attach-row kind-${att.kind}`}
-      onClick={onSelect}
-    >
-      <span className="attach-ribbon" />
-      <span className="attach-id mono">#{att.operatorId}</span>
-      <span className="attach-type hint" data-hint={typeHint(att, siteModuleType)}>{att.typeLabel}</span>
-      <LabelEditor label={label} onSave={onSetLabel} className="operator-label" />
-      <div className="spacer" />
-      <div className="chip-pills">
-        {att.pills.map((p) => (
-          <span
-            key={p.label}
-            className={`role-pill hint hint-right ${p.proposed ? 'dashed' : `tint-${p.tint}`} ${p.owner ? 'owner' : ''}`}
-            data-hint={roleHint(p)}
-          >
-            {p.label}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }

@@ -511,6 +511,106 @@ input:focus {
   border-color: color-mix(in srgb, var(--danger) 50%, transparent);
 }
 
+/* ── Attached-operators panel ─────────────────────────── */
+
+.ops-anchor {
+  position: relative;
+  display: flex;
+}
+
+.ops-trigger {
+  display: flex;
+  align-items: center;
+}
+
+.ops-anchor:hover .ops-trigger {
+  border-color: color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.ops-pop {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 20;
+  width: 242px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-3px);
+  transition: opacity 130ms, visibility 130ms, transform 130ms;
+}
+
+/* Bridges the 7px gap so :hover survives the trip from the pill into the rows —
+   without it the panel closes mid-travel and nothing in it is clickable. */
+.ops-pop::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -8px;
+  height: 8px;
+}
+
+.ops-anchor:hover .ops-pop {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.ops-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 3px 6px;
+}
+
+.ops-pop-head .t {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.ops-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Only a long list gets a scroll box: `overflow` clips whether or not it
+   scrolls, and the rows' hint bubbles have to draw past the last row. Capped
+   at exactly 5 rows: .attach-row is 28px with a 2px gap, 5*28 + 4*2 = 148. */
+.ops-pop.capped .ops-scroll {
+  max-height: 148px;
+  overflow-y: auto;
+}
+
+.ops-pop.capped .ops-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ops-pop.capped .ops-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+.ops-pop .attach-row:hover {
+  background: var(--surface-2);
+}
+
+.pending-count {
+  color: var(--dim-2);
+  letter-spacing: 1px;
+}
+
 /* ── Tabs ─────────────────────────────────────────────── */
 
 .tabs {

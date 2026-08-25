@@ -121,6 +121,33 @@ describe('useSharedAddresses', () => {
     expect(result.current.lastFetchedAt).toBe(1000);
   });
 
+  it('exposes a raw index keyed by lowercased address, including single-attachment addresses that `addresses` omits', () => {
+    const { result } = render(true);
+
+    act(() => {
+      port._emit({
+        type: 'operators-update', chainId: 1, moduleType: 'csm',
+        operators: [makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B })],
+        lastFetchedAt: 2000,
+      } satisfies PopupEvent);
+      port._emit({
+        type: 'operators-update', chainId: 1, moduleType: 'cm',
+        operators: [makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, operatorType: 'CM_PO' })],
+        lastFetchedAt: 1000,
+      } satisfies PopupEvent);
+    });
+
+    // ADDR_B is only rewardsAddress on csm#12 — one attachment, so `addresses` drops it.
+    expect(result.current.addresses.some((e) => e.address.toLowerCase() === ADDR_B.toLowerCase())).toBe(false);
+
+    const entry = result.current.index.get(ADDR_B.toLowerCase());
+    expect(entry).toBeDefined();
+    expect(entry!.attachments).toHaveLength(1);
+
+    const upperKey = result.current.index.get(ADDR_B.toUpperCase());
+    expect(upperKey).toBeUndefined();
+  });
+
   it('re-derives the stalest fetch time on refresh instead of ratcheting down', () => {
     const { result } = render(true);
 
