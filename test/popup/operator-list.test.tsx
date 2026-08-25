@@ -68,10 +68,7 @@ describe('OperatorList', () => {
       ownerAddress: ADDR_A,
     })];
     render(<OperatorList {...baseProps} operators={ops} />);
-    expect(screen.getByText('MGR')).toHaveAttribute(
-      'data-hint',
-      'Manager address · owner — holds extended manager permissions.',
-    );
+    expect(screen.getByText('MGR')).toHaveAttribute('data-hint', 'Manager address · owner');
   });
 
   it('marks RWD pill as owner when ownerAddress matches rewardsAddress', () => {

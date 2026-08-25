@@ -155,12 +155,12 @@ export function countLabel(entry: AddressAttachments): string {
   return csm ? `${csm} CSM` : `${cm} CM`;
 }
 
-/** Tooltip text for a role pill, e.g. 'Manager address · owner — holds extended manager permissions.' */
+/** Tooltip text for a role pill, e.g. 'Manager address · owner' */
 export function roleHintByLabel(label: RoleLabel, owner: boolean): string {
   if (label === 'P-MGR') return 'Proposed manager address — pending';
   if (label === 'P-RWD') return 'Proposed rewards address — pending';
   const base = label === 'MGR' ? 'Manager address' : 'Rewards address';
-  return owner ? `${base} · owner — holds extended manager permissions.` : base;
+  return owner ? `${base} · owner` : base;
 }
 
 export function roleHint(entry: RoleEntry): string {

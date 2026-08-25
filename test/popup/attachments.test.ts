@@ -222,13 +222,13 @@ describe('roleHint', () => {
   it('appends the owner suffix for an owner manager', () => {
     const op = makeOperator({ id: '2', managerAddress: ADDR_A, ownerAddress: ADDR_A });
     const entry = roleEntries(op).find((e) => e.role === 'manager')!;
-    expect(roleHint(entry)).toBe('Manager address · owner — holds extended manager permissions.');
+    expect(roleHint(entry)).toBe('Manager address · owner');
   });
 
   it('appends the owner suffix for an owner rewards', () => {
     const op = makeOperator({ id: '3', ownerAddress: ADDR_B });
     const entry = roleEntries(op).find((e) => e.role === 'rewards')!;
-    expect(roleHint(entry)).toBe('Rewards address · owner — holds extended manager permissions.');
+    expect(roleHint(entry)).toBe('Rewards address · owner');
   });
 
   it('describes a proposed manager address, never as owner', () => {
@@ -251,12 +251,8 @@ describe('roleHintByLabel', () => {
   });
 
   it('appends the owner suffix when owner', () => {
-    expect(roleHintByLabel('MGR', true)).toBe(
-      'Manager address · owner — holds extended manager permissions.',
-    );
-    expect(roleHintByLabel('RWD', true)).toBe(
-      'Rewards address · owner — holds extended manager permissions.',
-    );
+    expect(roleHintByLabel('MGR', true)).toBe('Manager address · owner');
+    expect(roleHintByLabel('RWD', true)).toBe('Rewards address · owner');
   });
 
   it('describes proposed roles as pending, ignoring owner', () => {
