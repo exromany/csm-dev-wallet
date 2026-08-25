@@ -103,10 +103,15 @@ test/
   pair, never the bare id.
 - **Proposed roles are attachments:** `P-MGR`/`P-RWD` count in `buildAttachmentIndex`, which is
   what the Shared tab's Pending filter selects on.
-- **Settings is not a tab:** it lives in the header as an `icon-btn`, because six tabs overflow
-  the 400px popup. `goToTab(page, 'Settings')` in the e2e helpers clicks that button.
+- **Settings is not a tab:** six tabs overflow the 400px popup, so it lives as a row inside the
+  network/module popover. `goToTab(page, 'Settings')` in the e2e helpers opens `.netmod-chip`
+  and clicks `.netmod-option.settings`.
 - **Shared tab spans both modules:** it issues `request-operators` for CSM *and* CM and stays in
   its loading state until both answer, so counts never render half-built.
+- **`.attach-row` is not unique:** `AttachmentRow` renders on the Shared tab *and* in the
+  connected bar's hover panel, whose copies sit in the DOM permanently and hidden. Scope e2e
+  waits to the owning card — an unscoped `waitForSelector('.attach-row')` can latch onto a
+  hidden panel row and hang.
 - **Connected address, not connected operator:** the extension only knows the address it exposed
   to the dapp — the widget resolves that address to an operator on its own. `operatorId` in
   `AddressSource` records the provenance of the click, not what's active; no UI may claim a

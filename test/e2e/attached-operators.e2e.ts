@@ -72,7 +72,7 @@ async function connectViaShared(page: Page, address: string) {
   await page.waitForSelector('.addr-card');
   const card = page.locator('.addr-card', { hasText: address.slice(0, 6) });
   await card.locator('.addr-head').click();
-  await page.waitForSelector('.attach-row');
+  await card.locator('.attach-row').first().waitFor();
   await card.locator('.attach-row').first().click();
   await waitForSettledTrigger(page);
 }

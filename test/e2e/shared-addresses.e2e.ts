@@ -118,7 +118,7 @@ async function main() {
 
       const sharedCard = page.locator('.addr-card', { hasText: SHARED.slice(0, 6) });
       await sharedCard.locator('.addr-head').click();
-      await page.waitForSelector('.attach-row');
+      await sharedCard.locator('.attach-row').first().waitFor();
 
       const cmRow = sharedCard.locator('.attach-row', { hasText: 'CM·PO' });
       await cmRow.click();
@@ -160,7 +160,7 @@ async function main() {
 
       const sharedCard = page.locator('.addr-card', { hasText: SHARED.slice(0, 6) });
       await sharedCard.locator('.addr-head').click();
-      await page.waitForSelector('.attach-row');
+      await sharedCard.locator('.attach-row').first().waitFor();
 
       // Clicking .attach-row selects the address — click the label control instead.
       const cmRow = sharedCard.locator('.attach-row', { hasText: 'CM·PO' });
