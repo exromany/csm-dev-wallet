@@ -69,6 +69,10 @@ function buildContext(
   };
 }
 
+// Dedupe concurrent refreshes of the same module: multiple callers writing the same
+// storage key would otherwise race, and the first to finish clears loading for all.
+const inFlightRefreshes = new Map<string, Promise<void>>();
+
 export default defineBackground(() => {
   // ── Approval state ──
   const pendingApprovals = new Map<string, PendingApproval>();
@@ -267,23 +271,35 @@ export default defineBackground(() => {
       if (!force && !isStale(cached)) return;
     }
 
-    broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: true });
+    const key = `${ctx.moduleType}:${ctx.chainId}`;
+    const running = inFlightRefreshes.get(key);
+    if (running) return running;
+
+    const task = (async () => {
+      broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: true });
+      try {
+        const entry = await fetchOperators(ctx);
+        broadcastToPopups({
+          type: 'operators-update',
+          chainId: ctx.chainId,
+          moduleType: ctx.moduleType,
+          operators: entry.operators,
+          lastFetchedAt: entry.lastFetchedAt,
+        });
+      } catch (err: unknown) {
+        broadcastToPopups({
+          type: 'error',
+          message: `Failed to fetch operators: ${errorMessage(err)}`,
+        });
+      } finally {
+        broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: false });
+      }
+    })();
+    inFlightRefreshes.set(key, task);
     try {
-      const entry = await fetchOperators(ctx);
-      broadcastToPopups({
-        type: 'operators-update',
-        chainId: ctx.chainId,
-        moduleType: ctx.moduleType,
-        operators: entry.operators,
-        lastFetchedAt: entry.lastFetchedAt,
-      });
-    } catch (err: unknown) {
-      broadcastToPopups({
-        type: 'error',
-        message: `Failed to fetch operators: ${errorMessage(err)}`,
-      });
+      await task;
     } finally {
-      broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: false });
+      inFlightRefreshes.delete(key);
     }
   }
 
@@ -439,11 +455,18 @@ export default defineBackground(() => {
               forkedFrom,
             };
             await triggerRefresh(ctx);
+          } else {
+            // No fork to read from: still reply so the popup's loading flag clears.
+            broadcastToPopups({ type: 'operators-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
           }
           break;
         }
         const chainId = command.chainId as SupportedChainId;
-        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) break;
+        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
+          // Unsupported network: still reply so the popup's loading flag clears.
+          broadcastToPopups({ type: 'operators-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
+          break;
+        }
         const rpcUrl = globalSettings.customRpcUrls[command.chainId] ?? DEFAULT_NETWORKS[chainId]?.rpcUrl ?? DEFAULT_NETWORKS[1 as SupportedChainId].rpcUrl;
         await triggerRefresh({ chainId: command.chainId, moduleType: command.moduleType, rpcUrl });
         break;
