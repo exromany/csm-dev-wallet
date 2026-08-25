@@ -104,7 +104,7 @@ export function SharedAddresses({
         <div className="scope-note">CM is not deployed on this network — showing CSM only.</div>
       )}
 
-      {loading ? (
+      {loading && shown.length === 0 ? (
         <div className="loading">
           <div className="spinner" />
           <p>Loading operators...</p>

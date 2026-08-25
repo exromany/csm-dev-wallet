@@ -18,11 +18,10 @@ export function AttachedOperators({
   operatorLabel,
   onSelect,
 }: Props) {
-  // A half-built count is worse than none: loading wins outright, so the pill
-  // waits for every module to answer (see useSharedAddresses) before an entry
-  // is trusted. Once settled, an absent entry means the address genuinely has
-  // no attachments.
-  if (loading) {
+  // On first load a half-built count is worse than none, so loading wins until an
+  // entry exists. Once one does, a refresh keeps showing it — stale-but-known beats
+  // the placeholder, and a settled absent entry means genuinely no attachments.
+  if (loading && !entry) {
     return (
       <span className="attach-count pending-count hint hint-right" data-hint="Reading the operator cache…">
         ⋯

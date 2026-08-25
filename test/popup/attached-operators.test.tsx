@@ -36,11 +36,12 @@ describe('AttachedOperators', () => {
     expect(pill!.textContent).toBe('⋯');
   });
 
-  it('renders the pending pill (not the trigger) while loading even once an entry has landed', () => {
+  it('keeps rendering a known count (not the pending pill) during a refresh', () => {
     const entry = entryFor(ADDR_A, { csm: [makeOperator({ id: '12', managerAddress: ADDR_A })] });
     const { container } = renderPanel({ entry, loading: true });
-    expect(container.querySelector('.pending-count')).toBeTruthy();
-    expect(container.querySelector('.ops-trigger')).not.toBeInTheDocument();
+    expect(container.querySelector('.pending-count')).not.toBeInTheDocument();
+    expect(container.querySelector('.ops-trigger')).toBeTruthy();
+    expect(screen.getByText(/1 op\b/)).toBeInTheDocument();
   });
 
   it('renders "1 op" for a single attachment', () => {

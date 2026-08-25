@@ -247,8 +247,9 @@ export function useSharedAddresses(
   const [fetchedAt, setFetchedAt] = useState<Partial<Record<ModuleType, number>>>({});
 
   const cmMissing = cmAvailable === false;
-  // Availability starts unknown — hold the CM request until it resolves, rather
-  // than firing one that background will reject/error on a CM-less network.
+  // Availability starts unknown — the main effect holds off entirely until it
+  // resolves (see the `cmAvailable === undefined` guard below), so this never
+  // fires a CM request that background would reject/error on a CM-less network.
   const wanted = useMemo<ModuleType[]>(
     () => (cmAvailable ? SHARED_MODULES : ['csm']),
     [cmAvailable],
@@ -259,8 +260,9 @@ export function useSharedAddresses(
   useEffect(() => {
     // Held off until the Shared tab is actually visited, so a popup that never
     // opens it doesn't fire a redundant CSM fetch (Operators tab already does)
-    // plus a full CM fetch on every open.
-    if (!port || !origin || !enabled) return;
+    // plus a full CM fetch on every open. Also held off until CM availability
+    // is known, so `wanted` doesn't change identity mid-flight and re-request.
+    if (!port || !origin || !enabled || cmAvailable === undefined) return;
 
     setByModule({});
     setLoadingModules([]);
@@ -301,10 +303,10 @@ export function useSharedAddresses(
       }
     }
     return () => port.onMessage.removeListener(handler);
-  }, [port, origin, chainId, wanted, enabled]);
+  }, [port, origin, chainId, wanted, enabled, cmAvailable]);
 
   const refresh = useCallback(() => {
-    if (!port || !origin) return;
+    if (!port || !origin || cmAvailable === undefined) return;
     for (const moduleType of wanted) {
       try {
         port.postMessage({ type: 'refresh-operators', origin, chainId, moduleType } satisfies PopupCommand);
@@ -312,15 +314,18 @@ export function useSharedAddresses(
         // Port disconnected — useWalletState reopens on focus
       }
     }
-  }, [port, origin, chainId, wanted]);
+  }, [port, origin, chainId, wanted, cmAvailable]);
 
   const index = useMemo(() => buildAttachmentIndex(byModule), [byModule]);
   const addresses = useMemo(() => sharedAddresses(index), [index]);
 
   // Report the STALEST module, so "updated Xm ago" never overstates freshness.
+  // A module that settled without an operators-update (e.g. a failed fetch)
+  // has no stamp — null out rather than silently reporting a partial index.
   const lastFetchedAt = useMemo(() => {
-    const stamps = wanted.map((m) => fetchedAt[m]).filter((t): t is number => t !== undefined);
-    return stamps.length ? Math.min(...stamps) : null;
+    const stamps = wanted.map((m) => fetchedAt[m]);
+    if (stamps.some((t) => t === undefined)) return null;
+    return Math.min(...(stamps as number[]));
   }, [fetchedAt, wanted]);
 
   // Counts must never render half-built, so a module that hasn't settled yet

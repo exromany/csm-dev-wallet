@@ -37,11 +37,12 @@ describe('useSharedAddresses', () => {
     expect(result.current.cmMissing).toBe(true);
   });
 
-  it('holds off the CM request until availability is known', () => {
+  it('holds off every request until CM availability is known, and stays loading', () => {
     const { result } = render(undefined);
     const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
     const requests = sent.filter((c) => c.type === 'request-operators');
-    expect(requests.map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm']);
+    expect(requests).toHaveLength(0);
+    expect(result.current.loading).toBe(true);
     expect(result.current.cmMissing).toBe(false);
   });
 
@@ -97,6 +98,23 @@ describe('useSharedAddresses', () => {
       port._emit({ type: 'operators-loading', chainId: 1, moduleType: 'cm', loading: false } satisfies PopupEvent);
     });
     expect(result.current.loading).toBe(false);
+  });
+
+  it('reports lastFetchedAt as null when a settled module never sent an operators-update', () => {
+    const { result } = render(true);
+
+    act(() => {
+      port._emit({
+        type: 'operators-update', chainId: 1, moduleType: 'csm',
+        operators: [makeOperator({ id: '12', managerAddress: ADDR_A })],
+        lastFetchedAt: 2000,
+      } satisfies PopupEvent);
+      // CM fails: settles via loading:false with no operators-update.
+      port._emit({ type: 'operators-loading', chainId: 1, moduleType: 'cm', loading: false } satisfies PopupEvent);
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.lastFetchedAt).toBeNull();
   });
 
   it('indexes across both modules and reports the stalest fetch time', () => {
