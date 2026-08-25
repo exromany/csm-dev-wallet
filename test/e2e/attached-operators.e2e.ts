@@ -89,10 +89,10 @@ async function connectViaManual(page: Page, address: string) {
 /**
  * Waits for `.ops-trigger` and returns its settled text.
  *
- * cmAvailable starts unknown, so useSharedAddresses can legitimately finish
- * loading on CSM alone, render the trigger with an under-counted total, then
- * reset and refetch once CM availability resolves a beat later (see its "hold
- * off the CM request" comment). A `.pending-count` element never satisfies
+ * Module availability starts unknown, so useSharedAddresses can legitimately
+ * finish loading on CSM alone, render the trigger with an under-counted total,
+ * then reset and refetch once the other modules' availability resolves a beat
+ * later (see its "hold off every request" comment). A `.pending-count` element never satisfies
  * `.ops-trigger`, so waiting on it alone isn't enough — poll until the text
  * stops moving so tests read the fully-settled count, not the first paint.
  */

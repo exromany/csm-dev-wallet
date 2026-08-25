@@ -2,6 +2,7 @@ import React from 'react';
 import type { ModuleType } from '../../lib/shared/types.js';
 import type { ModuleAvailability } from '../../lib/shared/messages.js';
 import { CHAIN_ID, ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
+import { MODULE_ORDER, MODULE_LABEL } from '../../lib/shared/modules.js';
 import { IconChevronDown, IconSettings } from './icons.js';
 
 // The chip is a native popover invoker; the panel is the popover it targets.
@@ -22,11 +23,10 @@ const NETWORKS: Network[] = [
   { id: ANVIL_CHAIN_ID, label: 'Anvil', dot: '#fb923c' },
 ];
 
-const MODULES: { type: ModuleType; label: string }[] = [
-  { type: 'csm', label: 'CSM' },
-  { type: 'csm02', label: 'CSM 0x02' },
-  { type: 'cm', label: 'CM' },
-];
+const MODULES: { type: ModuleType; label: string }[] = MODULE_ORDER.map((type) => ({
+  type,
+  label: MODULE_LABEL[type],
+}));
 
 function netLabel(chainId: number, forkedFrom?: number | null): string {
   if (chainId !== ANVIL_CHAIN_ID || !forkedFrom) {

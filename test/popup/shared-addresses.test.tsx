@@ -40,7 +40,7 @@ function renderTab(overrides: Partial<React.ComponentProps<typeof SharedAddresse
       addresses={addresses}
       loading={false}
       lastFetchedAt={null}
-      cmMissing={false}
+      missingModules={[]}
       addressLabels={{}}
       operatorLabels={operatorLabels}
       siteModuleType="csm"
@@ -126,7 +126,7 @@ describe('SharedAddresses', () => {
   });
 
   it('tells the user when CM is unavailable', () => {
-    renderTab({ cmMissing: true });
+    renderTab({ missingModules: ['cm'] });
     expect(screen.getByText(/CM is not deployed/i)).toBeInTheDocument();
   });
 

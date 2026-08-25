@@ -97,6 +97,10 @@ describe('attachmentTypeLabel', () => {
     expect(attachmentTypeLabel('cm', 'CC')).toBe('CM·CC');
     expect(attachmentTypeLabel('csm', '')).toBe('CSM·CC');
   });
+
+  it('strips the CSM2_ prefix and uses the compact CSM02 module name', () => {
+    expect(attachmentTypeLabel('csm02', 'CSM2_DEF')).toBe('CSM02·DEF');
+  });
 });
 
 describe('buildAttachmentIndex', () => {
@@ -155,6 +159,18 @@ describe('buildAttachmentIndex', () => {
   it('carries the ribbon kind for each attachment', () => {
     const index = buildAttachmentIndex({ csm: [makeOperator({ id: '42', managerAddress: ADDR_A, operatorType: 'CSM_LEA' })] });
     expect(index.get(ADDR_A.toLowerCase())?.attachments[0].kind).toBe('csm-lea');
+  });
+
+  it('includes csm02 operators, not just csm and cm', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '1', managerAddress: ADDR_A })],
+      csm02: [makeOperator({ id: '1', managerAddress: ADDR_A, operatorType: 'CSM2_DEF' })],
+    });
+
+    const entry = index.get(ADDR_A.toLowerCase());
+    expect(entry?.attachments).toHaveLength(2);
+    expect(entry?.attachments.map((a) => a.moduleType)).toEqual(['csm', 'csm02']);
+    expect(entry?.crossModule).toBe(true);
   });
 
   it('carries the curve id for each attachment', () => {
@@ -217,6 +233,17 @@ describe('countLabel', () => {
       ],
     });
     expect(countLabel(index.get(ADDR_A.toLowerCase())!)).toBe('2 CM');
+  });
+
+  it('names all three modules in order when the address spans csm, csm02 and cm', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '1', managerAddress: ADDR_A })],
+      csm02: [makeOperator({ id: '1', managerAddress: ADDR_A, operatorType: 'CSM2_DEF' })],
+      cm: [makeOperator({ id: '1', managerAddress: ADDR_A, operatorType: 'CM_PO' })],
+    });
+    const entry = index.get(ADDR_A.toLowerCase())!;
+    expect(moduleCounts(entry)).toEqual({ csm: 1, csm02: 1, cm: 1 });
+    expect(countLabel(entry)).toBe('1 CSM · 1 CSM02 · 1 CM');
   });
 });
 
@@ -351,6 +378,17 @@ describe('countHint', () => {
     });
     expect(countHint(index.get(ADDR_A.toLowerCase())!)).toBe(
       'Attached to 1 CSM operator and 2 CM operators — spans both modules.',
+    );
+  });
+
+  it('names all three modules and counts them as modules, not "both", for a csm+csm02+cm address', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '1', managerAddress: ADDR_A })],
+      csm02: [makeOperator({ id: '1', managerAddress: ADDR_A, operatorType: 'CSM2_DEF' })],
+      cm: [makeOperator({ id: '1', managerAddress: ADDR_A, operatorType: 'CM_PO' })],
+    });
+    expect(countHint(index.get(ADDR_A.toLowerCase())!)).toBe(
+      'Attached to 1 CSM operator, 1 CSM 0x02 operator and 1 CM operator — spans 3 modules.',
     );
   });
 });

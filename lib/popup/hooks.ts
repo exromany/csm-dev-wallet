@@ -3,6 +3,7 @@ import type { WalletState, CachedOperator, ModuleType } from '../shared/types.js
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
+import { MODULE_ORDER, BASELINE_MODULE, PROBED_MODULES } from '../shared/modules.js';
 import type { Address } from 'viem';
 import {
   buildAttachmentIndex,
@@ -225,10 +226,9 @@ export function useOperators(
 
 export type SharedFilter = 'all' | 'cross' | 'pending';
 
-const SHARED_MODULES: ModuleType[] = ['csm', 'cm'];
-
 /**
- * Addresses attached to more than one operator, across BOTH modules.
+ * Addresses attached to more than one operator, across every module deployed
+ * on this network.
  *
  * Reuses `request-operators` (which already takes an arbitrary moduleType) rather
  * than adding a protocol message, so cold and stale caches fetch through exactly
@@ -238,7 +238,7 @@ export function useSharedAddresses(
   port: chrome.runtime.Port | null,
   origin: string | null,
   chainId: number,
-  cmAvailable: boolean | undefined,
+  availableModules: ModuleAvailability,
   enabled: boolean,
 ) {
   const [byModule, setByModule] = useState<Partial<Record<ModuleType, CachedOperator[]>>>({});
@@ -246,13 +246,15 @@ export function useSharedAddresses(
   const [settledModules, setSettledModules] = useState<ModuleType[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Partial<Record<ModuleType, number>>>({});
 
-  const cmMissing = cmAvailable === false;
-  // Availability starts unknown — the main effect holds off entirely until it
-  // resolves (see the `cmAvailable === undefined` guard below), so this never
-  // fires a CM request that background would reject/error on a CM-less network.
-  const wanted = useMemo<ModuleType[]>(
-    () => (cmAvailable ? SHARED_MODULES : ['csm']),
-    [cmAvailable],
+  // A stale availability cache written before a module existed omits its key —
+  // "map is non-empty" isn't enough, every probed module must have answered.
+  const resolved = PROBED_MODULES.every((m) => availableModules[m] !== undefined);
+  const wantedKey = MODULE_ORDER.filter((m) => m === BASELINE_MODULE || availableModules[m]).join(',');
+  const wanted = useMemo<ModuleType[]>(() => wantedKey.split(',') as ModuleType[], [wantedKey]);
+  const missingKey = MODULE_ORDER.filter((m) => availableModules[m] === false).join(',');
+  const missingModules = useMemo<ModuleType[]>(
+    () => (missingKey ? (missingKey.split(',') as ModuleType[]) : []),
+    [missingKey],
   );
   const chainIdRef = useRef(chainId);
   chainIdRef.current = chainId;
@@ -260,9 +262,10 @@ export function useSharedAddresses(
   useEffect(() => {
     // Held off until the Shared tab is actually visited, so a popup that never
     // opens it doesn't fire a redundant CSM fetch (Operators tab already does)
-    // plus a full CM fetch on every open. Also held off until CM availability
-    // is known, so `wanted` doesn't change identity mid-flight and re-request.
-    if (!port || !origin || !enabled || cmAvailable === undefined) return;
+    // plus a full fetch of every other module on every open. Also held off until
+    // every module's availability is known, so `wanted` doesn't change identity
+    // mid-flight and re-request.
+    if (!port || !origin || !enabled || !resolved) return;
 
     setByModule({});
     setLoadingModules([]);
@@ -303,10 +306,10 @@ export function useSharedAddresses(
       }
     }
     return () => port.onMessage.removeListener(handler);
-  }, [port, origin, chainId, wanted, enabled, cmAvailable]);
+  }, [port, origin, chainId, wanted, enabled, resolved]);
 
   const refresh = useCallback(() => {
-    if (!port || !origin || cmAvailable === undefined) return;
+    if (!port || !origin || !resolved) return;
     for (const moduleType of wanted) {
       try {
         port.postMessage({ type: 'refresh-operators', origin, chainId, moduleType } satisfies PopupCommand);
@@ -314,7 +317,7 @@ export function useSharedAddresses(
         // Port disconnected — useWalletState reopens on focus
       }
     }
-  }, [port, origin, chainId, wanted, cmAvailable]);
+  }, [port, origin, chainId, wanted, resolved]);
 
   const index = useMemo(() => buildAttachmentIndex(byModule), [byModule]);
   const addresses = useMemo(() => sharedAddresses(index), [index]);
@@ -333,7 +336,7 @@ export function useSharedAddresses(
   const answered = wanted.filter((m) => settledModules.includes(m)).length;
   const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
 
-  return { addresses, index, loading, lastFetchedAt, cmMissing, refresh };
+  return { addresses, index, loading, lastFetchedAt, missingModules, refresh };
 }
 
 /** Scope + search filter for the Shared tab. */

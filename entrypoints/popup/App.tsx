@@ -146,7 +146,7 @@ export function App() {
     port,
     origin,
     state.chainId,
-    availableModules.cm,
+    availableModules,
     needAttachments,
   );
 
@@ -327,7 +327,7 @@ export function App() {
             addresses={sharedAddrs.addresses}
             loading={sharedAddrs.loading}
             lastFetchedAt={sharedAddrs.lastFetchedAt}
-            cmMissing={sharedAddrs.cmMissing}
+            missingModules={sharedAddrs.missingModules}
             addressLabels={state.addressLabels}
             operatorLabels={operatorLabels}
             selectedAddress={state.selectedAddress?.address}

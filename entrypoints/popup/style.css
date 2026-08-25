@@ -814,6 +814,7 @@ input:focus {
 .kind-cm-iodc   { --ribbon-color: #ec4899; } /* pink */
 .kind-cm-iodcp  { --ribbon-color: #d946ef; } /* fuchsia */
 .kind-cc        { --ribbon-color: #64748b; } /* slate (unknown / community curve) */
+.kind-csm2-def  { --ribbon-color: #8b5cf6; } /* violet */
 
 .operator-row:hover {
   background: var(--surface);

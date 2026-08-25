@@ -96,7 +96,8 @@ test/
 - **CSM SDK imports:** Contract addresses come from `@lidofinance/lido-csm-sdk/common` subpath, not the main entry
 - **Content script timing:** Must run at `document_start` to inject provider before dapp scripts execute
 - **CM module:** May not be deployed on all networks — `fetchAllOperators` catches and re-throws after caching empty result
-- **Modules:** `ModuleType` is `'csm' | 'cm' | 'csm02'`. CSM is the baseline — assumed available everywhere and the fallback the popup switches to; only the others are RPC-probed (`PROBED_MODULES` in `background.ts`). CSM 0x02 is Hoodi-only, so `MODULE_CONFIG[CSM_02][mainnet]` is undefined — lookups must tolerate a missing per-chain config
+- **Modules:** `lib/shared/modules.ts` is the registry — `MODULE_ORDER` (display order), `BASELINE_MODULE`, the derived `PROBED_MODULES`, and the `MODULE_LABEL`/`MODULE_SHORT` names. Add a module there, not in a local array: background probing, the picker, and the Shared tab all read from it. CSM is the baseline — assumed available everywhere and the fallback the popup switches to; only the others are RPC-probed. CSM 0x02 is Hoodi-only, so `MODULE_CONFIG[CSM_02][mainnet]` is undefined — lookups must tolerate a missing per-chain config. Its SDK operator type is `CSM2_DEF`, not `CSM_02_DEF`
+- **Module availability:** `ModuleAvailability` is a `Partial<Record<ModuleType, boolean>>`; a value persisted before a module existed omits that key, so `undefined` means "not known yet", never "absent". Consumers must wait for every `PROBED_MODULES` entry to answer rather than checking the map is non-empty
 - **Favorites scoping:** Stored as `"moduleType:chainId:operatorId"` (e.g. `"csm:1:42"`). Legacy bare IDs migrated on load.
 - **State migration:** `migrateState()` handles legacy storage formats — don't assume storage shape is current
 - **Operator identity is (id, module):** CSM #7 and CM #7 are different operators. Anything
