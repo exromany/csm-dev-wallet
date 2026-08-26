@@ -2,8 +2,17 @@ allowBuilds:
   esbuild: true
   spawn-sync: true
 
+minimumReleaseAgeExclude:
+  - '@lidofinance/lido-csm-sdk@2.3.0-alpha.2'
+
 overrides:
   shell-quote: ^1.8.4
-  tmp: ^0.2.6
+  tmp: ^0.2.7
   esbuild: ^0.28.1
   uuid: ^11.1.1
+  ws: ^8.21.0
+  adm-zip: ^0.6.0
+  brace-expansion@1: ^1.1.18
+  postcss: ^8.5.26
+  nanoid@3: ^3.3.18
+  undici@7: ^7.29.0

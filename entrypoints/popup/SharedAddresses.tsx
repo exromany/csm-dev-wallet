@@ -16,7 +16,6 @@ type Props = {
   addresses: AddressAttachments[];
   loading: boolean;
   lastFetchedAt: number | null;
-  cmMissing: boolean;
   addressLabels: Record<string, string>;
   operatorLabels: OperatorLabels;
   selectedAddress?: string;
@@ -35,7 +34,6 @@ export function SharedAddresses({
   addresses,
   loading,
   lastFetchedAt,
-  cmMissing,
   addressLabels,
   operatorLabels,
   selectedAddress,
@@ -99,10 +97,6 @@ export function SharedAddresses({
           </button>
         </div>
       </div>
-
-      {cmMissing && (
-        <div className="scope-note">CM is not deployed on this network — showing CSM only.</div>
-      )}
 
       {loading && shown.length === 0 ? (
         <div className="loading">

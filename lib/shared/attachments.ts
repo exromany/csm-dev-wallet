@@ -1,5 +1,6 @@
 import type { Address } from 'viem';
 import type { AddressRole, CachedOperator, ModuleType } from './types.js';
+import { MODULE_ORDER, MODULE_LABEL, MODULE_SHORT } from './modules.js';
 
 export type RoleLabel = 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD';
 
@@ -69,12 +70,10 @@ export type AddressAttachments = {
   pending: boolean; // holds at least one proposed role
 };
 
-const MODULE_ORDER: ModuleType[] = ['csm', 'cm'];
-
 /** 'CSM_DEF' → 'CSM·DEF'. The prefixless 'CC' fallback takes its cache module. */
 export function attachmentTypeLabel(moduleType: ModuleType, operatorType: string): string {
-  const bare = (operatorType || 'CC').replace(/^CSM_|^CM_/, '');
-  return `${moduleType.toUpperCase()}·${bare}`;
+  const bare = (operatorType || 'CC').replace(/^(?:CSM2?|CM)_/, '');
+  return `${MODULE_SHORT[moduleType]}·${bare}`;
 }
 
 /**
@@ -146,17 +145,24 @@ export function sharedAddresses(index: Map<string, AddressAttachments>): Address
     );
 }
 
-export function moduleCounts(entry: AddressAttachments): { csm: number; cm: number } {
-  let csm = 0;
-  for (const a of entry.attachments) if (a.moduleType === 'csm') csm++;
-  return { csm, cm: entry.attachments.length - csm };
+export function moduleCounts(entry: AddressAttachments): Partial<Record<ModuleType, number>> {
+  const counts: Partial<Record<ModuleType, number>> = {};
+  for (const a of entry.attachments) counts[a.moduleType] = (counts[a.moduleType] ?? 0) + 1;
+  return counts;
+}
+
+/** 'a' | 'a and b' | 'a, b and c' */
+export function joinList(parts: string[]): string {
+  if (parts.length <= 1) return parts.join('');
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
 /** '2 CSM · 1 CM' when the address spans modules, '2 CM' when it does not. */
 export function countLabel(entry: AddressAttachments): string {
-  const { csm, cm } = moduleCounts(entry);
-  if (csm && cm) return `${csm} CSM · ${cm} CM`;
-  return csm ? `${csm} CSM` : `${cm} CM`;
+  const counts = moduleCounts(entry);
+  return MODULE_ORDER.filter((m) => counts[m])
+    .map((m) => `${counts[m]} ${MODULE_SHORT[m]}`)
+    .join(' · ');
 }
 
 /** Tooltip text for a role pill, e.g. 'Manager address · owner' */
@@ -179,15 +185,17 @@ export function operatorTypeHint(operatorType: string, curveId: string): string 
 export function typeHint(att: Attachment, siteModuleType?: ModuleType): string {
   const base = operatorTypeHint(att.operatorType, att.curveId);
   if (!siteModuleType || att.moduleType === siteModuleType) return base;
-  return `${base} — selecting this switches the site to ${att.moduleType.toUpperCase()}`;
+  return `${base} — selecting this switches the site to ${MODULE_LABEL[att.moduleType]}`;
 }
 
 /** Tooltip text for the count pill, e.g. 'Attached to 2 CSM operators and 1 CM operator — spans both modules.' */
 export function countHint(entry: AddressAttachments): string {
-  const { csm, cm } = moduleCounts(entry);
-  const parts: string[] = [];
-  if (csm) parts.push(`${csm} CSM operator${csm === 1 ? '' : 's'}`);
-  if (cm) parts.push(`${cm} CM operator${cm === 1 ? '' : 's'}`);
-  const sentence = `Attached to ${parts.join(' and ')}.`;
-  return entry.crossModule ? `${sentence.slice(0, -1)} — spans both modules.` : sentence;
+  const counts = moduleCounts(entry);
+  const parts = MODULE_ORDER.filter((m) => counts[m]).map(
+    (m) => `${counts[m]} ${MODULE_LABEL[m]} operator${counts[m] === 1 ? '' : 's'}`,
+  );
+  const sentence = `Attached to ${joinList(parts)}.`;
+  if (entry.modules.length === 2) return `${sentence.slice(0, -1)} — spans both modules.`;
+  if (entry.modules.length > 2) return `${sentence.slice(0, -1)} — spans ${entry.modules.length} modules.`;
+  return sentence;
 }

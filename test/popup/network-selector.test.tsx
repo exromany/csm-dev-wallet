@@ -147,6 +147,23 @@ describe('NetworkModulePanel', () => {
     ).toBe(true);
   });
 
+  it('offers CSM 0x02 alongside CSM and CM', () => {
+    const { container } = render(<NetworkModulePanel {...base} />);
+    expect(
+      container.querySelector('.netmod-option[data-module-type="csm02"]'),
+    ).toHaveTextContent('CSM 0x02');
+  });
+
+  it('disables CSM 0x02 on networks it is not deployed to', () => {
+    const { container } = render(
+      <NetworkModulePanel {...base} availableModules={{ csm: true, csm02: false }} />,
+    );
+    expect(
+      container.querySelector<HTMLButtonElement>('.netmod-option[data-module-type="csm02"]')!
+        .disabled,
+    ).toBe(true);
+  });
+
   it('reports open-state changes from the popover toggle event', () => {
     const onOpenChange = vi.fn();
     const { container } = render(

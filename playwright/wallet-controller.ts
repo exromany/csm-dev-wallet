@@ -1,6 +1,6 @@
 import type { Page, Worker } from 'playwright';
 import type { Address } from 'viem';
-import type { WalletController, SetupOptions, SigningMode, AddressSource, AddressRole } from './types.js';
+import type { WalletController, SetupOptions, SigningMode, AddressSource, AddressRole, ModuleType } from './types.js';
 
 export function createWalletController(sw: Worker, extensionId: string): WalletController {
   async function resetCaches() {
@@ -64,6 +64,8 @@ export function createWalletController(sw: Worker, extensionId: string): WalletC
       const key = `module_availability_${chainId}`;
       await sw.evaluate(
         async ([k, mods]) => {
+          // The worker memoises availability for 5min — storage alone won't be re-read.
+          (self as any).__resetAvailabilityCache?.();
           await chrome.storage.local.set({ [k]: { ...mods, checkedAt: Date.now() } });
         },
         [key, options.moduleAvailability] as const,
@@ -98,25 +100,25 @@ export function createWalletController(sw: Worker, extensionId: string): WalletC
     async getState(page: Page) {
       return rpc(page, 'wallet_testGetState') as Promise<Record<string, unknown>>;
     },
-    async seedOperators(page: Page, operators: unknown[], chainId: number, moduleType = 'csm') {
+    async seedOperators(page: Page, operators: unknown[], chainId: number, moduleType: ModuleType = 'csm') {
       await rpc(page, 'wallet_testSeedOperators', [{ operators, chainId, moduleType }]);
     },
-    async getOperators(page: Page, chainId?: number, moduleType?: string) {
+    async getOperators(page: Page, chainId?: number, moduleType?: ModuleType) {
       const params = chainId !== undefined || moduleType !== undefined
         ? [{ chainId, moduleType }]
         : [];
       return rpc(page, 'wallet_testGetOperators', params) as Promise<unknown[] | null>;
     },
-    async getOperator(page: Page, operatorId: string, chainId?: number, moduleType?: string) {
+    async getOperator(page: Page, operatorId: string, chainId?: number, moduleType?: ModuleType) {
       return rpc(page, 'wallet_testGetOperator', [{ operatorId, chainId, moduleType }]) as Promise<Record<string, unknown>>;
     },
-    async selectOperator(page: Page, operatorId: string, role: AddressRole, chainId?: number, moduleType?: string) {
+    async selectOperator(page: Page, operatorId: string, role: AddressRole, chainId?: number, moduleType?: ModuleType) {
       await rpc(page, 'wallet_testSetOperatorAccount', [{ operatorId, role, chainId, moduleType }]);
     },
     async setRpcUrl(page: Page, chainId: number, rpcUrl: string) {
       await rpc(page, 'wallet_testSetRpcUrl', [{ chainId, rpcUrl }]);
     },
-    async refreshOperators(page: Page, chainId?: number, moduleType?: string, rpcUrl?: string) {
+    async refreshOperators(page: Page, chainId?: number, moduleType?: ModuleType, rpcUrl?: string) {
       return rpc(page, 'wallet_testRefreshOperators', [{ chainId, moduleType, rpcUrl }]) as Promise<unknown[]>;
     },
     get sw() { return sw; },

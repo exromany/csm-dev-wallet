@@ -54,10 +54,10 @@ export async function detectAnvilFork(
 
 /** Probe CSM contracts to determine which chain was forked */
 async function probeContracts(rpcUrl: string): Promise<SupportedChainId | null> {
-  const mainnetCsm = MODULE_CONFIG[MODULE_NAME.CSM][CHAIN_ID.Mainnet].contractAddresses.csModule;
+  const mainnetCsm = MODULE_CONFIG[MODULE_NAME.CSM][CHAIN_ID.Mainnet]?.contractAddresses.csModule;
   if (mainnetCsm && (await hasCode(rpcUrl, mainnetCsm))) return CHAIN_ID.Mainnet;
 
-  const hoodiCsm = MODULE_CONFIG[MODULE_NAME.CSM][CHAIN_ID.Hoodi].contractAddresses.csModule;
+  const hoodiCsm = MODULE_CONFIG[MODULE_NAME.CSM][CHAIN_ID.Hoodi]?.contractAddresses.csModule;
   if (hoodiCsm && (await hasCode(rpcUrl, hoodiCsm))) return CHAIN_ID.Hoodi;
 
   return null;

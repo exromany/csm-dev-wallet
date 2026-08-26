@@ -19,7 +19,7 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
     1: { smDiscovery: '0x4444444444444444444444444444444444444444' },
     560048: { smDiscovery: '0x4444444444444444444444444444444444444444' },
   },
-  MODULE_NAME: { CSM: 'CSM', CM: 'CM' },
+  MODULE_NAME: { CSM: 'CSM', CM: 'CM', CSM_02: 'CSM_02' },
   MODULE_CONFIG: {
     CSM: {
       1: { contractAddresses: {}, moduleId: 1n },
@@ -29,24 +29,32 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
       1: { contractAddresses: {}, moduleId: 2n },
       560048: { contractAddresses: {}, moduleId: 2n },
     },
+    // Hoodi-only, mirroring the SDK — no mainnet entry
+    CSM_02: {
+      560048: { contractAddresses: {}, moduleId: 6n },
+    },
   },
-  getOperatorTypeByCurveId: (_chainId: number, moduleName: 'CSM' | 'CM', curveId: bigint) => {
-    const table: Record<string, bigint> = {
-      CSM_DEF: 0n,
-      CSM_LEA: 1n,
-      CSM_ICS: 2n,
-      CSM_IDVTC: 4n,
-      CM_PO: 0n,
-      CM_PTO: 1n,
-      CM_PGO: 2n,
-      CM_DO: 3n,
-      CM_EEO: 4n,
-      CM_IODC: 5n,
-      CM_IODCP: 6n,
+  getOperatorTypeByCurveId: (
+    _chainId: number,
+    moduleName: 'CSM' | 'CM' | 'CSM_02',
+    curveId: bigint,
+  ) => {
+    // Per-module curve tables, mirroring the SDK — curve ids collide across
+    // modules (0n is CSM_DEF, CM_PO and CSM2_DEF), so the lookup must be scoped.
+    const table: Record<string, Record<string, bigint>> = {
+      CSM: { CSM_DEF: 0n, CSM_LEA: 1n, CSM_ICS: 2n, CSM_IDVTC: 4n },
+      CSM_02: { CSM2_DEF: 0n },
+      CM: {
+        CM_PO: 0n,
+        CM_PTO: 1n,
+        CM_PGO: 2n,
+        CM_DO: 3n,
+        CM_EEO: 4n,
+        CM_IODC: 5n,
+        CM_IODCP: 6n,
+      },
     };
-    return Object.entries(table).find(
-      ([key, id]) => id === curveId && key.startsWith(`${moduleName}_`),
-    )?.[0];
+    return Object.entries(table[moduleName] ?? {}).find(([, id]) => id === curveId)?.[0];
   },
 }));
 
@@ -176,6 +184,37 @@ describe('isModuleAvailable', () => {
 
     expect(
       await isModuleAvailable(ctx({ chainId: 104, moduleType: 'cm', forkedFrom: 1 })),
+    ).toBe(true);
+    expect(mockReadContract).not.toHaveBeenCalled();
+  });
+
+  it('reports csm02 unavailable on a chain the SDK has no config for, without RPC', async () => {
+    // CSM_02 is Hoodi-only — mainnet has no MODULE_CONFIG entry, so there is
+    // no moduleId to probe with and we must not burn an RPC call finding out.
+    expect(
+      await isModuleAvailable(ctx({ chainId: 106, moduleType: 'csm02', forkedFrom: 1 })),
+    ).toBe(false);
+    expect(mockReadContract).not.toHaveBeenCalled();
+  });
+
+  it('probes csm02 over RPC on Hoodi, where it is deployed', async () => {
+    mockReadContract.mockResolvedValue(['0x5555555555555555555555555555555555555555']);
+
+    expect(
+      await isModuleAvailable(ctx({ chainId: 107, moduleType: 'csm02', forkedFrom: 560048 })),
+    ).toBe(true);
+    expect(mockReadContract).toHaveBeenCalledWith(
+      expect.objectContaining({ args: [6n] }),
+    );
+  });
+
+  it('persisted cache hit is keyed by module — csm02 skips RPC', async () => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      module_availability_108: { csm: true, csm02: true, checkedAt: Date.now() },
+    });
+
+    expect(
+      await isModuleAvailable(ctx({ chainId: 108, moduleType: 'csm02', forkedFrom: 560048 })),
     ).toBe(true);
     expect(mockReadContract).not.toHaveBeenCalled();
   });

@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useSharedAddresses, filterSharedAddresses } from '../../lib/popup/hooks.js';
 import { createMockPort, type MockPort } from '../setup.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C } from '../fixtures.js';
-import type { PopupEvent, PopupCommand } from '../../lib/shared/messages.js';
+import type { PopupEvent, PopupCommand, ModuleAvailability } from '../../lib/shared/messages.js';
 import { buildAttachmentIndex, sharedAddresses } from '../../lib/shared/attachments.js';
 
 const TEST_ORIGIN = 'https://example.com';
@@ -15,45 +15,56 @@ describe('useSharedAddresses', () => {
     port = createMockPort();
   });
 
-  // cmAvailable has no default — undefined ("not known yet") and true are
-  // distinct cases here, so callers must always be explicit.
-  const render = (cmAvailable: boolean | undefined, enabled = true) =>
+  // availableModules has no default — {} ("nothing known yet") and a fully
+  // resolved map are distinct cases here, so callers must always be explicit.
+  const ALL_AVAILABLE: ModuleAvailability = { csm: true, cm: true, csm02: true };
+  const CM_MISSING: ModuleAvailability = { csm: true, cm: false, csm02: false };
+  // csm02 resolved-but-absent (a network without it), so these behaviour tests
+  // stay focused on the csm/cm interplay they were written for.
+  const TWO_MODULE: ModuleAvailability = { csm: true, cm: true, csm02: false };
+  const render = (availableModules: ModuleAvailability, enabled = true) =>
     renderHook(() =>
-      useSharedAddresses(port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, cmAvailable, enabled),
+      useSharedAddresses(port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, availableModules, enabled),
     );
 
-  it('requests operators for both modules', () => {
-    render(true);
+  it('requests operators for every available module', () => {
+    render(ALL_AVAILABLE);
     const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
     const requests = sent.filter((c) => c.type === 'request-operators');
-    expect(requests.map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm', 'cm']);
+    expect(requests.map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm', 'csm02', 'cm']);
   });
 
-  it('requests CSM only when CM is unavailable, and reports it', () => {
-    const { result } = render(false);
+  it('requests CSM only when the others are unavailable', () => {
+    render(CM_MISSING);
     const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
     const requests = sent.filter((c) => c.type === 'request-operators');
     expect(requests.map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm']);
-    expect(result.current.cmMissing).toBe(true);
   });
 
-  it('holds off every request until CM availability is known, and stays loading', () => {
-    const { result } = render(undefined);
+  it('holds off every request until every module availability is known, and stays loading', () => {
+    const { result } = render({});
     const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
     const requests = sent.filter((c) => c.type === 'request-operators');
     expect(requests).toHaveLength(0);
     expect(result.current.loading).toBe(true);
-    expect(result.current.cmMissing).toBe(false);
+  });
+
+  it('holds off when one probed module is still unresolved, even if others answered', () => {
+    const { result } = render({ csm: true, cm: true, csm02: undefined });
+    const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
+    const requests = sent.filter((c) => c.type === 'request-operators');
+    expect(requests).toHaveLength(0);
+    expect(result.current.loading).toBe(true);
   });
 
   it('does not request anything while disabled', () => {
-    render(true, false);
+    render(ALL_AVAILABLE, false);
     const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
     expect(sent.filter((c) => c.type === 'request-operators')).toHaveLength(0);
   });
 
   it('stays loading until every requested module has answered', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
     expect(result.current.loading).toBe(true);
 
     act(() => {
@@ -76,7 +87,7 @@ describe('useSharedAddresses', () => {
   });
 
   it('clears loading when a requested module fails instead of updating', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
     expect(result.current.loading).toBe(true);
 
     act(() => {
@@ -101,7 +112,7 @@ describe('useSharedAddresses', () => {
   });
 
   it('reports lastFetchedAt as null when a settled module never sent an operators-update', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
 
     act(() => {
       port._emit({
@@ -118,7 +129,7 @@ describe('useSharedAddresses', () => {
   });
 
   it('indexes across both modules and reports the stalest fetch time', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
 
     act(() => {
       port._emit({
@@ -140,7 +151,7 @@ describe('useSharedAddresses', () => {
   });
 
   it('exposes a raw index keyed by lowercased address, including single-attachment addresses that `addresses` omits', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
 
     act(() => {
       port._emit({
@@ -167,7 +178,7 @@ describe('useSharedAddresses', () => {
   });
 
   it('re-derives the stalest fetch time on refresh instead of ratcheting down', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
 
     act(() => {
       port._emit({
@@ -199,7 +210,7 @@ describe('useSharedAddresses', () => {
   });
 
   it('ignores events for a different chain', () => {
-    const { result } = render(true);
+    const { result } = render(TWO_MODULE);
     act(() => {
       port._emit({
         type: 'operators-update', chainId: 560048, moduleType: 'csm',

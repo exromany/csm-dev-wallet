@@ -115,12 +115,13 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Auto-switch away from CM if it becomes unavailable
+  // Auto-switch back to CSM (the baseline module) if the selected one is
+  // unavailable on this network — e.g. CSM 0x02 outside Hoodi.
   useEffect(() => {
-    if (state.moduleType === 'cm' && availableModules.cm === false) {
+    if (state.moduleType !== 'csm' && availableModules[state.moduleType] === false) {
       send({ type: 'switch-module', moduleType: 'csm' });
     }
-  }, [availableModules.cm, state.moduleType, send]);
+  }, [availableModules, state.moduleType, send]);
 
   const onAnvil = state.chainId === ANVIL_CHAIN_ID;
   const showGroups = state.moduleType === 'cm';
@@ -145,7 +146,7 @@ export function App() {
     port,
     origin,
     state.chainId,
-    availableModules.cm,
+    availableModules,
     needAttachments,
   );
 
@@ -326,7 +327,6 @@ export function App() {
             addresses={sharedAddrs.addresses}
             loading={sharedAddrs.loading}
             lastFetchedAt={sharedAddrs.lastFetchedAt}
-            cmMissing={sharedAddrs.cmMissing}
             addressLabels={state.addressLabels}
             operatorLabels={operatorLabels}
             selectedAddress={state.selectedAddress?.address}

@@ -40,13 +40,16 @@ vi.mock('../../lib/background/anvil.ts', () => ({
   clearForkedFrom: vi.fn().mockResolvedValue(undefined),
 }));
 
+const isModuleAvailable = vi.fn().mockResolvedValue(true);
+const setModuleAvailabilityCache = vi.fn().mockResolvedValue(undefined);
+
 vi.mock('../../lib/background/operator-cache.ts', () => ({
   fetchOperators: vi.fn(),
   getCachedOperators: vi.fn().mockResolvedValue(null),
   isStale: vi.fn().mockReturnValue(false),
-  isModuleAvailable: vi.fn().mockResolvedValue(true),
+  isModuleAvailable,
   getModuleAvailabilityCache: vi.fn().mockResolvedValue(null),
-  setModuleAvailabilityCache: vi.fn().mockResolvedValue(undefined),
+  setModuleAvailabilityCache,
   clearAvailabilityCache: vi.fn(),
 }));
 
@@ -71,6 +74,8 @@ let connectListener: (port: chrome.runtime.Port) => void;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  isModuleAvailable.mockResolvedValue(true);
+  setModuleAvailabilityCache.mockResolvedValue(undefined);
 
   const state = makeState({ chainId: 1 });
   getSiteState.mockResolvedValue({ chainId: state.chainId, moduleType: state.moduleType, selectedAddress: state.selectedAddress, isConnected: state.isConnected });
@@ -160,6 +165,33 @@ describe('switch-network', () => {
 
     expect(anvilMessages).toContainEqual(
       expect.objectContaining({ type: 'anvil-status', forkedFrom: null }),
+    );
+  });
+
+  it('probes every non-baseline module, treating CSM as always available', async () => {
+    detectAnvilFork.mockResolvedValue(null);
+    getAnvilAccounts.mockResolvedValue([]);
+    isModuleAvailable.mockImplementation(async (ctx: { moduleType: string }) =>
+      ctx.moduleType === 'cm',
+    );
+
+    await setupBackground();
+    const port = simulatePort();
+
+    port._emit({ type: 'switch-network', origin: TEST_ORIGIN, chainId: 560048 });
+
+    await vi.waitFor(() => {
+      expect(setModuleAvailabilityCache).toHaveBeenCalled();
+    });
+
+    const probed = isModuleAvailable.mock.calls.map(([ctx]) => ctx.moduleType);
+    expect(probed).toContain('cm');
+    expect(probed).toContain('csm02');
+    expect(probed).not.toContain('csm');
+
+    expect(setModuleAvailabilityCache).toHaveBeenCalledWith(
+      560048,
+      { csm: true, cm: true, csm02: false },
     );
   });
 });

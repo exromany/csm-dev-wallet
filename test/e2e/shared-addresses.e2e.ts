@@ -145,10 +145,15 @@ async function main() {
 
       const page = await openPopup(context, extensionId);
       await goToTab(page, 'Shared');
-      await page.waitForSelector('.scope-note');
+      await page.waitForSelector('.addr-card');
 
-      const note = await page.locator('.scope-note').innerText();
-      if (!note.includes('CM')) throw new Error(`expected a CM-unavailable note, got "${note}"`);
+      const cards = page.locator('.addr-card');
+      if ((await cards.count()) !== 1) throw new Error('expected exactly one shared address with CM unavailable');
+      const text = await cards.innerText();
+      if (!text.includes(SOLO.slice(0, 6))) throw new Error(`expected the SOLO address, got "${text}"`);
+      if ((await page.locator('.attach-count.cross').count()) !== 0) {
+        throw new Error('expected no cross-module address with CM unavailable');
+      }
       await page.close();
     });
 

@@ -40,7 +40,6 @@ function renderTab(overrides: Partial<React.ComponentProps<typeof SharedAddresse
       addresses={addresses}
       loading={false}
       lastFetchedAt={null}
-      cmMissing={false}
       addressLabels={{}}
       operatorLabels={operatorLabels}
       siteModuleType="csm"
@@ -123,11 +122,6 @@ describe('SharedAddresses', () => {
     fireEvent.click(screen.getByText('Cross-module'));
     // D is CM-only and drops out.
     expect(container.querySelectorAll('.addr-card')).toHaveLength(3);
-  });
-
-  it('tells the user when CM is unavailable', () => {
-    renderTab({ cmMissing: true });
-    expect(screen.getByText(/CM is not deployed/i)).toBeInTheDocument();
   });
 
   it('shows a spinner while any module is still loading', () => {

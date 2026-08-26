@@ -23,6 +23,11 @@ export type SigningMode = 'approve' | 'reject' | 'error' | 'prompt';
 export type AddressRole = 'manager' | 'rewards' | 'proposedManager' | 'proposedRewards';
 
 /**
+ * Staking module: `'csm'` (CSM), `'csm02'` (CSM 0x02), `'cm'` (CM).
+ */
+export type ModuleType = 'csm' | 'csm02' | 'cm';
+
+/**
  * Describes where an address came from — used for bookkeeping in wallet state.
  */
 export type AddressSource =
@@ -59,9 +64,13 @@ export type SetupOptions = {
   /** Chain ID for the seeded operators. Defaults to {@link network} ?? 1. */
   operatorsChainId?: number;
   /** Module type for the seeded operators. Defaults to `'csm'`. */
-  operatorsModuleType?: string;
-  /** Which operator modules are available (e.g. `{ csm: true, cm: false }`). */
-  moduleAvailability?: { csm: boolean; cm: boolean };
+  operatorsModuleType?: ModuleType;
+  /**
+   * Which operator modules are available (e.g. `{ csm: true, csm02: false, cm: false }`).
+   * An omitted module reads as "not known yet", not "absent" — the popup waits for every
+   * non-baseline module to answer, so a partial map can leave the UI waiting.
+   */
+  moduleAvailability?: Partial<Record<ModuleType, boolean>>;
   /** Chain ID for module availability. Defaults to {@link network} ?? 1. */
   moduleAvailabilityChainId?: number;
 };
@@ -139,19 +148,19 @@ export interface WalletController {
   getState(page: Page): Promise<Record<string, unknown>>;
 
   /** Inject operators into the extension's cache via RPC. */
-  seedOperators(page: Page, operators: unknown[], chainId: number, moduleType?: string): Promise<void>;
+  seedOperators(page: Page, operators: unknown[], chainId: number, moduleType?: ModuleType): Promise<void>;
 
   /** Get cached operators for a chain/module. Returns null if no cache. */
-  getOperators(page: Page, chainId?: number, moduleType?: string): Promise<unknown[] | null>;
+  getOperators(page: Page, chainId?: number, moduleType?: ModuleType): Promise<unknown[] | null>;
 
   /** Get a single cached operator by ID. Throws on not-found. */
-  getOperator(page: Page, operatorId: string, chainId?: number, moduleType?: string): Promise<Record<string, unknown>>;
+  getOperator(page: Page, operatorId: string, chainId?: number, moduleType?: ModuleType): Promise<Record<string, unknown>>;
 
   /**
    * Select an operator's address by role. Resolves the address from the operator cache,
    * sets it as active, and emits `accountsChanged`.
    */
-  selectOperator(page: Page, operatorId: string, role: AddressRole, chainId?: number, moduleType?: string): Promise<void>;
+  selectOperator(page: Page, operatorId: string, role: AddressRole, chainId?: number, moduleType?: ModuleType): Promise<void>;
 
   /** Set a custom RPC URL for a chain. Clears internal client cache. */
   setRpcUrl(page: Page, chainId: number, rpcUrl: string): Promise<void>;
@@ -160,7 +169,7 @@ export interface WalletController {
    * Refresh operators from RPC. Fetches live data, updates the cache, and returns operators.
    * Optional rpcUrl override for cases where RPC isn't configured yet.
    */
-  refreshOperators(page: Page, chainId?: number, moduleType?: string, rpcUrl?: string): Promise<unknown[]>;
+  refreshOperators(page: Page, chainId?: number, moduleType?: ModuleType, rpcUrl?: string): Promise<unknown[]>;
 
   /** The extension's service worker instance. */
   readonly sw: Worker;

@@ -6,6 +6,7 @@ import { createServer, type Server } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry } from '../../lib/shared/types.js';
+import type { ModuleAvailability } from '../../lib/shared/messages.js';
 
 const EXTENSION_PATH = resolve(import.meta.dirname, '../../.output/chrome-mv3');
 const HEADED = !!process.env.HEADED;
@@ -165,7 +166,7 @@ export async function seedOperators(
 export async function seedModuleAvailability(
   sw: Worker,
   chainId: number,
-  modules: { csm: boolean; cm: boolean },
+  modules: ModuleAvailability,
 ) {
   const key = `module_availability_${chainId}`;
   await sw.evaluate(

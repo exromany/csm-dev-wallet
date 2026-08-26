@@ -8,7 +8,7 @@ See [PRIVACY.md](./PRIVACY.md) for the privacy policy.
 
 ## Features
 
-- Browse all CSM/CM operators with search by ID or address
+- Browse all CSM / CSM 0x02 / CM operators with search by ID or address
 - Connect as manager, rewards, or proposed address
 - Favorites operators
 - Manual address entry (Manual tab) + Anvil pre-funded accounts (Anvil tab, fork only)
@@ -120,7 +120,7 @@ await wallet.setup({
   account: '0x...',                  // auto-connects, no popup
   signingMode: 'approve',           // 'approve' | 'reject' | 'error' | 'prompt'
   operators: [...],                  // optional: seed operator cache
-  moduleAvailability: { csm: true, cm: false }, // optional
+  moduleAvailability: { csm: true, csm02: false, cm: false }, // optional
 });
 ```
 
@@ -139,6 +139,7 @@ const state = await wallet.getState(page);     // current wallet state
 ### Operator queries (mid-test)
 
 Read cached operators, look up a single operator, or select an account by operator+role.
+Module type is `'csm' | 'csm02' | 'cm'`, defaulting to `'csm'`.
 
 ```typescript
 const ops = await wallet.getOperators(page);              // all cached operators
