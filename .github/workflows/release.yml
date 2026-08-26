@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: pnpm/action-setup@v4
 
@@ -21,6 +23,20 @@ jobs:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
+
+      - name: Detect version bump
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          PREV=$(git show HEAD^:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$VERSION" = "$PREV" ]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION unchanged since previous commit"
+          else
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "version bumped ${PREV:-none} -> $VERSION"
+          fi
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
@@ -73,3 +89,13 @@ jobs:
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Submit to Chrome Web Store
+        if: steps.version.outputs.bumped == 'true'
+        run: npx publish-extension --chrome-zip "$(ls .output/*-chrome.zip)"
+        env:
+          CHROME_API_VERSION: v2
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}

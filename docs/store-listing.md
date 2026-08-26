@@ -50,3 +50,41 @@ See [PRIVACY.md](../PRIVACY.md) for the full policy.
 - [x] 128px icon — `public/icon-128.png`
 - [ ] At least one screenshot, 1280×800 — generate via `pnpm run screenshot:store`, output lands in `docs/store/`
 - [ ] Privacy policy URL — link to [PRIVACY.md](../PRIVACY.md) on GitHub
+
+## Automated submission
+
+`.github/workflows/release.yml` submits the Chrome zip to the store — and publishes it —
+on any push to `main` where `package.json`'s version differs from the previous commit's.
+Pushes that don't bump the version still cut a GitHub release but skip the store, since the
+Web Store rejects a re-upload of an existing version.
+
+Uses [`publish-browser-extension`](https://www.npmjs.com/package/publish-browser-extension)
+against Web Store **API v2** with a Google service account. The older
+`CHROME_CLIENT_ID`/`CHROME_REFRESH_TOKEN` OAuth flow is deprecated and its refresh tokens
+expire after 7 days unless the OAuth consent screen is published — the service account has no
+such expiry.
+
+### Required repo secrets
+
+| Secret | Where to find it |
+| --- | --- |
+| `CHROME_EXTENSION_ID` | Dashboard URL of the item — `makdjhggppfdjnjfgghgmekcenfekmfg` |
+| `CHROME_PUBLISHER_ID` | Dashboard → Account — the publisher that owns the item |
+| `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL` | `client_email` in the service account JSON key |
+| `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` | `private_key` in the same JSON — full PEM, `BEGIN`/`END` lines and real newlines included |
+
+### One-time setup
+
+1. Google Cloud console → new (or existing) project → enable the **Chrome Web Store API**.
+2. Create a service account, then a JSON key for it.
+3. Web Store dashboard → Account → Users: invite the service account's `client_email` and
+   grant it publish rights on the item.
+4. Add the four secrets above to the GitHub repo.
+
+Verify credentials without touching the live listing:
+
+```bash
+npx publish-extension --dry-run --chrome-zip .output/csm-dev-wallet-<version>-chrome.zip
+```
+
+It authenticates and validates, then stops before uploading.
