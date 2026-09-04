@@ -5,7 +5,12 @@ import {
   MODULE_NAME,
   getOperatorTypeByCurveId,
 } from '@lidofinance/lido-csm-sdk/common';
-import { SMDiscoveryAbi, CuratedModuleAbi, MetaRegistryAbi } from '@lidofinance/lido-csm-sdk/abi';
+import {
+  SMDiscoveryAbi,
+  SMDiscoveryV1Abi,
+  CuratedModuleAbi,
+  MetaRegistryAbi,
+} from '@lidofinance/lido-csm-sdk/abi';
 import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
 import type { ModuleAvailability } from '../shared/messages.js';
@@ -90,7 +95,7 @@ function resolveOperatorType(
   moduleType: ModuleType,
   curveId: bigint,
 ): string {
-  return getOperatorTypeByCurveId(chainId, MODULE_NAMES[moduleType], curveId) ?? 'CC';
+  return getOperatorTypeByCurveId(chainId, { module: MODULE_NAMES[moduleType], curveId }) ?? 'CC';
 }
 
 export function storageKey(ctx: CacheContext): string {
@@ -176,6 +181,11 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
         info.proposedRewardAddress !== zeroAddress
           ? info.proposedRewardAddress
           : undefined,
+      // Legacy (V1) rows have no claimerAddress field at all — the fallback in readOperatorBatch.
+      claimerAddress:
+        'claimerAddress' in info && info.claimerAddress !== zeroAddress
+          ? info.claimerAddress
+          : undefined,
       extendedManagerPermissions: info.extendedManagerPermissions,
       curveId: curveId.toString(),
       operatorType: resolveOperatorType(ccid, ctx.moduleType, curveId),
@@ -260,8 +270,8 @@ async function enrichWithGroups(
 
     for (let i = 0; i < operators.length; i++) {
       const gid = groupIds[i];
-      if (gid === 0n) continue;
       const op = operators[i];
+      if (!op || gid === undefined || gid === 0n) continue;
       op.groupId = gid.toString();
       const name = nameByGroup.get(op.groupId);
       if (name) op.groupName = name;
@@ -271,18 +281,44 @@ async function enrichWithGroups(
   }
 }
 
+/** Modern read, then legacy on failure; rethrows the modern error if both fail. */
+export async function readWithLegacyFallback<T, U>(
+  read: () => Promise<T>,
+  readLegacy: () => Promise<U>,
+): Promise<T | U> {
+  try {
+    return await read();
+  } catch (err) {
+    try {
+      return await readLegacy();
+    } catch {
+      throw err;
+    }
+  }
+}
+
 async function readOperatorBatch(
   client: PublicClient,
   discoveryAddress: Address,
   moduleId: bigint,
   offset: bigint,
 ) {
-  return client.readContract({
-    address: discoveryAddress,
-    abi: SMDiscoveryAbi,
-    functionName: 'getAllNodeOperators',
-    args: [moduleId, offset, BATCH_SIZE],
-  });
+  return readWithLegacyFallback(
+    () =>
+      client.readContract({
+        address: discoveryAddress,
+        abi: SMDiscoveryAbi,
+        functionName: 'getAllNodeOperators',
+        args: [moduleId, offset, BATCH_SIZE],
+      }),
+    () =>
+      client.readContract({
+        address: discoveryAddress,
+        abi: SMDiscoveryV1Abi,
+        functionName: 'getAllNodeOperators',
+        args: [moduleId, offset, BATCH_SIZE],
+      }),
+  );
 }
 
 export async function getCachedOperators(ctx: CacheContext): Promise<OperatorCacheEntry | null> {

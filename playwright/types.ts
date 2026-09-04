@@ -19,8 +19,9 @@ export type SigningMode = 'approve' | 'reject' | 'error' | 'prompt';
  * - `'rewards'` — rewardsAddress
  * - `'proposedManager'` — proposedManagerAddress (if set)
  * - `'proposedRewards'` — proposedRewardsAddress (if set)
+ * - `'claimer'` — claimerAddress (if set)
  */
-export type AddressRole = 'manager' | 'rewards' | 'proposedManager' | 'proposedRewards';
+export type AddressRole = 'manager' | 'rewards' | 'proposedManager' | 'proposedRewards' | 'claimer';
 
 /**
  * Staking module: `'csm'` (CSM), `'csm02'` (CSM 0x02), `'cm'` (CM).

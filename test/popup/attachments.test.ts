@@ -74,6 +74,21 @@ describe('roleEntries', () => {
     });
     expect(roleEntries(op).map((e) => e.label)).toEqual(['MGR', 'RWD', 'P-MGR', 'P-RWD']);
   });
+
+  it('appends a claimer role after proposed roles, never marking it owner', () => {
+    const op = makeOperator({
+      id: '8', proposedManagerAddress: ADDR_C, claimerAddress: ADDR_D,
+    });
+    const entries = roleEntries(op);
+    expect(entries.map((e) => e.label)).toEqual(['MGR', 'RWD', 'P-MGR', 'CLM']);
+    expect(entries[3]).toMatchObject({
+      role: 'claimer', tint: 'clm', address: ADDR_D, proposed: false, owner: false,
+    });
+  });
+
+  it('omits the claimer role when unset', () => {
+    expect(roleEntries(makeOperator({ id: '9' })).some((e) => e.role === 'claimer')).toBe(false);
+  });
 });
 
 describe('operatorKind', () => {
@@ -156,6 +171,23 @@ describe('buildAttachmentIndex', () => {
     expect(entry?.modules).toEqual(['cm']);
   });
 
+  it('flags the address claimer when it holds a claimer role, never pending for it alone', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A, claimerAddress: ADDR_D })],
+    });
+
+    const entry = index.get(ADDR_D.toLowerCase());
+    expect(entry?.claimer).toBe(true);
+    expect(entry?.pending).toBe(false);
+  });
+
+  it('leaves claimer false when no attachment holds one', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A })],
+    });
+    expect(index.get(ADDR_A.toLowerCase())?.claimer).toBe(false);
+  });
+
   it('carries the ribbon kind for each attachment', () => {
     const index = buildAttachmentIndex({ csm: [makeOperator({ id: '42', managerAddress: ADDR_A, operatorType: 'CSM_LEA' })] });
     expect(index.get(ADDR_A.toLowerCase())?.attachments[0].kind).toBe('csm-lea');
@@ -193,6 +225,7 @@ describe('sharedAddresses', () => {
     cm: [
       makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B, operatorType: 'CM_PO' }),
       makeOperator({ id: '31', managerAddress: ADDR_C, rewardsAddress: ADDR_C, operatorType: 'CM_DO' }),
+      makeOperator({ id: '32', managerAddress: ADDR_C, rewardsAddress: ADDR_C, operatorType: 'CM_DO' }),
     ],
   });
 
@@ -200,7 +233,6 @@ describe('sharedAddresses', () => {
     const list = sharedAddresses(index);
     const addresses = list.map((e) => e.address.toLowerCase());
     expect(addresses).not.toContain(ADDR_B.toLowerCase());
-    expect(addresses).not.toContain(ADDR_C.toLowerCase());
   });
 
   it('sorts by attachment count descending', () => {
@@ -208,6 +240,30 @@ describe('sharedAddresses', () => {
     expect(list[0].address.toLowerCase()).toBe(ADDR_A.toLowerCase());
     expect(list[0].attachments).toHaveLength(3);
     expect(list[1].attachments).toHaveLength(2);
+  });
+
+  it('with inModule, excludes addresses whose attachments are all outside that module', () => {
+    const list = sharedAddresses(index, 'csm');
+    const addresses = list.map((e) => e.address.toLowerCase());
+    expect(addresses).not.toContain(ADDR_C.toLowerCase());
+    expect(addresses).toContain(ADDR_A.toLowerCase());
+    expect(addresses).toContain(ADDR_D.toLowerCase());
+  });
+
+  it('with inModule cm, excludes addresses whose attachments are all outside cm', () => {
+    const list = sharedAddresses(index, 'cm');
+    const addresses = list.map((e) => e.address.toLowerCase());
+    expect(addresses).not.toContain(ADDR_D.toLowerCase());
+    expect(addresses).toContain(ADDR_A.toLowerCase());
+    expect(addresses).toContain(ADDR_C.toLowerCase());
+  });
+
+  it('with no inModule, includes shared addresses regardless of module', () => {
+    const list = sharedAddresses(index);
+    const addresses = list.map((e) => e.address.toLowerCase());
+    expect(addresses).toContain(ADDR_A.toLowerCase());
+    expect(addresses).toContain(ADDR_C.toLowerCase());
+    expect(addresses).toContain(ADDR_D.toLowerCase());
   });
 });
 
@@ -299,6 +355,11 @@ describe('roleHintByLabel', () => {
   it('describes proposed roles as pending, ignoring owner', () => {
     expect(roleHintByLabel('P-MGR', false)).toBe('Proposed manager address — pending');
     expect(roleHintByLabel('P-RWD', false)).toBe('Proposed rewards address — pending');
+  });
+
+  it('describes the claimer role, never as owner', () => {
+    expect(roleHintByLabel('CLM', false)).toBe('Rewards claimer address');
+    expect(roleHintByLabel('CLM', true)).toBe('Rewards claimer address');
   });
 });
 

@@ -51,6 +51,11 @@ export function SharedAddresses({
     [addresses, search, filter, addressLabels],
   );
 
+  const hints: Partial<Record<SharedFilter, string>> = {
+    pending: 'Addresses caught up in a proposed role change',
+    claimer: 'Addresses set as a custom rewards claimer',
+  };
+
   return (
     <>
       <div className="search-wrapper">
@@ -73,17 +78,14 @@ export function SharedAddresses({
               ['all', 'All'],
               ['cross', 'Cross-module'],
               ['pending', 'Pending'],
+              ['claimer', 'Claimer'],
             ] satisfies ReadonlyArray<readonly [SharedFilter, string]>
           ).map(([value, label]) => (
             <button
               key={value}
-              className={`filter-btn ${value === 'pending' ? 'hint' : ''} ${filter === value ? 'active' : ''}`}
+              className={`filter-btn ${hints[value] ? 'hint' : ''} ${filter === value ? 'active' : ''}`}
               onClick={() => setFilter(value)}
-              data-hint={
-                value === 'pending'
-                  ? 'Addresses caught up in a proposed role change'
-                  : undefined
-              }
+              data-hint={hints[value]}
             >
               {label}
             </button>
@@ -108,7 +110,7 @@ export function SharedAddresses({
           <div className="empty-glyph">⇉</div>
           <div className="empty-headline">No shared addresses</div>
           <div className="empty-hint">
-            Addresses attached to more than one operator show up here.
+            Addresses attached to more than one operator, at least one in the current module, show up here.
           </div>
         </div>
       ) : (

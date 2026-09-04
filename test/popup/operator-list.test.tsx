@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { OperatorList } from '../../entrypoints/popup/OperatorList.js';
-import { makeOperator, ADDR_A, ADDR_B } from '../fixtures.js';
+import { makeOperator, ADDR_A, ADDR_B, ADDR_D } from '../fixtures.js';
 
 const noopFavorites = { toggle: vi.fn(), isFavorite: () => false };
 const noopSelect = vi.fn();
@@ -120,5 +120,25 @@ describe('OperatorList', () => {
     const ops = [makeOperator({ id: '1' })];
     render(<OperatorList {...baseProps} operators={ops} />);
     expect(screen.getByText('+ label')).toBeInTheDocument();
+  });
+
+  it('renders a CLM pill for a custom rewards claimer, tinted separately and never owner', () => {
+    const ops = [makeOperator({
+      id: '1',
+      managerAddress: ADDR_A,
+      rewardsAddress: ADDR_B,
+      claimerAddress: ADDR_D,
+    })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    const clm = screen.getByText('CLM');
+    expect(clm.className).toContain('tint-clm');
+    expect(clm.className).not.toContain('owner');
+    expect(clm).toHaveAttribute('data-hint', 'Rewards claimer address');
+  });
+
+  it('does not render a CLM pill when no claimer is set', () => {
+    const ops = [makeOperator({ id: '1' })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.queryByText('CLM')).not.toBeInTheDocument();
   });
 });

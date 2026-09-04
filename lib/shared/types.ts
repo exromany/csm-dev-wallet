@@ -14,7 +14,8 @@ export type AddressRole =
   | 'manager'
   | 'rewards'
   | 'proposedManager'
-  | 'proposedRewards';
+  | 'proposedRewards'
+  | 'claimer';
 
 export type AddressSource =
   | { type: 'operator'; operatorId: string; role: AddressRole }
@@ -27,6 +28,7 @@ export type CachedOperator = {
   rewardsAddress: Address;
   proposedManagerAddress?: Address;
   proposedRewardsAddress?: Address;
+  claimerAddress?: Address;
   extendedManagerPermissions: boolean; // true → manager is the owner, false → rewards is
   curveId: string; // bigint serialized
   operatorType: string; // OPERATOR_TYPE from @lidofinance/lido-csm-sdk — scoped to moduleType, falls back to "CC"

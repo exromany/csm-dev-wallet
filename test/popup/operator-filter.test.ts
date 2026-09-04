@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filterOperators } from '../../lib/popup/hooks.js';
-import { makeOperator, ADDR_A, ADDR_B, ADDR_C } from '../fixtures.js';
+import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 
 const ops = [
   makeOperator({ id: '1', managerAddress: ADDR_A, rewardsAddress: ADDR_B, operatorType: 'CSM_DEF' }),
@@ -12,6 +12,7 @@ const ops = [
     operatorType: 'CSM_DEF',
     proposedManagerAddress: ADDR_B,
     proposedRewardsAddress: ADDR_A,
+    claimerAddress: ADDR_D,
   }),
 ];
 
@@ -76,6 +77,12 @@ describe('filterOperators', () => {
     const q = ADDR_A.slice(2, 8).toLowerCase();
     const result = filterOperators(ops, q);
     expect(result.map((o) => o.id)).toContain('21');
+  });
+
+  it('filters by claimerAddress', () => {
+    const q = ADDR_D.slice(2, 8).toLowerCase();
+    const result = filterOperators(ops, q);
+    expect(result.map((o) => o.id)).toEqual(['21']);
   });
 
   // operatorType search

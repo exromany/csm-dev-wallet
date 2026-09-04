@@ -1,6 +1,6 @@
 {
   "name": "csm-dev-wallet",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -41,29 +41,29 @@
     "build:package": "wxt build && pnpm run build:playwright && cp -r .output/chrome-mv3 dist/extension"
   },
   "dependencies": {
-    "@lidofinance/lido-csm-sdk": "^2.3.0-alpha.3",
+    "@lidofinance/lido-csm-sdk": "^2.3.0-alpha.9",
     "@lidofinance/lido-ethereum-sdk": "^4.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "viem": "^2.55.19"
+    "viem": "^2.56.3"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "~6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/chrome": "^0.1.43",
+    "@testing-library/jest-dom": "~7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/chrome": "^0.2.8",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^5.2.0",
     "@wxt-dev/module-react": "^1.2.2",
-    "jsdom": "^28.1.0",
-    "oxlint": "^1.80.0",
+    "jsdom": "^30.0.1",
+    "oxlint": "^1.81.0",
     "playwright": "^1.62.1",
     "publish-browser-extension": "^6.1.1",
     "tsup": "^8.5.1",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11",
-    "wxt": "^0.20.27"
+    "wxt": "^0.21.4"
   },
   "volta": {
     "node": "24.13.1"

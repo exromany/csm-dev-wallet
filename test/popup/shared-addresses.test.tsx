@@ -124,6 +124,24 @@ describe('SharedAddresses', () => {
     expect(container.querySelectorAll('.addr-card')).toHaveLength(3);
   });
 
+  it('narrows to claimer addresses when the Claimer filter is clicked, with a data-hint', () => {
+    const withClaimer = sharedAddresses(
+      buildAttachmentIndex({
+        csm: [
+          makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B }),
+          makeOperator({ id: '57', managerAddress: ADDR_C, rewardsAddress: ADDR_A, claimerAddress: ADDR_B }),
+        ],
+      }),
+    );
+    const { container } = renderTab({ addresses: withClaimer });
+    expect(container.querySelectorAll('.addr-card')).toHaveLength(withClaimer.length);
+
+    const claimerBtn = screen.getByText('Claimer');
+    expect(claimerBtn).toHaveAttribute('data-hint', 'Addresses set as a custom rewards claimer');
+    fireEvent.click(claimerBtn);
+    expect(container.querySelectorAll('.addr-card')).toHaveLength(1);
+  });
+
   it('shows a spinner while any module is still loading', () => {
     const { container } = renderTab({ addresses: [], loading: true });
     expect(container.querySelector('.spinner')).toBeTruthy();

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filterByGroup } from '../../lib/popup/hooks.js';
-import { makeOperator, ADDR_A, ADDR_B } from '../fixtures.js';
+import { makeOperator, ADDR_A, ADDR_B, ADDR_D } from '../fixtures.js';
 
 const op1 = makeOperator({ id: '1' });
 const op2 = makeOperator({ id: '2', proposedManagerAddress: ADDR_B });
@@ -80,5 +80,15 @@ describe('filterByGroup', () => {
       (gid) => gid === '7',
     );
     expect(result.map((o) => o.id)).toEqual(['10', '11', '12']);
+  });
+
+  it('returns operators with a claimer address set when group is "claimer"', () => {
+    const withClaimer = makeOperator({ id: '5', claimerAddress: ADDR_D });
+    const result = filterByGroup([op1, withClaimer], 'claimer', neverFav);
+    expect(result).toEqual([withClaimer]);
+  });
+
+  it('excludes operators with no claimer address when group is "claimer"', () => {
+    expect(filterByGroup(ops, 'claimer', neverFav)).toEqual([]);
   });
 });

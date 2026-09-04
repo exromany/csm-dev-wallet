@@ -85,6 +85,15 @@ export function OperatorGroups({
         </div>
       );
     }
+    if (scope === 'claimer') {
+      return (
+        <div className="empty-state-rich">
+          <div className="empty-glyph">✓</div>
+          <div className="empty-headline">No claimers set</div>
+          <div className="empty-hint">Operators with a custom rewards claimer will show up here.</div>
+        </div>
+      );
+    }
     const message =
       allOperatorsCount > 0 ? 'No matching operators' : 'No operators found';
     return <div className="empty-state">{message}</div>;

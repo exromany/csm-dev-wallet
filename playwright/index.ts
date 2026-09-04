@@ -48,7 +48,7 @@ export async function launch(options?: LaunchOptions): Promise<LaunchResult> {
 
   let sw = context.serviceWorkers()[0];
   if (!sw) sw = await context.waitForEvent('serviceworker');
-  const extensionId = sw.url().split('/')[2];
+  const extensionId = new URL(sw.url()).host;
 
   const wallet = createWalletController(sw, extensionId);
   return { context, wallet, extensionId };

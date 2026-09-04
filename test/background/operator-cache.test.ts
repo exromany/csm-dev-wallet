@@ -36,8 +36,7 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
   },
   getOperatorTypeByCurveId: (
     _chainId: number,
-    moduleName: 'CSM' | 'CM' | 'CSM_02',
-    curveId: bigint,
+    ref: { module: 'CSM' | 'CM' | 'CSM_02'; curveId: bigint },
   ) => {
     // Per-module curve tables, mirroring the SDK — curve ids collide across
     // modules (0n is CSM_DEF, CM_PO and CSM2_DEF), so the lookup must be scoped.
@@ -54,12 +53,13 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
         CM_IODCP: 6n,
       },
     };
-    return Object.entries(table[moduleName] ?? {}).find(([, id]) => id === curveId)?.[0];
+    return Object.entries(table[ref.module] ?? {}).find(([, id]) => id === ref.curveId)?.[0];
   },
 }));
 
 vi.mock('@lidofinance/lido-csm-sdk/abi', () => ({
   SMDiscoveryAbi: [{ name: 'SMDiscoveryAbi' }],
+  SMDiscoveryV1Abi: [{ name: 'SMDiscoveryV1Abi' }],
   CuratedModuleAbi: [{ name: 'CuratedModuleAbi' }],
   MetaRegistryAbi: [{ name: 'MetaRegistryAbi' }],
 }));
@@ -75,6 +75,7 @@ import {
   clearClientCache,
   getModuleAvailabilityCache,
   setModuleAvailabilityCache,
+  readWithLegacyFallback,
 } from '../../lib/background/operator-cache.js';
 import type { CacheContext, OperatorCacheEntry } from '../../lib/shared/types.js';
 
@@ -232,6 +233,35 @@ describe('isModuleAvailable', () => {
   });
 });
 
+// ── readWithLegacyFallback ──
+
+describe('readWithLegacyFallback', () => {
+  it('returns the primary result without touching the fallback', async () => {
+    const legacy = vi.fn();
+    const result = await readWithLegacyFallback(() => Promise.resolve('modern'), legacy);
+    expect(result).toBe('modern');
+    expect(legacy).not.toHaveBeenCalled();
+  });
+
+  it('falls back when the primary read throws', async () => {
+    const result = await readWithLegacyFallback(
+      () => Promise.reject(new Error('decode error')),
+      () => Promise.resolve('legacy'),
+    );
+    expect(result).toBe('legacy');
+  });
+
+  it('rethrows the original (modern) error when the fallback also throws', async () => {
+    const modernErr = new Error('modern decode error');
+    await expect(
+      readWithLegacyFallback(
+        () => Promise.reject(modernErr),
+        () => Promise.reject(new Error('legacy decode error')),
+      ),
+    ).rejects.toBe(modernErr);
+  });
+});
+
 // ── fetchOperators ──
 
 describe('fetchOperators', () => {
@@ -307,6 +337,39 @@ describe('fetchOperators', () => {
     const entry = await fetchOperators(ctx());
     expect(entry.operators[0].proposedManagerAddress).toBe(ADDR_C);
     expect(entry.operators[0].proposedRewardsAddress).toBe(ADDR_C);
+  });
+
+  it('carries a non-zero claimerAddress through', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ claimerAddress: ADDR_C })]);
+
+    const entry = await fetchOperators(ctx());
+    expect(entry.operators[0].claimerAddress).toBe(ADDR_C);
+  });
+
+  it('drops a zero claimerAddress to undefined', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ claimerAddress: zeroAddress })]);
+
+    const entry = await fetchOperators(ctx());
+    expect(entry.operators[0].claimerAddress).toBeUndefined();
+  });
+
+  it('falls back to the legacy ABI (no claimerAddress field) when the modern read throws', async () => {
+    mockReadContract
+      .mockRejectedValueOnce(new Error('AbiDecodingDataSizeTooSmallError'))
+      .mockResolvedValueOnce([rawOperator()]); // legacy row: no claimerAddress key at all
+
+    const entry = await fetchOperators(ctx());
+    expect(mockReadContract).toHaveBeenCalledTimes(2);
+    expect(entry.operators[0].claimerAddress).toBeUndefined();
+  });
+
+  it('rethrows the original modern-ABI error when the legacy fallback also fails', async () => {
+    const modernErr = new Error('AbiDecodingDataSizeTooSmallError');
+    mockReadContract
+      .mockRejectedValueOnce(modernErr)
+      .mockRejectedValueOnce(new Error('legacy also broke'));
+
+    await expect(fetchOperators(ctx())).rejects.toBe(modernErr);
   });
 
   it('stores result under storageKey(ctx)', async () => {

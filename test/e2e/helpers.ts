@@ -18,22 +18,35 @@ export async function launchExtension(): Promise<{
   extensionId: string;
   sw: Worker;
 }> {
-  const context = await chromium.launchPersistentContext('', {
-    headless: false, // We handle headless ourselves — Playwright's headless uses old mode
-    args: [
-      `--disable-extensions-except=${EXTENSION_PATH}`,
-      `--load-extension=${EXTENSION_PATH}`,
-      '--no-first-run',
-      '--disable-default-apps',
-      ...(!HEADED ? ['--headless=new'] : []),
-    ],
-  });
+  let lastError: unknown;
 
-  let sw = context.serviceWorkers()[0];
-  if (!sw) sw = await context.waitForEvent('serviceworker');
-  const extensionId = sw.url().split('/')[2];
+  // Chromium occasionally starts without activating an unpacked extension's
+  // service worker. Relaunch once with a fresh temporary profile rather than
+  // failing an otherwise unrelated suite.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const context = await chromium.launchPersistentContext('', {
+      headless: false, // We handle headless ourselves — Playwright's headless uses old mode
+      args: [
+        `--disable-extensions-except=${EXTENSION_PATH}`,
+        `--load-extension=${EXTENSION_PATH}`,
+        '--no-first-run',
+        '--disable-default-apps',
+        ...(!HEADED ? ['--headless=new'] : []),
+      ],
+    });
 
-  return { context, extensionId, sw };
+    try {
+      let sw = context.serviceWorkers()[0];
+      if (!sw) sw = await context.waitForEvent('serviceworker');
+      const extensionId = new URL(sw.url()).host;
+      return { context, extensionId, sw };
+    } catch (error) {
+      lastError = error;
+      await context.close();
+    }
+  }
+
+  throw lastError;
 }
 
 export async function openPopup(context: BrowserContext, extensionId: string): Promise<Page> {
@@ -210,7 +223,7 @@ export function makeTestOperators(count: number): CachedOperator[] {
     rewardsAddress: ADDRESSES[i * 2 + 1] ?? ADDRESSES[1],
     extendedManagerPermissions: true,
     curveId: '0',
-    operatorType: TYPES[i % TYPES.length],
+    operatorType: TYPES[i % TYPES.length] ?? 'DEF',
   }));
 }
 
