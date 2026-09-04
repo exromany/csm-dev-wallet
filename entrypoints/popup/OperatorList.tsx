@@ -1,6 +1,12 @@
 import React from 'react';
 import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
-import { roleEntries, operatorKind, roleHintByLabel, operatorTypeHint } from '../../lib/shared/attachments.js';
+import {
+  roleEntries,
+  operatorKind,
+  roleHintByLabel,
+  operatorTypeHint,
+  type RoleLabel,
+} from '../../lib/shared/attachments.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
@@ -148,7 +154,7 @@ export function OperatorRow({
   );
 }
 
-type RolePill = { label: 'MGR' | 'RWD'; tint: 'mgr' | 'rwd'; owner: boolean };
+type RolePill = { label: Exclude<RoleLabel, 'P-MGR' | 'P-RWD'>; tint: 'mgr' | 'rwd' | 'clm'; owner: boolean };
 
 type AddressGroup = {
   address: string;
@@ -169,7 +175,7 @@ function groupAddresses(op: CachedOperator): AddressGroup[] {
     if (e.proposed) {
       group.proposedPills.push(e.label);
     } else {
-      group.rolePills.push({ label: e.label as 'MGR' | 'RWD', tint: e.tint, owner: e.owner });
+      group.rolePills.push({ label: e.label as RolePill['label'], tint: e.tint, owner: e.owner });
     }
   }
   return Array.from(map.values());

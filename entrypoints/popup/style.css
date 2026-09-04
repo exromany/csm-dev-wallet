@@ -1041,6 +1041,11 @@ input:focus {
   color: var(--success);
 }
 
+.role-pill.tint-clm {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+
 .role-pill.owner.tint-mgr {
   background: var(--accent);
   color: var(--on-accent);

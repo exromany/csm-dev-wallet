@@ -41,7 +41,7 @@
     "build:package": "wxt build && pnpm run build:playwright && cp -r .output/chrome-mv3 dist/extension"
   },
   "dependencies": {
-    "@lidofinance/lido-csm-sdk": "^2.3.0-alpha.3",
+    "@lidofinance/lido-csm-sdk": "^2.3.0-alpha.9",
     "@lidofinance/lido-ethereum-sdk": "^4.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

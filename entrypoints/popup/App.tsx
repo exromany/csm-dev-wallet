@@ -159,9 +159,10 @@ export function App() {
     [operators, filterGroup, isFavorite, isGroupFavorite],
   );
 
-  // Pending is list-only; on the Groups tab it reads as "All". Derive rather than
-  // mutating filterGroup, so the user's Pending choice survives a round-trip to Groups.
-  const groupScope: FilterGroup = activeTab === 'groups' && filterGroup === 'pending' ? 'all' : filterGroup;
+  // Pending/Claimer are list-only; on the Groups tab they read as "All". Derive
+  // rather than mutating filterGroup, so the user's choice survives a round-trip to Groups.
+  const groupScope: FilterGroup =
+    activeTab === 'groups' && (filterGroup === 'pending' || filterGroup === 'claimer') ? 'all' : filterGroup;
 
   return (
     <div className="app">
@@ -436,13 +437,22 @@ function SearchToolbar({
           Favorites
         </button>
         {showPending && (
-          <button
-            className={`filter-btn hint ${filterGroup === 'pending' ? 'active' : ''}`}
-            onClick={() => onFilterGroup('pending')}
-            data-hint="Operators with pending P-MGR or P-RWD role-change proposals"
-          >
-            Pending
-          </button>
+          <>
+            <button
+              className={`filter-btn hint ${filterGroup === 'pending' ? 'active' : ''}`}
+              onClick={() => onFilterGroup('pending')}
+              data-hint="Operators with pending P-MGR or P-RWD role-change proposals"
+            >
+              Pending
+            </button>
+            <button
+              className={`filter-btn hint ${filterGroup === 'claimer' ? 'active' : ''}`}
+              onClick={() => onFilterGroup('claimer')}
+              data-hint="Operators with a custom rewards claimer (CLM) set"
+            >
+              Claimer
+            </button>
+          </>
         )}
         <div className="spacer" />
         {lastFetchedAt && (

@@ -2,19 +2,19 @@ import type { Address } from 'viem';
 import type { AddressRole, CachedOperator, ModuleType } from './types.js';
 import { MODULE_ORDER, MODULE_LABEL, MODULE_SHORT } from './modules.js';
 
-export type RoleLabel = 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD';
+export type RoleLabel = 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD' | 'CLM';
 
 export type RoleEntry = {
   role: AddressRole;
   label: RoleLabel;
-  tint: 'mgr' | 'rwd';
+  tint: 'mgr' | 'rwd' | 'clm';
   address: Address;
   proposed: boolean;
   owner: boolean;
 };
 
 /**
- * The (role, address) slots an operator holds — unset proposed roles omitted.
+ * The (role, address) slots an operator holds — unset proposed/claimer roles omitted.
  * Exactly one of manager/rewards is the owner; never compare against an address,
  * since the two roles can share one and both would match.
  */
@@ -40,6 +40,12 @@ export function roleEntries(op: CachedOperator): RoleEntry[] {
     entries.push({
       role: 'proposedRewards', label: 'P-RWD', tint: 'rwd',
       address: op.proposedRewardsAddress, proposed: true, owner: false,
+    });
+  }
+  if (op.claimerAddress) {
+    entries.push({
+      role: 'claimer', label: 'CLM', tint: 'clm',
+      address: op.claimerAddress, proposed: false, owner: false,
     });
   }
   return entries;
@@ -68,6 +74,7 @@ export type AddressAttachments = {
   modules: ModuleType[];
   crossModule: boolean;
   pending: boolean; // holds at least one proposed role
+  claimer: boolean; // holds a claimer role on any attachment
 };
 
 /** 'CSM_DEF' → 'CSM·DEF'. The prefixless 'CC' fallback takes its cache module. */
@@ -117,6 +124,7 @@ export function buildAttachmentIndex(
             modules: [],
             crossModule: false,
             pending: false,
+            claimer: false,
           };
           index.set(key, entry);
         }
@@ -129,6 +137,7 @@ export function buildAttachmentIndex(
     entry.modules = MODULE_ORDER.filter((m) => entry.attachments.some((a) => a.moduleType === m));
     entry.crossModule = entry.modules.length > 1;
     entry.pending = entry.attachments.some((a) => a.pills.some((p) => p.proposed));
+    entry.claimer = entry.attachments.some((a) => a.pills.some((p) => p.role === 'claimer'));
   }
 
   return index;
@@ -176,6 +185,7 @@ export function countLabel(entry: AddressAttachments): string {
 export function roleHintByLabel(label: RoleLabel, owner: boolean): string {
   if (label === 'P-MGR') return 'Proposed manager address — pending';
   if (label === 'P-RWD') return 'Proposed rewards address — pending';
+  if (label === 'CLM') return 'Rewards claimer address';
   const base = label === 'MGR' ? 'Manager address' : 'Rewards address';
   return owner ? `${base} · owner` : base;
 }

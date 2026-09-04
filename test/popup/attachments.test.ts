@@ -74,6 +74,21 @@ describe('roleEntries', () => {
     });
     expect(roleEntries(op).map((e) => e.label)).toEqual(['MGR', 'RWD', 'P-MGR', 'P-RWD']);
   });
+
+  it('appends a claimer role after proposed roles, never marking it owner', () => {
+    const op = makeOperator({
+      id: '8', proposedManagerAddress: ADDR_C, claimerAddress: ADDR_D,
+    });
+    const entries = roleEntries(op);
+    expect(entries.map((e) => e.label)).toEqual(['MGR', 'RWD', 'P-MGR', 'CLM']);
+    expect(entries[3]).toMatchObject({
+      role: 'claimer', tint: 'clm', address: ADDR_D, proposed: false, owner: false,
+    });
+  });
+
+  it('omits the claimer role when unset', () => {
+    expect(roleEntries(makeOperator({ id: '9' })).some((e) => e.role === 'claimer')).toBe(false);
+  });
 });
 
 describe('operatorKind', () => {
@@ -154,6 +169,23 @@ describe('buildAttachmentIndex', () => {
     expect(entry?.crossModule).toBe(false);
     expect(entry?.pending).toBe(false);
     expect(entry?.modules).toEqual(['cm']);
+  });
+
+  it('flags the address claimer when it holds a claimer role, never pending for it alone', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A, claimerAddress: ADDR_D })],
+    });
+
+    const entry = index.get(ADDR_D.toLowerCase());
+    expect(entry?.claimer).toBe(true);
+    expect(entry?.pending).toBe(false);
+  });
+
+  it('leaves claimer false when no attachment holds one', () => {
+    const index = buildAttachmentIndex({
+      csm: [makeOperator({ id: '12', managerAddress: ADDR_A })],
+    });
+    expect(index.get(ADDR_A.toLowerCase())?.claimer).toBe(false);
   });
 
   it('carries the ribbon kind for each attachment', () => {
@@ -323,6 +355,11 @@ describe('roleHintByLabel', () => {
   it('describes proposed roles as pending, ignoring owner', () => {
     expect(roleHintByLabel('P-MGR', false)).toBe('Proposed manager address — pending');
     expect(roleHintByLabel('P-RWD', false)).toBe('Proposed rewards address — pending');
+  });
+
+  it('describes the claimer role, never as owner', () => {
+    expect(roleHintByLabel('CLM', false)).toBe('Rewards claimer address');
+    expect(roleHintByLabel('CLM', true)).toBe('Rewards claimer address');
   });
 });
 

@@ -44,13 +44,14 @@ export type TestRpcResult =
   | { error: { code: number; message: string }; result?: never }
   | typeof NOT_HANDLED;
 
-const ADDRESS_ROLES: AddressRole[] = ['manager', 'rewards', 'proposedManager', 'proposedRewards'];
+const ADDRESS_ROLES: AddressRole[] = ['manager', 'rewards', 'proposedManager', 'proposedRewards', 'claimer'];
 
 const ROLE_FIELDS: Record<AddressRole, string> = {
   manager: 'managerAddress',
   rewards: 'rewardsAddress',
   proposedManager: 'proposedManagerAddress',
   proposedRewards: 'proposedRewardsAddress',
+  claimer: 'claimerAddress',
 };
 
 /** Validates an explicit moduleType param; an omitted one is left for the caller to fall back. */

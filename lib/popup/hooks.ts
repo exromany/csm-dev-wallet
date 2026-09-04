@@ -224,7 +224,7 @@ export function useOperators(
 
 // ── useSharedAddresses ──
 
-export type SharedFilter = 'all' | 'cross' | 'pending';
+export type SharedFilter = 'all' | 'cross' | 'pending' | 'claimer';
 
 /**
  * Addresses attached to more than one operator, at least one in the site's
@@ -346,6 +346,7 @@ export function filterSharedAddresses(
   const scoped = list.filter((e) => {
     if (filter === 'cross') return e.crossModule;
     if (filter === 'pending') return e.pending;
+    if (filter === 'claimer') return e.claimer;
     return true;
   });
 
@@ -530,7 +531,7 @@ export function useCopyAddress() {
 
 // ── filterByGroup ──
 
-export type FilterGroup = 'all' | 'favorites' | 'pending';
+export type FilterGroup = 'all' | 'favorites' | 'pending' | 'claimer';
 
 /**
  * Flat-list filter. Favorites includes operators starred individually OR
@@ -548,6 +549,7 @@ export function filterByGroup(
     );
   }
   if (group === 'pending') return operators.filter((op) => op.proposedManagerAddress || op.proposedRewardsAddress);
+  if (group === 'claimer') return operators.filter((op) => op.claimerAddress);
   return operators;
 }
 
@@ -557,6 +559,7 @@ export function filterByGroup(
 //   • favorites — only starred groups (hide "No group" entirely)
 //   • pending   — groups holding any pending op, with non-pending members
 //                 stripped out; plus pending ungrouped operators
+//   • claimer   — same shape as pending, scoped to a custom rewards claimer
 import type { GroupedOperators, OperatorGroup } from '../shared/groups.js';
 
 export type GroupedFilterResult = {
@@ -566,6 +569,23 @@ export type GroupedFilterResult = {
 
 function opIsPending(op: CachedOperator): boolean {
   return Boolean(op.proposedManagerAddress || op.proposedRewardsAddress);
+}
+
+/** Keeps only groups (and ungrouped operators) with at least one matching operator; drops non-matching members within a kept group. */
+function filterGroupedByPredicate(
+  grouped: GroupedOperators,
+  predicate: (op: CachedOperator) => boolean,
+): GroupedFilterResult {
+  const groups: GroupedFilterResult['groups'] = [];
+  for (const g of grouped.groups) {
+    const matching = g.operators.filter(predicate);
+    if (matching.length === 0) continue;
+    groups.push({
+      group: { ...g, operators: matching },
+      partial: matching.length < g.operators.length,
+    });
+  }
+  return { groups, ungrouped: grouped.ungrouped.filter(predicate) };
 }
 
 export function filterGroupedView(
@@ -581,18 +601,8 @@ export function filterGroupedView(
       ungrouped: [],
     };
   }
-  if (scope === 'pending') {
-    const groups: GroupedFilterResult['groups'] = [];
-    for (const g of grouped.groups) {
-      const pendingOps = g.operators.filter(opIsPending);
-      if (pendingOps.length === 0) continue;
-      groups.push({
-        group: { ...g, operators: pendingOps },
-        partial: pendingOps.length < g.operators.length,
-      });
-    }
-    return { groups, ungrouped: grouped.ungrouped.filter(opIsPending) };
-  }
+  if (scope === 'pending') return filterGroupedByPredicate(grouped, opIsPending);
+  if (scope === 'claimer') return filterGroupedByPredicate(grouped, (op) => Boolean(op.claimerAddress));
   return {
     groups: grouped.groups.map((group) => ({ group, partial: false })),
     ungrouped: grouped.ungrouped,
@@ -626,10 +636,12 @@ export function filterOperators(
       op.rewardsAddress.toLowerCase().includes(q) ||
       op.proposedManagerAddress?.toLowerCase().includes(q) ||
       op.proposedRewardsAddress?.toLowerCase().includes(q) ||
+      op.claimerAddress?.toLowerCase().includes(q) ||
       getOperatorLabel(op.id).toLowerCase().includes(q) ||
       (addressLabels[op.managerAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (addressLabels[op.rewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (op.proposedManagerAddress && (addressLabels[op.proposedManagerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||
-      (op.proposedRewardsAddress && (addressLabels[op.proposedRewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q)),
+      (op.proposedRewardsAddress && (addressLabels[op.proposedRewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||
+      (op.claimerAddress && (addressLabels[op.claimerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)),
   );
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { filterGroupedView } from '../../lib/popup/hooks.js';
 import { groupOperators, groupLabel } from '../../lib/shared/groups.js';
-import { makeOperator, ADDR_B } from '../fixtures.js';
+import { makeOperator, ADDR_B, ADDR_D } from '../fixtures.js';
 
 const og = (id: string, groupId?: string, groupName?: string, extras: Partial<ReturnType<typeof makeOperator>> = {}) =>
   makeOperator({ id, groupId, groupName, ...extras });
@@ -73,6 +73,22 @@ describe('filterGroupedView', () => {
 
   it('"pending" returns only pending ops inside groups (partial), plus pending ungrouped', () => {
     const result = filterGroupedView(grouped, 'pending', () => false);
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].group.id).toBe('3');
+    expect(result.groups[0].group.operators.map((o) => o.id)).toEqual(['2']);
+    expect(result.groups[0].partial).toBe(true);
+    expect(result.ungrouped.map((o) => o.id)).toEqual(['5']);
+  });
+
+  it('"claimer" strips non-claimer members from a group (partial), plus claimer ungrouped', () => {
+    const withClaimer = [
+      og('1', '3', 'Kiln'),
+      og('2', '3', 'Kiln', { claimerAddress: ADDR_D }),
+      og('3', '20'),
+      og('4'), // ungrouped
+      og('5', undefined, undefined, { claimerAddress: ADDR_D }),
+    ];
+    const result = filterGroupedView(groupOperators(withClaimer), 'claimer', () => false);
     expect(result.groups).toHaveLength(1);
     expect(result.groups[0].group.id).toBe('3');
     expect(result.groups[0].group.operators.map((o) => o.id)).toEqual(['2']);

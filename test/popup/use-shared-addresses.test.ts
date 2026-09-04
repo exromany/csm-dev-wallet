@@ -261,7 +261,7 @@ describe('filterSharedAddresses', () => {
       ],
       cm: [
         makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, operatorType: 'CM_PO' }),
-        makeOperator({ id: '44', managerAddress: ADDR_C, rewardsAddress: ADDR_B, proposedManagerAddress: ADDR_B, operatorType: 'CM_EEO' }),
+        makeOperator({ id: '44', managerAddress: ADDR_C, rewardsAddress: ADDR_B, proposedManagerAddress: ADDR_B, claimerAddress: ADDR_A, operatorType: 'CM_EEO' }),
       ],
     }),
   );
@@ -280,6 +280,12 @@ describe('filterSharedAddresses', () => {
     const out = filterSharedAddresses(list, '', 'pending');
     expect(out).toHaveLength(1);
     expect(out[0].address.toLowerCase()).toBe(ADDR_B.toLowerCase());
+  });
+
+  it('keeps only addresses holding a claimer role on the claimer scope', () => {
+    const out = filterSharedAddresses(list, '', 'claimer');
+    expect(out).toHaveLength(1);
+    expect(out[0].address.toLowerCase()).toBe(ADDR_A.toLowerCase());
   });
 
   it('matches an address substring', () => {

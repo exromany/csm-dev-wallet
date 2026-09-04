@@ -54,7 +54,7 @@ lib/
   background/          — service worker modules (state, rpc-handler, rpc, operator-cache, anvil)
   popup/               — React hooks and utils
   shared/              — types, messages, network configs (used by all layers)
-    attachments.ts       — address → attachments reverse index (both module caches)
+    attachments.ts       — address → attachments reverse index (across all module caches)
 test/
   setup.ts             — Chrome API mocks + jest-dom
   fixtures.ts          — makeOperator(), makeState(), address constants
@@ -88,6 +88,28 @@ test/
 - E2E seeds operator data via `sw.evaluate()` into `chrome.storage.local`; wallet state changes go through UI interactions
 - E2E helpers in `test/e2e/helpers.ts` (`launchExtension`, `openPopup`, `goToTab`, `seedOperators`, etc.)
 
+## Release & CI
+
+`.github/workflows/release.yml` runs on **every push to `main`**: lint, typecheck, test, build,
+GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web Store submit.
+
+- **Store submit is gated on a version bump** — `package.json` version at `HEAD` vs `HEAD^`
+  (hence `fetch-depth: 2` on checkout). The Web Store rejects re-uploading an existing version,
+  and this workflow fires on every main push, so an ungated step would fail most runs.
+- **It auto-publishes, not drafts.** A version bump merged to `main` reaches real users once
+  review passes. There is no manual gate.
+- Chrome Web Store **API v2 + service account**, via `publish-browser-extension`. Four repo
+  secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
+  `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`. All config is
+  read from `env:` — never pass credentials as CLI flags.
+- The v1.1 `CHROME_CLIENT_ID`/`CHROME_REFRESH_TOKEN` OAuth flow is deprecated; its refresh
+  tokens die after 7 days unless the OAuth consent screen is published. Don't go back to it.
+- npm publish is separately guarded by an `npm view` existence check, so it is safe to re-run.
+- Dry-run credentials without touching the listing:
+  `npx publish-extension --dry-run --chrome-zip .output/*-chrome.zip`.
+  `npx publish-extension status` reads the live published/in-review state.
+- Setup details and secret provenance: `docs/store-listing.md`.
+
 ## Gotchas
 
 - **BigInt serialization:** `chrome.storage` can't hold BigInts — operator `id` and `curveId` stored as strings, convert back when needed
@@ -99,17 +121,22 @@ test/
 - **Modules:** `lib/shared/modules.ts` is the registry — `MODULE_ORDER` (display order), `BASELINE_MODULE`, the derived `PROBED_MODULES`, and the `MODULE_LABEL`/`MODULE_SHORT` names. Add a module there, not in a local array: background probing, the picker, and the Shared tab all read from it. CSM is the baseline — assumed available everywhere and the fallback the popup switches to; only the others are RPC-probed. CSM 0x02 is Hoodi-only, so `MODULE_CONFIG[CSM_02][mainnet]` is undefined — lookups must tolerate a missing per-chain config. Its SDK operator type is `CSM2_DEF`, not `CSM_02_DEF`
 - **Module availability:** `ModuleAvailability` is a `Partial<Record<ModuleType, boolean>>`; a value persisted before a module existed omits that key, so `undefined` means "not known yet", never "absent". Consumers must wait for every `PROBED_MODULES` entry to answer rather than checking the map is non-empty
 - **Favorites scoping:** Stored as `"moduleType:chainId:operatorId"` (e.g. `"csm:1:42"`). Legacy bare IDs migrated on load.
-- **State migration:** `migrateState()` handles legacy storage formats — don't assume storage shape is current
+- **State migration:** `migrateLegacy()` in `lib/background/state.ts` handles legacy storage formats — don't assume storage shape is current
 - **Operator identity is (id, module):** CSM #7 and CM #7 are different operators. Anything
   comparing operators across modules — the Shared tab, `buildAttachmentIndex` — must key on the
   pair, never the bare id.
 - **Proposed roles are attachments:** `P-MGR`/`P-RWD` count in `buildAttachmentIndex`, which is
-  what the Shared tab's Pending filter selects on.
+  what the Shared tab's Pending filter selects on. `CLM` (claimer) is a plain role pill — never
+  owner, never proposed; Claimer filter on Operators and Shared tabs selects on it.
+- **SMDiscovery legacy ABI:** the upgraded impl (with `claimerAddress`) isn't live on every
+  network. `readOperatorBatch` reads with `SMDiscoveryAbi` and falls back to `SMDiscoveryV1Abi`
+  on a decode error; legacy rows have no claimer. Don't drop the fallback until all networks are
+  upgraded.
 - **Settings is not a tab:** six tabs overflow the 400px popup, so it lives as a row inside the
   network/module popover. `goToTab(page, 'Settings')` in the e2e helpers opens `.netmod-chip`
   and clicks `.netmod-option.settings`.
-- **Shared tab spans both modules:** it issues `request-operators` for CSM *and* CM and stays in
-  its loading state until both answer, so counts never render half-built.
+- **Shared tab spans every module:** it issues `request-operators` for each available module and
+  stays in its loading state until all answer, so counts never render half-built.
 - **`.attach-row` is not unique:** `AttachmentRow` renders on the Shared tab *and* in the
   connected bar's hover panel, whose copies sit in the DOM permanently and hidden. Scope e2e
   waits to the owning card — an unscoped `waitForSelector('.attach-row')` can latch onto a
