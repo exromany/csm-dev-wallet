@@ -134,10 +134,17 @@ export function buildAttachmentIndex(
   return index;
 }
 
-/** Addresses held by more than one operator — most attachments first. */
-export function sharedAddresses(index: Map<string, AddressAttachments>): AddressAttachments[] {
+/**
+ * Addresses held by more than one operator, at least one of them in `inModule`
+ * — most attachments first.
+ */
+export function sharedAddresses(
+  index: Map<string, AddressAttachments>,
+  inModule?: ModuleType,
+): AddressAttachments[] {
   return [...index.values()]
     .filter((e) => e.attachments.length > 1)
+    .filter((e) => !inModule || e.attachments.some((a) => a.moduleType === inModule))
     .sort(
       (a, b) =>
         b.attachments.length - a.attachments.length ||

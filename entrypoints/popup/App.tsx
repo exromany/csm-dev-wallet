@@ -146,6 +146,7 @@ export function App() {
     port,
     origin,
     state.chainId,
+    state.moduleType,
     availableModules,
     needAttachments,
   );

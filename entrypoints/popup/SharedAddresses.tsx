@@ -108,7 +108,7 @@ export function SharedAddresses({
           <div className="empty-glyph">⇉</div>
           <div className="empty-headline">No shared addresses</div>
           <div className="empty-hint">
-            Addresses attached to more than one operator show up here.
+            Addresses attached to more than one operator, at least one in the current module, show up here.
           </div>
         </div>
       ) : (

@@ -227,7 +227,8 @@ export function useOperators(
 export type SharedFilter = 'all' | 'cross' | 'pending';
 
 /**
- * Addresses attached to more than one operator, across every module deployed
+ * Addresses attached to more than one operator, at least one in the site's
+ * current module — attachments are still gathered across every module deployed
  * on this network.
  *
  * Reuses `request-operators` (which already takes an arbitrary moduleType) rather
@@ -238,6 +239,7 @@ export function useSharedAddresses(
   port: chrome.runtime.Port | null,
   origin: string | null,
   chainId: number,
+  moduleType: ModuleType,
   availableModules: ModuleAvailability,
   enabled: boolean,
 ) {
@@ -315,7 +317,7 @@ export function useSharedAddresses(
   }, [port, origin, chainId, wanted, resolved]);
 
   const index = useMemo(() => buildAttachmentIndex(byModule), [byModule]);
-  const addresses = useMemo(() => sharedAddresses(index), [index]);
+  const addresses = useMemo(() => sharedAddresses(index, moduleType), [index, moduleType]);
 
   // Report the STALEST module, so "updated Xm ago" never overstates freshness.
   // A module that settled without an operators-update (e.g. a failed fetch)

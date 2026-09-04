@@ -22,9 +22,11 @@ describe('useSharedAddresses', () => {
   // csm02 resolved-but-absent (a network without it), so these behaviour tests
   // stay focused on the csm/cm interplay they were written for.
   const TWO_MODULE: ModuleAvailability = { csm: true, cm: true, csm02: false };
-  const render = (availableModules: ModuleAvailability, enabled = true) =>
+  const render = (availableModules: ModuleAvailability, enabled = true, moduleType: 'csm' | 'cm' | 'csm02' = 'csm') =>
     renderHook(() =>
-      useSharedAddresses(port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, availableModules, enabled),
+      useSharedAddresses(
+        port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, moduleType, availableModules, enabled,
+      ),
     );
 
   it('requests operators for every available module', () => {
@@ -207,6 +209,34 @@ describe('useSharedAddresses', () => {
       } satisfies PopupEvent);
     });
     expect(result.current.lastFetchedAt).toBe(9000);
+  });
+
+  it('excludes shared addresses whose attachments are all outside the site module, but keeps them in the raw index', () => {
+    const { result } = render(TWO_MODULE, true, 'csm');
+
+    act(() => {
+      port._emit({
+        type: 'operators-update', chainId: 1, moduleType: 'csm',
+        operators: [makeOperator({ id: '12', managerAddress: ADDR_A, rewardsAddress: ADDR_B })],
+        lastFetchedAt: 2000,
+      } satisfies PopupEvent);
+      port._emit({
+        type: 'operators-update', chainId: 1, moduleType: 'cm',
+        operators: [
+          makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_C, operatorType: 'CM_PO' }),
+          makeOperator({ id: '31', managerAddress: ADDR_C, operatorType: 'CM_DO' }),
+        ],
+        lastFetchedAt: 1000,
+      } satisfies PopupEvent);
+    });
+
+    // ADDR_A spans csm+cm, ADDR_C is shared but only within cm.
+    expect(result.current.addresses.some((e) => e.address.toLowerCase() === ADDR_A.toLowerCase())).toBe(true);
+    expect(result.current.addresses.some((e) => e.address.toLowerCase() === ADDR_C.toLowerCase())).toBe(false);
+
+    const entry = result.current.index.get(ADDR_C.toLowerCase());
+    expect(entry).toBeDefined();
+    expect(entry!.attachments).toHaveLength(2);
   });
 
   it('ignores events for a different chain', () => {

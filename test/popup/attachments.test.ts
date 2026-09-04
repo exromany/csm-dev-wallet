@@ -193,6 +193,7 @@ describe('sharedAddresses', () => {
     cm: [
       makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B, operatorType: 'CM_PO' }),
       makeOperator({ id: '31', managerAddress: ADDR_C, rewardsAddress: ADDR_C, operatorType: 'CM_DO' }),
+      makeOperator({ id: '32', managerAddress: ADDR_C, rewardsAddress: ADDR_C, operatorType: 'CM_DO' }),
     ],
   });
 
@@ -200,7 +201,6 @@ describe('sharedAddresses', () => {
     const list = sharedAddresses(index);
     const addresses = list.map((e) => e.address.toLowerCase());
     expect(addresses).not.toContain(ADDR_B.toLowerCase());
-    expect(addresses).not.toContain(ADDR_C.toLowerCase());
   });
 
   it('sorts by attachment count descending', () => {
@@ -208,6 +208,30 @@ describe('sharedAddresses', () => {
     expect(list[0].address.toLowerCase()).toBe(ADDR_A.toLowerCase());
     expect(list[0].attachments).toHaveLength(3);
     expect(list[1].attachments).toHaveLength(2);
+  });
+
+  it('with inModule, excludes addresses whose attachments are all outside that module', () => {
+    const list = sharedAddresses(index, 'csm');
+    const addresses = list.map((e) => e.address.toLowerCase());
+    expect(addresses).not.toContain(ADDR_C.toLowerCase());
+    expect(addresses).toContain(ADDR_A.toLowerCase());
+    expect(addresses).toContain(ADDR_D.toLowerCase());
+  });
+
+  it('with inModule cm, excludes addresses whose attachments are all outside cm', () => {
+    const list = sharedAddresses(index, 'cm');
+    const addresses = list.map((e) => e.address.toLowerCase());
+    expect(addresses).not.toContain(ADDR_D.toLowerCase());
+    expect(addresses).toContain(ADDR_A.toLowerCase());
+    expect(addresses).toContain(ADDR_C.toLowerCase());
+  });
+
+  it('with no inModule, includes shared addresses regardless of module', () => {
+    const list = sharedAddresses(index);
+    const addresses = list.map((e) => e.address.toLowerCase());
+    expect(addresses).toContain(ADDR_A.toLowerCase());
+    expect(addresses).toContain(ADDR_C.toLowerCase());
+    expect(addresses).toContain(ADDR_D.toLowerCase());
   });
 });
 
