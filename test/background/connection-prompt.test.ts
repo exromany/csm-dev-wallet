@@ -160,6 +160,8 @@ describe('connection-prompt', () => {
       expect(chrome.windows.create).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'popup',
+          width: 440,
+          height: 650,
           url: expect.stringContaining('popup.html?origin='),
         }),
       );

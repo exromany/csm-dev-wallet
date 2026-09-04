@@ -99,8 +99,8 @@ export default defineBackground(() => {
     const win = await chrome.windows.create({
       url,
       type: 'popup',
-      width: 400,
-      height: 600,
+      width: 440,
+      height: 650,
       focused: true,
     });
 

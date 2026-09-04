@@ -43,8 +43,8 @@
 }
 
 html, body {
-  width: 400px;
-  min-height: 500px;
+  width: 440px;
+  min-height: 550px;
   max-height: 600px;
   background: var(--bg);
   color: var(--text);
@@ -1721,4 +1721,3 @@ input:focus {
   top: auto;
   bottom: calc(100% + 6px);
 }
-
