@@ -270,8 +270,8 @@ async function enrichWithGroups(
 
     for (let i = 0; i < operators.length; i++) {
       const gid = groupIds[i];
-      if (gid === 0n) continue;
       const op = operators[i];
+      if (!op || gid === undefined || gid === 0n) continue;
       op.groupId = gid.toString();
       const name = nameByGroup.get(op.groupId);
       if (name) op.groupName = name;

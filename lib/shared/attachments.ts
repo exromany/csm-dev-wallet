@@ -116,10 +116,12 @@ export function buildAttachmentIndex(
       }
 
       for (const [key, att] of perAddress) {
+        const first = att.pills[0];
+        if (!first) continue;
         let entry = index.get(key);
         if (!entry) {
           entry = {
-            address: att.pills[0].address,
+            address: first.address,
             attachments: [],
             modules: [],
             crossModule: false,

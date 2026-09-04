@@ -91,8 +91,10 @@ export function OperatorRow({
     (g) => selectedAddress?.toLowerCase() === g.address.toLowerCase(),
   );
   const kind = operatorKind(op.operatorType);
-  const merged = groups.length === 1 && groups[0].proposedPills.length === 0;
-  const firstRow = merged ? [groups[0]] : groups.slice(0, 2);
+  const firstGroup = groups[0];
+  const merged =
+    firstGroup !== undefined && groups.length === 1 && firstGroup.proposedPills.length === 0;
+  const firstRow = merged ? [firstGroup] : groups.slice(0, 2);
   const overflowRow = !merged && groups.length > 2 ? groups.slice(2) : [];
 
   return (

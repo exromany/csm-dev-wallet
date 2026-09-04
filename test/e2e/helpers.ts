@@ -31,7 +31,7 @@ export async function launchExtension(): Promise<{
 
   let sw = context.serviceWorkers()[0];
   if (!sw) sw = await context.waitForEvent('serviceworker');
-  const extensionId = sw.url().split('/')[2];
+  const extensionId = new URL(sw.url()).host;
 
   return { context, extensionId, sw };
 }
@@ -210,7 +210,7 @@ export function makeTestOperators(count: number): CachedOperator[] {
     rewardsAddress: ADDRESSES[i * 2 + 1] ?? ADDRESSES[1],
     extendedManagerPermissions: true,
     curveId: '0',
-    operatorType: TYPES[i % TYPES.length],
+    operatorType: TYPES[i % TYPES.length] ?? 'DEF',
   }));
 }
 
