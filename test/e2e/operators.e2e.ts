@@ -128,16 +128,25 @@ async function main() {
       await refreshBtn.click();
 
       // Wait for loading state to appear (button text changes to "loading…")
-      const loadingVisible = await page
-        .locator('.refresh-btn:has-text("loading")')
-        .waitFor({ timeout: 5000 })
-        .then(() => true)
-        .catch(() => false);
+      let loadingVisible = false;
+      try {
+        await page.locator('.refresh-btn:has-text("loading")').waitFor({ timeout: 5000 });
+        loadingVisible = true;
+      } catch {
+        // A very fast response may complete before Playwright observes loading.
+      }
       console.log(`    (loading state detected: ${loadingVisible})`);
 
       // Wait for refresh to finish — button returns to "Refresh" after fetch completes
       if (loadingVisible) {
-        await page.locator('.refresh-btn').waitFor({ timeout: 60000 });
+        await page.waitForFunction(
+          () => {
+            const button = document.querySelector<HTMLButtonElement>('.refresh-btn');
+            return button !== null && !button.disabled && button.textContent?.includes('refresh');
+          },
+          null,
+          { timeout: 60000 },
+        );
       }
       await page.close();
 

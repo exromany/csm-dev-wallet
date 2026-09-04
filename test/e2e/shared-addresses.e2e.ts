@@ -20,6 +20,7 @@ const SOLO = '0x2222222222222222222222222222222222222222';
 const OTHER = '0x3333333333333333333333333333333333333333';
 const PROPOSED_ONLY = '0x4444444444444444444444444444444444444444';
 const PROPOSED_ONLY_MGR = '0x5555555555555555555555555555555555555555';
+const SOLO_SECOND_MGR = '0x6666666666666666666666666666666666666666';
 
 const CSM_OPS: CachedOperator[] = [
   {
@@ -140,7 +141,14 @@ async function main() {
       await seedState(sw, extensionId, {
         chainId: 1, moduleType: 'csm', customRpcUrls: { 1: 'http://127.0.0.1:1' },
       });
-      await seedOperators(sw, CSM_OPS, 1, 'csm');
+      await seedOperators(sw, [
+        ...CSM_OPS,
+        {
+          id: '100', managerAddress: SOLO_SECOND_MGR, rewardsAddress: SOLO,
+          extendedManagerPermissions: true,
+          curveId: '0', operatorType: 'CSM_DEF',
+        },
+      ], 1, 'csm');
       await seedModuleAvailability(sw, 1, { csm: true, cm: false });
 
       const page = await openPopup(context, extensionId);
