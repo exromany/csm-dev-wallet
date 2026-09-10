@@ -66,7 +66,7 @@ describe('SharedAddresses', () => {
   it('expands a card to reveal its attachments with module-qualified types', () => {
     const { container } = renderTab();
     fireEvent.click(container.querySelectorAll('.addr-head')[0]);
-    expect(screen.getByText('CSM·DEF')).toBeInTheDocument();
+    expect(screen.getByText('CSM·0x01')).toBeInTheDocument();
     expect(screen.getByText('CM·PO')).toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe('SharedAddresses', () => {
     const rows = container.querySelectorAll('.attach-row');
     expect(rows).toHaveLength(2);
 
-    const csmRow = [...rows].find((el) => el.textContent?.includes('CSM·DEF'))!;
+    const csmRow = [...rows].find((el) => el.textContent?.includes('CSM·0x01'))!;
     fireEvent.click(csmRow);
     expect(onSelect).toHaveBeenLastCalledWith(ADDR_A, '7', 'manager', 'csm');
 
@@ -216,9 +216,9 @@ describe('SharedAddresses', () => {
 
     fireEvent.click(container.querySelectorAll('.addr-head')[0]);
     const csmRow = [...container.querySelectorAll('.attach-row')].find((el) =>
-      el.textContent?.includes('CSM·DEF'),
+      el.textContent?.includes('CSM·0x01'),
     )!;
-    const att = entry.attachments.find((a) => a.typeLabel === 'CSM·DEF')!;
+    const att = entry.attachments.find((a) => a.typeLabel === 'CSM·0x01')!;
     expect(csmRow.querySelector('.attach-type')!.getAttribute('data-hint')).toBe(typeHint(att));
     expect(csmRow.querySelector('.role-pill')!.getAttribute('data-hint')).toBe(
       roleHint(att.pills[0]),

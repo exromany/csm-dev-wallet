@@ -28,6 +28,7 @@ type Props = {
     set: (operatorId: string, label: string) => void;
   };
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
+  onTypeClick?: (query: string) => void;
 };
 
 export function OperatorGroups({
@@ -40,6 +41,7 @@ export function OperatorGroups({
   groupFavorites,
   operatorLabels,
   onSelect,
+  onTypeClick,
 }: Props) {
   const grouped = useMemo(() => groupOperators(operators), [operators]);
   const filtered = useMemo(
@@ -120,6 +122,7 @@ export function OperatorGroups({
             favorites={favorites}
             operatorLabels={operatorLabels}
             onSelect={onSelect}
+            onTypeClick={onTypeClick}
           />
         );
       })}
@@ -130,6 +133,7 @@ export function OperatorGroups({
           favorites={favorites}
           operatorLabels={operatorLabels}
           onSelect={onSelect}
+          onTypeClick={onTypeClick}
         />
       )}
     </div>
@@ -149,6 +153,7 @@ function GroupSection({
   favorites,
   operatorLabels,
   onSelect,
+  onTypeClick,
 }: {
   group: OperatorGroup;
   isOpen: boolean;
@@ -162,6 +167,7 @@ function GroupSection({
   favorites: Props['favorites'];
   operatorLabels: Props['operatorLabels'];
   onSelect: Props['onSelect'];
+  onTypeClick: Props['onTypeClick'];
 }) {
   return (
     <div className={`group-section ${isOpen ? 'open' : ''}`}>
@@ -207,6 +213,7 @@ function GroupSection({
               label={operatorLabels.get(op.id)}
               onLabel={(label) => operatorLabels.set(op.id, label)}
               onSelect={onSelect}
+              onTypeClick={onTypeClick}
             />
           ))}
         </div>
@@ -221,12 +228,14 @@ function UngroupedSection({
   favorites,
   operatorLabels,
   onSelect,
+  onTypeClick,
 }: {
   operators: CachedOperator[];
   selectedAddress?: string;
   favorites: Props['favorites'];
   operatorLabels: Props['operatorLabels'];
   onSelect: Props['onSelect'];
+  onTypeClick: Props['onTypeClick'];
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -259,6 +268,7 @@ function UngroupedSection({
               label={operatorLabels.get(op.id)}
               onLabel={(label) => operatorLabels.set(op.id, label)}
               onSelect={onSelect}
+              onTypeClick={onTypeClick}
             />
           ))}
         </div>

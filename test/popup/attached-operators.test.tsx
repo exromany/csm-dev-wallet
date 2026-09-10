@@ -87,7 +87,7 @@ describe('AttachedOperators', () => {
     expect(rows).toHaveLength(2);
     expect(screen.getByText('#12')).toBeInTheDocument();
     expect(screen.getByText('#7')).toBeInTheDocument();
-    expect(screen.getByText('CSM·DEF')).toBeInTheDocument();
+    expect(screen.getByText('CSM·0x01')).toBeInTheDocument();
     expect(screen.getByText('CM·PO')).toBeInTheDocument();
     expect(container.querySelectorAll('.role-pill').length).toBeGreaterThan(0);
     expect(screen.getAllByText('MGR').length).toBeGreaterThan(0);

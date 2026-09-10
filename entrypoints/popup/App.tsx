@@ -281,6 +281,7 @@ export function App() {
                     source: { type: 'operator', operatorId, role },
                   })
                 }
+                onTypeClick={setSearch}
               />
             ) : (
               <OperatorList
@@ -297,6 +298,7 @@ export function App() {
                     source: { type: 'operator', operatorId, role },
                   })
                 }
+                onTypeClick={setSearch}
               />
             )}
           </>
@@ -412,7 +414,7 @@ function SearchToolbar({
           <span className="search-icon"><IconSearch size={14} /></span>
           <input
             ref={searchInputRef}
-            placeholder="Search #ID, address, label…"
+            placeholder="Search #ID, @type, address, label…"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
           />

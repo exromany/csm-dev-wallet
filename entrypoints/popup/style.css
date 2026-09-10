@@ -813,7 +813,7 @@ input:focus {
 .kind-cm-eeo    { --ribbon-color: #14b8a6; } /* teal */
 .kind-cm-iodc   { --ribbon-color: #ec4899; } /* pink */
 .kind-cm-iodcp  { --ribbon-color: #d946ef; } /* fuchsia */
-.kind-cc        { --ribbon-color: #64748b; } /* slate (unknown / community curve) */
+.kind-cc        { --ribbon-color: #64748b; } /* slate (unknown / custom curve) */
 .kind-csm2-def  { --ribbon-color: #8b5cf6; } /* violet */
 
 .operator-row:hover {
@@ -859,12 +859,14 @@ input:focus {
 .operator-type {
   font-size: 9px;
   padding: 1px 5px;
+  border: none;
   border-radius: 3px;
   background: color-mix(in srgb, var(--ribbon-color) 18%, transparent);
   color: var(--ribbon-color);
   font-weight: 700;
   font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
   letter-spacing: 0.3px;
+  cursor: pointer;
 }
 
 .operator-label {

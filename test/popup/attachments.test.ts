@@ -11,6 +11,8 @@ import {
   typeHint,
   operatorTypeHint,
   countHint,
+  operatorTypeBadge,
+  matchesTypeQuery,
 } from '../../lib/shared/attachments.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 
@@ -102,9 +104,29 @@ describe('operatorKind', () => {
   });
 });
 
+describe('operatorTypeBadge', () => {
+  it('maps the default operator types to their 0x contract IDs', () => {
+    expect(operatorTypeBadge('CSM_DEF')).toBe('0x01');
+    expect(operatorTypeBadge('CSM2_DEF')).toBe('0x02');
+  });
+
+  it('strips the module prefix for any other type', () => {
+    expect(operatorTypeBadge('CSM_LEA')).toBe('LEA');
+    expect(operatorTypeBadge('CM_PO')).toBe('PO');
+  });
+
+  it('falls back to CC for an empty type', () => {
+    expect(operatorTypeBadge('')).toBe('CC');
+  });
+
+  it('leaves the prefixless CC fallback as-is', () => {
+    expect(operatorTypeBadge('CC')).toBe('CC');
+  });
+});
+
 describe('attachmentTypeLabel', () => {
-  it('restores the module prefix that OperatorRow strips', () => {
-    expect(attachmentTypeLabel('csm', 'CSM_DEF')).toBe('CSM·DEF');
+  it('restores the module prefix that OperatorRow strips, remapping the default type to its 0x id', () => {
+    expect(attachmentTypeLabel('csm', 'CSM_DEF')).toBe('CSM·0x01');
     expect(attachmentTypeLabel('cm', 'CM_PO')).toBe('CM·PO');
   });
 
@@ -113,8 +135,42 @@ describe('attachmentTypeLabel', () => {
     expect(attachmentTypeLabel('csm', '')).toBe('CSM·CC');
   });
 
-  it('strips the CSM2_ prefix and uses the compact CSM02 module name', () => {
-    expect(attachmentTypeLabel('csm02', 'CSM2_DEF')).toBe('CSM02·DEF');
+  it('strips the CSM2_ prefix and remaps the default csm02 type to its 0x id', () => {
+    expect(attachmentTypeLabel('csm02', 'CSM2_DEF')).toBe('CSM02·0x02');
+  });
+});
+
+describe('matchesTypeQuery', () => {
+  it('matches the lowercased raw type', () => {
+    expect(matchesTypeQuery('CSM_DEF', 'csm_def')).toBe(true);
+  });
+
+  it('matches the prefix-stripped raw type', () => {
+    expect(matchesTypeQuery('CSM_DEF', 'def')).toBe(true);
+    expect(matchesTypeQuery('CM_PO', 'po')).toBe(true);
+  });
+
+  it('matches the badge', () => {
+    expect(matchesTypeQuery('CSM_DEF', '0x01')).toBe(true);
+    expect(matchesTypeQuery('CSM2_DEF', '0x02')).toBe(true);
+  });
+
+  it('matches def for both csm and csm2 default types', () => {
+    expect(matchesTypeQuery('CSM_DEF', 'def')).toBe(true);
+    expect(matchesTypeQuery('CSM2_DEF', 'def')).toBe(true);
+  });
+
+  it('does not cross-match 0x01 and 0x02', () => {
+    expect(matchesTypeQuery('CSM_DEF', '0x02')).toBe(false);
+    expect(matchesTypeQuery('CSM2_DEF', '0x01')).toBe(false);
+  });
+
+  it('returns false for an empty query', () => {
+    expect(matchesTypeQuery('CSM_DEF', '')).toBe(false);
+  });
+
+  it('returns false when nothing matches', () => {
+    expect(matchesTypeQuery('CSM_DEF', 'zzz')).toBe(false);
   });
 });
 
@@ -139,7 +195,7 @@ describe('buildAttachmentIndex', () => {
     const entry = index.get(ADDR_A.toLowerCase());
     expect(entry?.attachments).toHaveLength(2);
     expect(entry?.attachments.map((a) => a.moduleType)).toEqual(['csm', 'cm']);
-    expect(entry?.attachments.map((a) => a.typeLabel)).toEqual(['CSM·DEF', 'CM·PO']);
+    expect(entry?.attachments.map((a) => a.typeLabel)).toEqual(['CSM·0x01', 'CM·PO']);
     expect(entry?.crossModule).toBe(true);
     expect(entry?.modules).toEqual(['csm', 'cm']);
   });

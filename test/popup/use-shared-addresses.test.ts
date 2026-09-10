@@ -306,4 +306,20 @@ describe('filterSharedAddresses', () => {
     expect(out.every((e) => e.attachments.some((a) => a.operatorId === '44'))).toBe(true);
     expect(out.length).toBeGreaterThan(0);
   });
+
+  it('matches an operator type with @, across attachments', () => {
+    const out = filterSharedAddresses(list, '@po', 'all');
+    expect(out.length).toBeGreaterThan(0);
+    expect(
+      out.every((e) => e.attachments.some((a) => a.operatorType.toLowerCase() === 'cm_po')),
+    ).toBe(true);
+  });
+
+  it('@ alone matches everything in scope', () => {
+    expect(filterSharedAddresses(list, '@', 'all')).toHaveLength(list.length);
+  });
+
+  it('@zzz matches nothing', () => {
+    expect(filterSharedAddresses(list, '@zzz', 'all')).toHaveLength(0);
+  });
 });

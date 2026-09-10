@@ -77,10 +77,26 @@ export type AddressAttachments = {
   claimer: boolean; // holds a claimer role on any attachment
 };
 
-/** 'CSM_DEF' → 'CSM·DEF'. The prefixless 'CC' fallback takes its cache module. */
+/** 'CSM_DEF' → '0x01', 'CSM2_DEF' → '0x02', anything else → its prefix-stripped suffix. */
+export function operatorTypeBadge(operatorType: string): string {
+  const raw = operatorType || 'CC';
+  if (raw === 'CSM_DEF') return '0x01';
+  if (raw === 'CSM2_DEF') return '0x02';
+  return raw.replace(/^(?:CSM2?|CM)_/, '');
+}
+
+/** 'CSM_DEF' → 'CSM·0x01'. The prefixless 'CC' fallback takes its cache module. */
 export function attachmentTypeLabel(moduleType: ModuleType, operatorType: string): string {
-  const bare = (operatorType || 'CC').replace(/^(?:CSM2?|CM)_/, '');
-  return `${MODULE_SHORT[moduleType]}·${bare}`;
+  return `${MODULE_SHORT[moduleType]}·${operatorTypeBadge(operatorType)}`;
+}
+
+/** Matches a lowercased, trimmed, `@`-stripped query against an operator's raw type or badge. */
+export function matchesTypeQuery(operatorType: string, q: string): boolean {
+  if (!q) return false;
+  const raw = (operatorType || 'CC').toLowerCase();
+  const stripped = raw.replace(/^(?:csm2?|cm)_/, '');
+  const badge = operatorTypeBadge(operatorType).toLowerCase();
+  return q === raw || q === stripped || q === badge;
 }
 
 /**
