@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { OperatorList } from '../../entrypoints/popup/OperatorList.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_D } from '../fixtures.js';
 
@@ -140,5 +140,19 @@ describe('OperatorList', () => {
     const ops = [makeOperator({ id: '1' })];
     render(<OperatorList {...baseProps} operators={ops} />);
     expect(screen.queryByText('CLM')).not.toBeInTheDocument();
+  });
+
+  it('shows the 0x01 badge for the default CSM_DEF operator type', () => {
+    const ops = [makeOperator({ id: '1', operatorType: 'CSM_DEF' })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('0x01')).toBeInTheDocument();
+  });
+
+  it('calls onTypeClick with the @-prefixed badge when the type badge is clicked', () => {
+    const ops = [makeOperator({ id: '1', operatorType: 'CSM_DEF' })];
+    const onTypeClick = vi.fn();
+    render(<OperatorList {...baseProps} operators={ops} onTypeClick={onTypeClick} />);
+    fireEvent.click(screen.getByText('0x01'));
+    expect(onTypeClick).toHaveBeenCalledWith('@0x01');
   });
 });

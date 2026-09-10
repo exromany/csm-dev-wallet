@@ -125,3 +125,54 @@ describe('filterOperators', () => {
     expect(result.map((o) => o.id).sort()).toEqual(['1', '21']);
   });
 });
+
+describe('filterOperators @type search', () => {
+  const typedOps = [
+    ...ops,
+    makeOperator({ id: '30', managerAddress: ADDR_A, operatorType: 'CC' }),
+    makeOperator({ id: '40', managerAddress: ADDR_A, operatorType: 'CSM2_DEF' }),
+  ];
+
+  it('@def matches both CSM_DEF ops (1 and 21)', () => {
+    const result = filterOperators(typedOps, '@def');
+    expect(result.map((o) => o.id).sort()).toEqual(['1', '21', '40']);
+  });
+
+  it('@DEF is case-insensitive', () => {
+    const result = filterOperators(typedOps, '@DEF');
+    expect(result.map((o) => o.id).sort()).toEqual(['1', '21', '40']);
+  });
+
+  it('@csm_def matches the raw enum name exactly, excluding CSM2_DEF', () => {
+    const result = filterOperators(typedOps, '@csm_def');
+    expect(result.map((o) => o.id).sort()).toEqual(['1', '21']);
+  });
+
+  it('@0x01 matches the CSM_DEF badge, excluding CSM2_DEF', () => {
+    const result = filterOperators(typedOps, '@0x01');
+    expect(result.map((o) => o.id).sort()).toEqual(['1', '21']);
+  });
+
+  it('@0x02 matches only the CSM2_DEF op', () => {
+    const result = filterOperators(typedOps, '@0x02');
+    expect(result.map((o) => o.id)).toEqual(['40']);
+  });
+
+  it('@lea matches operator 10', () => {
+    const result = filterOperators(typedOps, '@lea');
+    expect(result.map((o) => o.id)).toEqual(['10']);
+  });
+
+  it('@cc matches the CC operator', () => {
+    const result = filterOperators(typedOps, '@cc');
+    expect(result.map((o) => o.id)).toEqual(['30']);
+  });
+
+  it('@ alone matches every operator', () => {
+    expect(filterOperators(typedOps, '@')).toEqual(typedOps);
+  });
+
+  it('@zzz matches nothing', () => {
+    expect(filterOperators(typedOps, '@zzz')).toHaveLength(0);
+  });
+});

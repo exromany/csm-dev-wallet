@@ -89,7 +89,7 @@ export async function setModuleAvailabilityCache(
 }
 
 // Curve IDs overlap between CSM_* and CM_* entries — must scope by module/chain.
-// Anything outside the module's known curves is treated as Community Curve (unknown to widget).
+// Anything outside the module's known curves is treated as Custom Curve (CC, unknown to widget).
 function resolveOperatorType(
   chainId: SupportedChainId,
   moduleType: ModuleType,

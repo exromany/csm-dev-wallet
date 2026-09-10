@@ -53,7 +53,7 @@ describe('App — Groups tab behavior', () => {
     seedCm(port);
     fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
 
-    expect(screen.getByPlaceholderText('Search #ID, address, label…')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search #ID, @type, address, label…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Favorites' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pending' })).toBeNull();

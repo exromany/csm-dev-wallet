@@ -8,6 +8,7 @@ import type { Address } from 'viem';
 import {
   buildAttachmentIndex,
   sharedAddresses,
+  matchesTypeQuery,
   type AddressAttachments,
 } from '../shared/attachments.js';
 
@@ -359,6 +360,13 @@ export function filterSharedAddresses(
     return scoped.filter((e) => e.attachments.some((a) => a.operatorId === id));
   }
 
+  // @type → operator type match, mirroring filterOperators
+  if (raw.startsWith('@')) {
+    const q = raw.slice(1).toLowerCase();
+    if (!q) return scoped;
+    return scoped.filter((e) => e.attachments.some((a) => matchesTypeQuery(a.operatorType, q)));
+  }
+
   const q = raw.toLowerCase();
   return scoped.filter(
     (e) =>
@@ -625,6 +633,13 @@ export function filterOperators(
   if (raw.startsWith('#')) {
     const id = raw.slice(1);
     return operators.filter((op) => op.id === id);
+  }
+
+  // @type → operator type match
+  if (raw.startsWith('@')) {
+    const q = raw.slice(1).toLowerCase();
+    if (!q) return operators;
+    return operators.filter((op) => matchesTypeQuery(op.operatorType, q));
   }
 
   const q = raw.toLowerCase();

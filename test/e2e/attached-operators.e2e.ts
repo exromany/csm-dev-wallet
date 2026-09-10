@@ -192,7 +192,7 @@ async function main() {
 
       const text = await pop.innerText();
       if (!text.includes('#12')) throw new Error(`missing #12 row: "${text}"`);
-      if (!text.includes('CSM·DEF')) throw new Error(`missing CSM·DEF badge: "${text}"`);
+      if (!text.includes('CSM·0x01')) throw new Error(`missing CSM·0x01 badge: "${text}"`);
       if (!text.includes('CM·PO')) throw new Error(`missing CM·PO badge: "${text}"`);
       await page.close();
     });

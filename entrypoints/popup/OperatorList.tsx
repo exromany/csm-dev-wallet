@@ -3,6 +3,7 @@ import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
 import {
   roleEntries,
   operatorKind,
+  operatorTypeBadge,
   roleHintByLabel,
   operatorTypeHint,
   type RoleLabel,
@@ -26,6 +27,7 @@ type Props = {
     set: (operatorId: string, label: string) => void;
   };
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
+  onTypeClick?: (query: string) => void;
 };
 
 export function OperatorList({
@@ -36,6 +38,7 @@ export function OperatorList({
   favorites,
   operatorLabels,
   onSelect,
+  onTypeClick,
 }: Props) {
   if (loading && operators.length === 0) {
     return (
@@ -63,6 +66,7 @@ export function OperatorList({
           label={operatorLabels.get(op.id)}
           onLabel={(label) => operatorLabels.set(op.id, label)}
           onSelect={onSelect}
+          onTypeClick={onTypeClick}
         />
       ))}
     </div>
@@ -77,6 +81,7 @@ export function OperatorRow({
   label,
   onLabel,
   onSelect,
+  onTypeClick,
 }: {
   operator: CachedOperator;
   selectedAddress?: string;
@@ -85,6 +90,7 @@ export function OperatorRow({
   label: string;
   onLabel: (label: string) => void;
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
+  onTypeClick?: (query: string) => void;
 }) {
   const groups = groupAddresses(op);
   const hasSelected = groups.some(
@@ -104,12 +110,17 @@ export function OperatorRow({
         <div className="operator-header">
           <span className="operator-id">#{op.id}</span>
           {op.operatorType && (
-            <span
+            <button
+              type="button"
               className="operator-type hint"
               data-hint={operatorTypeHint(op.operatorType, op.curveId)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTypeClick?.(`@${operatorTypeBadge(op.operatorType)}`);
+              }}
             >
-              {op.operatorType.replace(/^CSM_|^CM_/, '')}
-            </span>
+              {operatorTypeBadge(op.operatorType)}
+            </button>
           )}
           <LabelEditor
             label={label}
