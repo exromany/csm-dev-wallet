@@ -24,6 +24,7 @@ import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
 import { IconClose, IconMoon, IconSearch, IconSun } from './icons.js';
 import type { PopupTab } from '../../lib/shared/types.js';
+import type { Attachment } from '../../lib/shared/attachments.js';
 
 // Settings is the one tab we never persist — see PopupTab.
 type Tab = PopupTab | 'settings';
@@ -151,6 +152,20 @@ export function App() {
     needAttachments,
   );
 
+  const selectAttachment = useCallback(
+    (address: string, att: Attachment) =>
+      send({
+        type: 'select-address',
+        address,
+        source: att.type === 'gate'
+          ? { type: 'gate', gate: att.gate }
+          : { type: 'operator', operatorId: att.operatorId, role: att.primaryRole },
+        // Only sent when it differs, so same-module picks keep the existing behaviour.
+        ...(att.moduleType !== state.moduleType ? { moduleType: att.moduleType } : {}),
+      }),
+    [send, state.moduleType],
+  );
+
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
 
@@ -210,14 +225,7 @@ export function App() {
           attachmentsLoading={sharedAddrs.loading}
           siteModuleType={state.moduleType}
           operatorLabel={operatorLabels.get}
-          onSelectAttachment={(operatorId, role, moduleType) =>
-            send({
-              type: 'select-address',
-              address: state.selectedAddress!.address,
-              source: { type: 'operator', operatorId, role },
-              ...(moduleType !== state.moduleType ? { moduleType } : {}),
-            })
-          }
+          onSelectAttachment={(att) => selectAttachment(state.selectedAddress!.address, att)}
         />
       )}
 
@@ -335,16 +343,10 @@ export function App() {
             operatorLabels={operatorLabels}
             selectedAddress={state.selectedAddress?.address}
             siteModuleType={state.moduleType}
+            gatesLoading={sharedAddrs.gatesLoading}
+            gateErrors={sharedAddrs.gateErrors}
             onRefresh={sharedAddrs.refresh}
-            onSelect={(address, operatorId, role, moduleType) =>
-              send({
-                type: 'select-address',
-                address,
-                source: { type: 'operator', operatorId, role },
-                // Only sent when it differs, so same-module picks keep the existing behaviour.
-                ...(moduleType !== state.moduleType ? { moduleType } : {}),
-              })
-            }
+            onSelect={selectAttachment}
             onSetAddressLabel={(address, label) =>
               send({ type: 'set-address-label', address, label })
             }

@@ -1064,6 +1064,12 @@ input:focus {
   color: var(--dim);
 }
 
+/* Takes the row's ribbon colour, so the pill matches the operator type the gate grants. */
+.role-pill.tint-gate {
+  background: color-mix(in srgb, var(--ribbon-color) 16%, transparent);
+  color: var(--ribbon-color);
+}
+
 /* ── Loading / empty ─────────────────────────────── */
 
 .loading {
@@ -1670,6 +1676,15 @@ input:focus {
    the role pills off the row. */
 .attach-row .operator-label .text {
   max-width: 96px;
+}
+
+.attach-id.gate-id {
+  color: var(--dim);
+}
+
+.gate-warn {
+  font-size: 11px;
+  color: var(--warn);
 }
 
 /* ── Hover hints ──────────────────────────────────────── */

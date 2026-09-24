@@ -1,6 +1,6 @@
 import React from 'react';
-import type { AddressRole, ModuleType, SelectedAddress } from '../../lib/shared/types.js';
-import type { AddressAttachments } from '../../lib/shared/attachments.js';
+import type { ModuleType, SelectedAddress } from '../../lib/shared/types.js';
+import type { AddressAttachments, Attachment } from '../../lib/shared/attachments.js';
 import { ANVIL_CHAIN_ID } from '../../lib/shared/networks.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
@@ -18,7 +18,7 @@ type Props = {
   attachmentsLoading?: boolean;
   siteModuleType?: ModuleType;
   operatorLabel?: (operatorId: string, moduleType: ModuleType) => string;
-  onSelectAttachment?: (operatorId: string, role: AddressRole, moduleType: ModuleType) => void;
+  onSelectAttachment?: (attachment: Attachment) => void;
 };
 
 export function ConnectedBar({
