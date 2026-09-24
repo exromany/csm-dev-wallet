@@ -742,7 +742,7 @@ input:focus {
 
 .filter-btn {
   font-size: 11px;
-  padding: 3px 9px;
+  padding: 3px 7px;
   border-radius: 99px;
   background: transparent;
   border: 1px solid var(--border);
@@ -763,6 +763,11 @@ input:focus {
   font-size: 10px;
   color: var(--dim-2);
   white-space: nowrap;
+}
+
+/* Shared's 5th chip (Gate) doesn't leave room for the staleness text at 440px. */
+.filter-bar.shared .staleness-label {
+  display: none;
 }
 
 .refresh-btn {

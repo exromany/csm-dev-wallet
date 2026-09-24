@@ -55,6 +55,9 @@ export function SharedAddresses({
     claimer: 'Addresses set as a custom rewards claimer',
     gate: 'Addresses with an unused gate proof — including ones not on any operator',
   };
+  // Claimer/Gate sit near the bar's right edge — a left-anchored tooltip
+  // would run past it, so they open leftward like the gate-warn icon.
+  const rightAnchored = new Set<SharedFilter>(['claimer', 'gate']);
 
   const gateView = filter === 'gate';
   const busy = gateView ? gatesLoading : loading;
@@ -75,7 +78,7 @@ export function SharedAddresses({
             )}
           </div>
         </div>
-        <div className="filter-bar">
+        <div className="filter-bar shared">
           {(
             [
               ['all', 'All'],
@@ -87,7 +90,7 @@ export function SharedAddresses({
           ).map(([value, label]) => (
             <button
               key={value}
-              className={`filter-btn ${hints[value] ? 'hint' : ''} ${filter === value ? 'active' : ''}`}
+              className={`filter-btn ${hints[value] ? 'hint' : ''} ${rightAnchored.has(value) ? 'hint-right' : ''} ${filter === value ? 'active' : ''}`}
               onClick={() => setFilter(value)}
               data-hint={hints[value]}
             >

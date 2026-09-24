@@ -5,7 +5,7 @@ import { chromium, type BrowserContext, type Page, type Worker } from 'playwrigh
 import { createServer, type Server } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry } from '../../lib/shared/types.js';
+import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry, CachedGate, GateCacheEntry } from '../../lib/shared/types.js';
 import type { ModuleAvailability } from '../../lib/shared/messages.js';
 
 const EXTENSION_PATH = resolve(import.meta.dirname, '../../.output/chrome-mv3');
@@ -168,6 +168,22 @@ export async function seedOperators(
 ) {
   const key = `operators_${moduleType}_${chainId}`;
   const entry: OperatorCacheEntry = { operators, lastFetchedAt: Date.now() };
+  await sw.evaluate(
+    async ([k, v]) => {
+      await chrome.storage.local.set({ [k]: v });
+    },
+    [key, entry] as const,
+  );
+}
+
+export async function seedGates(
+  sw: Worker,
+  gates: CachedGate[],
+  chainId: number,
+  moduleType: ModuleType = 'csm',
+) {
+  const key = `gates_${moduleType}_${chainId}`;
+  const entry: GateCacheEntry = { gates, lastFetchedAt: Date.now() };
   await sw.evaluate(
     async ([k, v]) => {
       await chrome.storage.local.set({ [k]: v });
