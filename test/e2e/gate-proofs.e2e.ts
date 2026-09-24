@@ -34,6 +34,11 @@ const ICS: CachedGate = {
   paused: false, unconsumed: [GATE_ONLY, OP_AND_GATE], leafCount: 5,
 };
 
+const ERRORED: CachedGate = {
+  gate: 'idvtcGate', label: 'IDVTC', curveId: '', operatorType: 'CC',
+  paused: false, unconsumed: [], leafCount: 0, error: 'No tree URL served a tree matching the on-chain root',
+};
+
 const { test, summary } = createRunner();
 
 async function main() {
@@ -78,8 +83,19 @@ async function main() {
     });
 
     await test('The filter bar fits the popup with five chips', async () => {
-      await seedFresh();
+      // Widest real bar: a non-fresh staleness label plus the gate-error warning icon,
+      // not the just-seeded, warning-free state `seedFresh()` gives every other test.
+      const staleAt = Date.now() - 25 * 60 * 1000; // under STALE_MS (30min) — no refetch
+      await seedState(sw, extensionId, { chainId: 1, moduleType: 'csm' });
+      await seedOperators(sw, CSM_OPS, 1, 'csm', staleAt);
+      await seedOperators(sw, [], 1, 'cm', staleAt);
+      await seedGates(sw, [ICS, ERRORED], 1, 'csm', staleAt);
+      await seedGates(sw, [], 1, 'cm', staleAt);
+      await seedModuleAvailability(sw, 1, { csm: true, cm: true });
+
       const page = await openShared();
+      await page.locator('.staleness-label').waitFor();
+      await page.locator('.gate-warn').waitFor();
       const overflow = await page.locator('.filter-bar').evaluate((el) => el.scrollWidth - el.clientWidth);
       if (overflow > 0) throw new Error(`filter bar overflows by ${overflow}px`);
       await page.close();

@@ -763,11 +763,11 @@ input:focus {
   font-size: 10px;
   color: var(--dim-2);
   white-space: nowrap;
-}
-
-/* Shared's 5th chip (Gate) doesn't leave room for the staleness text at 440px. */
-.filter-bar.shared .staleness-label {
-  display: none;
+  /* Shared's extra Gate chip + gate-warn icon leave it the least room —
+     truncate rather than push the bar wider than the popup. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .refresh-btn {

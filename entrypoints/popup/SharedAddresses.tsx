@@ -78,7 +78,7 @@ export function SharedAddresses({
             )}
           </div>
         </div>
-        <div className="filter-bar shared">
+        <div className="filter-bar">
           {(
             [
               ['all', 'All'],

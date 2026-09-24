@@ -165,9 +165,10 @@ export async function seedOperators(
   operators: CachedOperator[],
   chainId: number,
   moduleType: ModuleType = 'csm',
+  lastFetchedAt: number = Date.now(),
 ) {
   const key = `operators_${moduleType}_${chainId}`;
-  const entry: OperatorCacheEntry = { operators, lastFetchedAt: Date.now() };
+  const entry: OperatorCacheEntry = { operators, lastFetchedAt };
   await sw.evaluate(
     async ([k, v]) => {
       await chrome.storage.local.set({ [k]: v });
@@ -181,9 +182,10 @@ export async function seedGates(
   gates: CachedGate[],
   chainId: number,
   moduleType: ModuleType = 'csm',
+  lastFetchedAt: number = Date.now(),
 ) {
   const key = `gates_${moduleType}_${chainId}`;
-  const entry: GateCacheEntry = { gates, lastFetchedAt: Date.now() };
+  const entry: GateCacheEntry = { gates, lastFetchedAt };
   await sw.evaluate(
     async ([k, v]) => {
       await chrome.storage.local.set({ [k]: v });
