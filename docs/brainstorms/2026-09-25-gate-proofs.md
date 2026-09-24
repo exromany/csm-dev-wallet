@@ -40,17 +40,19 @@ overflows.
 
 `lib/background/gate-cache.ts`, per `CacheContext`:
 
-1. `gatesFor(module, chain)` (in `lib/shared/gates.ts`) lists gate contract names + addresses.
+1. `gatesFor(module, chain)` (in `gate-cache.ts`) lists gate contract names + addresses.
    Anvil resolves via `forkedFrom`, as operators do.
-2. One `multicall` (`allowFailure: true`) of `treeRoot`, `treeCid`, `curveId`, `isPaused` per
-   gate. ABIs: `VettedGateAbi` / `CuratedGateAbi` from `@lidofinance/lido-csm-sdk/abi`.
+2. One `multicall` of `treeRoot`, `treeCid`, `curveId`, `isPaused` per gate, using
+   `VettedGateAbi` for every gate — `CuratedGateAbi` has identical signatures for all five reads.
 3. Per gate, isolated: zero root → skip. Root equal to the stored tree's root → reuse leaves.
    Otherwise `fetchTree({ urls, root })` from `@lidofinance/lido-csm-sdk/common` — urls are
    IPFS gateways for the CID (`DEFAULT_IPFS_GATEWAYS` + `toCidV1Base32`, guarded by
    `isValidIpfsCid`) then `MERKLE_TREE_FALLBACKS[module][chain][gate]`. `fetchTree` verifies the
    root, so a stale GitHub copy is rejected. Same code path the widget uses.
-4. One `multicall` of `isConsumed(address)` over the leaves; keep the unconsumed.
+4. One `multicall` of `isConsumed(address)` over the leaves (32 KB batches — viem's 1 KB
+   default splits 500 leaves into ~100 calls); keep the unconsumed. Leaves are checksummed.
 5. A failing gate (all URLs dead, multicall revert) is stored with `error` — the rest still land.
+   Gate failures never broadcast the popup `error` banner.
 
 No `Consumed` event scan: `getLogs` from deployment needs ranges public RPCs cap.
 
