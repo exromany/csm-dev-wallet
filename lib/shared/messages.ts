@@ -54,6 +54,8 @@ export type PopupCommand =
   | { type: 'switch-module'; origin: string; moduleType: ModuleType }
   | { type: 'request-operators'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'refresh-operators'; origin: string; chainId: number; moduleType: ModuleType }
+  | { type: 'request-gates'; origin: string; chainId: number; moduleType: ModuleType }
+  | { type: 'refresh-gates'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'toggle-favorite'; origin: string; operatorId: string }
   | { type: 'toggle-group-favorite'; origin: string; groupId: string }
   | { type: 'set-active-tab'; origin: string; tab: PopupTab }
@@ -70,6 +72,8 @@ export type PopupEvent =
   | { type: 'state-update'; state: import('./types.js').WalletState }
   | { type: 'operators-update'; chainId: number; moduleType: ModuleType; operators: import('./types.js').CachedOperator[]; lastFetchedAt: number }
   | { type: 'operators-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
+  | { type: 'gates-update'; chainId: number; moduleType: ModuleType; gates: import('./types.js').CachedGate[]; lastFetchedAt: number }
+  | { type: 'gates-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
   | { type: 'module-availability'; modules: ModuleAvailability }
   | { type: 'anvil-status'; forkedFrom: import('./networks.js').SupportedChainId | null; accounts: import('viem').Address[] }
   | { type: 'error'; message: string };
