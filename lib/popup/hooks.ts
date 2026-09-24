@@ -357,7 +357,7 @@ export function filterSharedAddresses(
   // #N → exact operator ID match, mirroring filterOperators
   if (raw.startsWith('#')) {
     const id = raw.slice(1);
-    return scoped.filter((e) => e.attachments.some((a) => a.operatorId === id));
+    return scoped.filter((e) => e.attachments.some((a) => a.type === 'operator' && a.operatorId === id));
   }
 
   // @type → operator type match, mirroring filterOperators
@@ -373,7 +373,7 @@ export function filterSharedAddresses(
       e.address.toLowerCase().includes(q) ||
       (addressLabels[e.address.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       e.attachments.some(
-        (a) => a.operatorId.includes(q) || a.typeLabel.toLowerCase().includes(q),
+        (a) => (a.type === 'operator' && a.operatorId.includes(q)) || a.typeLabel.toLowerCase().includes(q),
       ),
   );
 }

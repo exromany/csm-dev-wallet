@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AddressRole, ModuleType } from '../../lib/shared/types.js';
-import { countLabel, type AddressAttachments } from '../../lib/shared/attachments.js';
+import { countLabel, type AddressAttachments, type OperatorAttachment } from '../../lib/shared/attachments.js';
 import { AttachmentRow } from './AttachmentRow.js';
 
 type Props = {
@@ -46,7 +46,8 @@ export function AttachedOperators({
           <span className={`attach-count ${entry.crossModule ? 'cross' : ''}`}>{countLabel(entry)}</span>
         </div>
         <div className="ops-scroll">
-          {entry.attachments.map((att) => (
+          {/* Task 6 adds a row for gate attachments; skipped here for now. */}
+          {entry.attachments.filter((a): a is OperatorAttachment => a.type === 'operator').map((att) => (
             <AttachmentRow
               key={`${att.moduleType}:${att.operatorId}`}
               attachment={att}

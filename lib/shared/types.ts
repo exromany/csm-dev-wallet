@@ -19,6 +19,7 @@ export type AddressRole =
 
 export type AddressSource =
   | { type: 'operator'; operatorId: string; role: AddressRole }
+  | { type: 'gate'; gate: string }
   | { type: 'anvil'; index: number }
   | { type: 'manual' };
 

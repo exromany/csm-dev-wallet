@@ -1,10 +1,11 @@
 import React from 'react';
 import type { ModuleType } from '../../lib/shared/types.js';
-import { roleHint, typeHint, type Attachment } from '../../lib/shared/attachments.js';
+import { roleHint, typeHint, type OperatorAttachment } from '../../lib/shared/attachments.js';
 import { LabelEditor } from './LabelEditor.js';
 
 type Props = {
-  attachment: Attachment;
+  // Task 6 renders GateAttachment separately; until then, callers filter to operator rows only.
+  attachment: OperatorAttachment;
   siteModuleType: ModuleType;
   label: string;
   onSelect: () => void;

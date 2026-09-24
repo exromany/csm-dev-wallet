@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { AddressRole, ModuleType } from '../../lib/shared/types.js';
-import { countHint, countLabel, type AddressAttachments } from '../../lib/shared/attachments.js';
+import { countHint, countLabel, type AddressAttachments, type OperatorAttachment } from '../../lib/shared/attachments.js';
 import { truncateAddress, formatTimeAgo } from '../../lib/popup/utils.js';
 import { useCopyAddress, filterSharedAddresses, type SharedFilter } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
@@ -197,7 +197,8 @@ function AddressCard({
 
       {open && (
         <div className="addr-body">
-          {entry.attachments.map((att) => (
+          {/* Task 6 adds a row for gate attachments; skipped here for now. */}
+          {entry.attachments.filter((a): a is OperatorAttachment => a.type === 'operator').map((att) => (
             <AttachmentRow
               key={`${att.moduleType}:${att.operatorId}`}
               attachment={att}

@@ -33,6 +33,8 @@ export type ModuleType = 'csm' | 'csm02' | 'cm';
  */
 export type AddressSource =
   | { type: 'operator'; operatorId: string; role: string }
+  /** Picked from an unused gate proof on the Shared tab — provenance only. */
+  | { type: 'gate'; gate: string }
   | { type: 'anvil'; index: number }
   | { type: 'manual' };
 

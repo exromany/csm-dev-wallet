@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import type { AddressRole, CachedOperator, ModuleType } from './types.js';
+import type { AddressRole, CachedGate, CachedOperator, ModuleType } from './types.js';
 import { MODULE_ORDER, MODULE_LABEL, MODULE_SHORT } from './modules.js';
 
 export type RoleLabel = 'MGR' | 'RWD' | 'P-MGR' | 'P-RWD' | 'CLM';
@@ -56,17 +56,31 @@ export function operatorKind(operatorType: string): string {
   return (operatorType || 'cc').toLowerCase().replace(/_/g, '-');
 }
 
-/** One operator an address is attached to, with every role it holds there. */
-export type Attachment = {
+type AttachmentBase = {
   moduleType: ModuleType;
-  operatorId: string;
   operatorType: string; // raw, e.g. 'CSM_DEF' or the 'CC' fallback
   curveId: string; // BigInt kept as string end to end — chrome.storage can't hold BigInts
-  typeLabel: string;    // 'CSM·DEF' — module prefix restored for cross-module display
-  kind: string;         // 'csm-def' — ribbon colour class suffix
+  typeLabel: string; // 'CSM·DEF' — module prefix restored for cross-module display
+  kind: string; // 'csm-def' — ribbon colour class suffix
+};
+
+/** One operator an address is attached to, with every role it holds there. */
+export type OperatorAttachment = AttachmentBase & {
+  type: 'operator';
+  operatorId: string;
   primaryRole: AddressRole; // role to attribute a selection to
   pills: RoleEntry[];
 };
+
+/** An unused proof for this address in a gate's merkle tree. Identity is (moduleType, gate). */
+export type GateAttachment = AttachmentBase & {
+  type: 'gate';
+  gate: string;
+  gateLabel: string;
+  paused: boolean;
+};
+
+export type Attachment = OperatorAttachment | GateAttachment;
 
 export type AddressAttachments = {
   address: Address;
@@ -75,7 +89,12 @@ export type AddressAttachments = {
   crossModule: boolean;
   pending: boolean; // holds at least one proposed role
   claimer: boolean; // holds a claimer role on any attachment
+  gate: boolean; // holds an unused proof in at least one gate
 };
+
+export function attachmentKey(att: Attachment): string {
+  return att.type === 'gate' ? `${att.moduleType}:gate:${att.gate}` : `${att.moduleType}:op:${att.operatorId}`;
+}
 
 /** 'CSM_DEF' → '0x01', 'CSM2_DEF' → '0x02', anything else → its prefix-stripped suffix. */
 export function operatorTypeBadge(operatorType: string): string {
@@ -102,21 +121,33 @@ export function matchesTypeQuery(operatorType: string, q: string): boolean {
 /**
  * Reverse index over one or both module caches: lowercased address → attachments.
  * Roles of the same address on the same operator collapse into one attachment;
- * the same operator id in different modules stays two.
+ * the same operator id in different modules stays two. Gate proofs fold in as
+ * a second kind of attachment, keyed on (moduleType, gate).
  */
 export function buildAttachmentIndex(
   byModule: Partial<Record<ModuleType, CachedOperator[]>>,
+  gatesByModule: Partial<Record<ModuleType, CachedGate[]>> = {},
 ): Map<string, AddressAttachments> {
   const index = new Map<string, AddressAttachments>();
+  const entryFor = (address: Address) => {
+    const key = address.toLowerCase();
+    let entry = index.get(key);
+    if (!entry) {
+      entry = { address, attachments: [], modules: [], crossModule: false, pending: false, claimer: false, gate: false };
+      index.set(key, entry);
+    }
+    return entry;
+  };
 
   for (const moduleType of MODULE_ORDER) {
     for (const op of byModule[moduleType] ?? []) {
-      const perAddress = new Map<string, Attachment>();
+      const perAddress = new Map<string, OperatorAttachment>();
       for (const e of roleEntries(op)) {
         const key = e.address.toLowerCase();
         let att = perAddress.get(key);
         if (!att) {
           att = {
+            type: 'operator',
             moduleType,
             operatorId: op.id,
             operatorType: op.operatorType,
@@ -130,47 +161,55 @@ export function buildAttachmentIndex(
         }
         att.pills.push(e);
       }
-
-      for (const [key, att] of perAddress) {
+      for (const att of perAddress.values()) {
         const first = att.pills[0];
-        if (!first) continue;
-        let entry = index.get(key);
-        if (!entry) {
-          entry = {
-            address: first.address,
-            attachments: [],
-            modules: [],
-            crossModule: false,
-            pending: false,
-            claimer: false,
-          };
-          index.set(key, entry);
-        }
-        entry.attachments.push(att);
+        if (first) entryFor(first.address).attachments.push(att);
+      }
+    }
+  }
+
+  // After every operator, so an address's operator rows always lead its gate rows.
+  for (const moduleType of MODULE_ORDER) {
+    for (const g of gatesByModule[moduleType] ?? []) {
+      if (g.error) continue;
+      for (const address of g.unconsumed) {
+        entryFor(address).attachments.push({
+          type: 'gate',
+          moduleType,
+          gate: g.gate,
+          gateLabel: g.label,
+          paused: g.paused,
+          operatorType: g.operatorType,
+          curveId: g.curveId,
+          typeLabel: `${MODULE_SHORT[moduleType]}·${g.label}`,
+          kind: operatorKind(g.operatorType),
+        });
       }
     }
   }
 
   for (const entry of index.values()) {
+    const ops = entry.attachments.filter((a): a is OperatorAttachment => a.type === 'operator');
     entry.modules = MODULE_ORDER.filter((m) => entry.attachments.some((a) => a.moduleType === m));
     entry.crossModule = entry.modules.length > 1;
-    entry.pending = entry.attachments.some((a) => a.pills.some((p) => p.proposed));
-    entry.claimer = entry.attachments.some((a) => a.pills.some((p) => p.role === 'claimer'));
+    entry.pending = ops.some((a) => a.pills.some((p) => p.proposed));
+    entry.claimer = ops.some((a) => a.pills.some((p) => p.role === 'claimer'));
+    entry.gate = entry.attachments.length > ops.length;
   }
 
   return index;
 }
 
 /**
- * Addresses held by more than one operator, at least one of them in `inModule`
- * — most attachments first.
+ * Addresses held by more than one attachment, or holding an unused gate proof,
+ * with at least one attachment in `inModule` — most attachments first.
  */
 export function sharedAddresses(
   index: Map<string, AddressAttachments>,
   inModule?: ModuleType,
 ): AddressAttachments[] {
   return [...index.values()]
-    .filter((e) => e.attachments.length > 1)
+    .filter((e) => e.attachments.length > 1 || e.gate)
     .filter((e) => !inModule || e.attachments.some((a) => a.moduleType === inModule))
     .sort(
       (a, b) =>
@@ -181,8 +220,14 @@ export function sharedAddresses(
 
 export function moduleCounts(entry: AddressAttachments): Partial<Record<ModuleType, number>> {
   const counts: Partial<Record<ModuleType, number>> = {};
-  for (const a of entry.attachments) counts[a.moduleType] = (counts[a.moduleType] ?? 0) + 1;
+  for (const a of entry.attachments) {
+    if (a.type === 'operator') counts[a.moduleType] = (counts[a.moduleType] ?? 0) + 1;
+  }
   return counts;
+}
+
+export function gateLabels(entry: AddressAttachments): string[] {
+  return [...new Set(entry.attachments.flatMap((a) => (a.type === 'gate' ? [a.gateLabel] : [])))];
 }
 
 /** 'a' | 'a and b' | 'a, b and c' */
@@ -191,12 +236,17 @@ export function joinList(parts: string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
-/** '2 CSM · 1 CM' when the address spans modules, '2 CM' when it does not. */
+/** '2 CSM · 1 CM', '2 CSM · ICS', 'ICS · PTO'. */
 export function countLabel(entry: AddressAttachments): string {
   const counts = moduleCounts(entry);
-  return MODULE_ORDER.filter((m) => counts[m])
-    .map((m) => `${counts[m]} ${MODULE_SHORT[m]}`)
-    .join(' · ');
+  const ops = MODULE_ORDER.filter((m) => counts[m]).map((m) => `${counts[m]} ${MODULE_SHORT[m]}`);
+  return [...ops, ...gateLabels(entry)].join(' · ');
+}
+
+/** Hover trigger text: '2 ops · ICS', '1 op', 'ICS'. */
+export function attachSummary(entry: AddressAttachments): string {
+  const n = entry.attachments.filter((a) => a.type === 'operator').length;
+  return [...(n ? [`${n} ${n === 1 ? 'op' : 'ops'}`] : []), ...gateLabels(entry)].join(' · ');
 }
 
 /** Tooltip text for a role pill, e.g. 'Manager address · owner' */
@@ -229,8 +279,19 @@ export function countHint(entry: AddressAttachments): string {
   const parts = MODULE_ORDER.filter((m) => counts[m]).map(
     (m) => `${counts[m]} ${MODULE_LABEL[m]} operator${counts[m] === 1 ? '' : 's'}`,
   );
-  const sentence = `Attached to ${joinList(parts)}.`;
-  if (entry.modules.length === 2) return `${sentence.slice(0, -1)} — spans both modules.`;
-  if (entry.modules.length > 2) return `${sentence.slice(0, -1)} — spans ${entry.modules.length} modules.`;
-  return sentence;
+  const gates = gateLabels(entry);
+  const clauses = [
+    ...(parts.length ? [`Attached to ${joinList(parts)}`] : []),
+    ...(gates.length ? [`${parts.length ? 'unused' : 'Unused'} ${joinList(gates)} proof${gates.length === 1 ? '' : 's'}`] : []),
+  ];
+  const base = clauses.join(' · ');
+  if (entry.modules.length === 2) return `${base} — spans both modules.`;
+  if (entry.modules.length > 2) return `${base} — spans ${entry.modules.length} modules.`;
+  return `${base}.`;
+}
+
+export function gatePillHint(att: GateAttachment): string {
+  return att.paused
+    ? `${att.gateLabel} gate paused — proof unused, joining blocked`
+    : `Unused proof in the ${att.gateLabel} gate tree`;
 }
