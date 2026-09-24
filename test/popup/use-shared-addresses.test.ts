@@ -252,6 +252,94 @@ describe('useSharedAddresses', () => {
   });
 });
 
+const ICS_GATE = {
+  gate: 'icsGate', label: 'ICS', curveId: '2', operatorType: 'CSM_ICS',
+  paused: false, unconsumed: [ADDR_C], leafCount: 3,
+};
+
+describe('useSharedAddresses — gates', () => {
+  let port: MockPort;
+
+  beforeEach(() => {
+    port = createMockPort();
+  });
+
+  const TWO_MODULE: ModuleAvailability = { csm: true, cm: true, csm02: false };
+  const render = (availableModules: ModuleAvailability, enabled = true, moduleType: 'csm' | 'cm' | 'csm02' = 'csm') =>
+    renderHook(() =>
+      useSharedAddresses(
+        port as unknown as chrome.runtime.Port, TEST_ORIGIN, 1, moduleType, availableModules, enabled,
+      ),
+    );
+  const emit = (e: PopupEvent) => port._emit(e);
+
+  it('requests gates for every wanted module', () => {
+    render(TWO_MODULE);
+    const sent = port.postMessage.mock.calls.map(([c]) => c as PopupCommand);
+    expect(sent.filter((c) => c.type === 'request-gates').map((c) => (c as { moduleType: string }).moduleType)).toEqual(['csm', 'cm']);
+  });
+
+  it('folds gate-only addresses into the index without holding operator loading', () => {
+    const { result } = render(TWO_MODULE);
+    act(() => {
+      emit({ type: 'operators-update', chainId: 1, moduleType: 'csm', operators: [], lastFetchedAt: 1 });
+      emit({ type: 'operators-update', chainId: 1, moduleType: 'cm', operators: [], lastFetchedAt: 1 });
+    });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.gatesLoading).toBe(true);
+
+    act(() => {
+      emit({ type: 'gates-update', chainId: 1, moduleType: 'csm', gates: [ICS_GATE], lastFetchedAt: 1 });
+      emit({ type: 'gates-update', chainId: 1, moduleType: 'cm', gates: [], lastFetchedAt: 1 });
+    });
+    expect(result.current.gatesLoading).toBe(false);
+    expect(result.current.addresses.map((e) => e.address)).toEqual([ADDR_C]);
+  });
+
+  it('ignores a late gates-update for another chain', () => {
+    const { result } = render(TWO_MODULE);
+    act(() => emit({ type: 'gates-update', chainId: 560048, moduleType: 'csm', gates: [ICS_GATE], lastFetchedAt: 1 }));
+    expect(result.current.index.size).toBe(0);
+  });
+
+  it('settles gates on a failed fetch and reports errored gates by label', () => {
+    const { result } = render(TWO_MODULE);
+    act(() => {
+      emit({ type: 'gates-update', chainId: 1, moduleType: 'csm', gates: [{ ...ICS_GATE, error: 'dead' }], lastFetchedAt: 1 });
+      emit({ type: 'gates-loading', chainId: 1, moduleType: 'cm', loading: false });
+    });
+    expect(result.current.gatesLoading).toBe(false);
+    expect(result.current.gateErrors).toEqual(['ICS']);
+  });
+
+  it('refresh also refreshes gates', () => {
+    const { result } = render(TWO_MODULE);
+    port.postMessage.mockClear();
+    act(() => result.current.refresh());
+    const sent = port.postMessage.mock.calls.map(([c]) => (c as PopupCommand).type);
+    expect(sent.filter((t) => t === 'refresh-gates')).toHaveLength(2);
+  });
+});
+
+describe('filterSharedAddresses — gate', () => {
+  const index = buildAttachmentIndex(
+    { csm: [makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B }), makeOperator({ id: '8', managerAddress: ADDR_A, rewardsAddress: ADDR_B })] },
+    { csm: [{ ...ICS_GATE, unconsumed: [ADDR_C, ADDR_A] }] },
+  );
+  const list = sharedAddresses(index, 'csm');
+
+  it('All excludes a gate-only address; Gate includes it and the operator one', () => {
+    expect(filterSharedAddresses(list, '', 'all').map((e) => e.address)).not.toContain(ADDR_C);
+    expect(filterSharedAddresses(list, '', 'gate').map((e) => e.address).sort()).toEqual([ADDR_A, ADDR_C].sort());
+  });
+
+  it('#N matches operators only; @ics and plain text match gates', () => {
+    expect(filterSharedAddresses(list, '#7', 'gate').map((e) => e.address)).toEqual([ADDR_A]);
+    expect(filterSharedAddresses(list, '@ics', 'gate').map((e) => e.address).sort()).toEqual([ADDR_A, ADDR_C].sort());
+    expect(filterSharedAddresses(list, 'ics', 'gate')).toHaveLength(2);
+  });
+});
+
 describe('filterSharedAddresses', () => {
   const list = sharedAddresses(
     buildAttachmentIndex({
