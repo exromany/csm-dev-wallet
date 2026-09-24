@@ -43,6 +43,23 @@ export type OperatorCacheEntry = {
   lastFetchedAt: number; // Date.now()
 };
 
+/** A gate's unconsumed tree leaves. `error` set → the gate couldn't be read; its lists are empty. */
+export type CachedGate = {
+  gate: string; // SDK contract name: 'icsGate', 'curatedGatePTO'
+  label: string; // 'ICS', 'PTO'
+  curveId: string; // bigint serialized
+  operatorType: string; // the type an operator joining through this gate gets, 'CC' if unknown
+  paused: boolean;
+  unconsumed: Address[];
+  leafCount: number;
+  error?: string;
+};
+
+export type GateCacheEntry = {
+  gates: CachedGate[];
+  lastFetchedAt: number;
+};
+
 export type SelectedAddress = {
   address: Address;
   source: AddressSource;
