@@ -228,13 +228,9 @@ export function useOperators(
 export type SharedFilter = 'all' | 'cross' | 'pending' | 'claimer' | 'gate';
 
 /**
- * Addresses attached to more than one operator, at least one in the site's
- * current module — attachments are still gathered across every module deployed
- * on this network.
- *
- * Reuses `request-operators` (which already takes an arbitrary moduleType) rather
- * than adding a protocol message, so cold and stale caches fetch through exactly
- * the same path as the Operators tab.
+ * Addresses attached to more than one operator, or holding an unused gate proof,
+ * gathered by requesting operators and gates for every module available on this
+ * network (not just the site's current module).
  */
 export function useSharedAddresses(
   port: chrome.runtime.Port | null,

@@ -8,6 +8,7 @@ import {
   launchExtension,
   openPopup,
   seedOperators,
+  seedGates,
   seedModuleAvailability,
   makeTestOperators,
   createRunner,
@@ -27,6 +28,8 @@ async function main() {
   async function seedOps() {
     await resetStateCaches(sw);
     await seedOperators(sw, operators, 1, 'csm');
+    await seedGates(sw, [], 1, 'csm');
+    await seedGates(sw, [], 1, 'cm');
     await seedModuleAvailability(sw, 1, { csm: true, cm: false });
   }
 

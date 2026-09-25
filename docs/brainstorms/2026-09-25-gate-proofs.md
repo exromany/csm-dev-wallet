@@ -50,7 +50,7 @@ overflows.
    `isValidIpfsCid`) then `MERKLE_TREE_FALLBACKS[module][chain][gate]`. `fetchTree` verifies the
    root, so a stale GitHub copy is rejected. Same code path the widget uses.
 4. One `multicall` of `isConsumed(address)` over the leaves (32 KB batches — viem's 1 KB
-   default splits 500 leaves into ~100 calls); keep the unconsumed. Leaves are checksummed.
+   default splits 500 leaves into ~18 calls); keep the unconsumed. Leaves are checksummed.
 5. A failing gate (all URLs dead, multicall revert) is stored with `error` — the rest still land.
    Gate failures never broadcast the popup `error` banner.
 
@@ -73,8 +73,10 @@ type GateCacheEntry = { gates: CachedGate[]; lastFetchedAt: number };
 ```
 
 - `gates_${module}_${chainId}` → `GateCacheEntry` (what the popup receives).
-- `gate_tree_${chainId}_${gate}` → `{ root, leaves }` — kept separate so the popup payload stays
-  small while refresh can skip the download when the root is unchanged.
+- `gate_tree_${contractChainId}_${gate}` → `{ root, leaves }` — kept separate so the popup payload
+  stays small while refresh can skip the download when the root is unchanged. Keyed by the
+  contract chain id (`forkedFrom` on Anvil, not `chainId`), since the tree belongs to the forked
+  chain's contract — Anvil reuses the tree cached for its fork source.
 - Stale after 30 min, like operators. A new on-chain root invalidates the tree implicitly.
 
 Label: `icsGate` → `ICS`, `idvtcGate` → `IDVTC`, `curatedGatePTO` → `PTO`, `curatedGateIODCP`

@@ -736,17 +736,19 @@ input:focus {
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 1px;
   margin-top: 8px;
 }
 
 .filter-btn {
   font-size: 11px;
-  padding: 3px 7px;
+  padding: 3px 5px;
   border-radius: 99px;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--dim);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-btn:hover {

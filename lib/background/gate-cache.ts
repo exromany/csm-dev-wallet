@@ -8,6 +8,7 @@ import {
   getOperatorTypeByCurveId,
   isValidIpfsCid,
   toCidV1Base32,
+  type CONTRACT_NAMES,
 } from '@lidofinance/lido-csm-sdk/common';
 import { VettedGateAbi } from '@lidofinance/lido-csm-sdk/abi';
 import type { SupportedChainId } from '../shared/networks.js';
@@ -16,7 +17,7 @@ import { errorMessage } from '../shared/errors.js';
 import { MODULE_NAMES, contractChainId, getClient } from './client.js';
 
 const VETTED_GATES = ['icsGate', 'idvtcGate'];
-// viem's 1 KB default would split a 500-leaf tree into ~100 eth_calls.
+// viem's 1 KB default would split a 500-leaf tree into ~18 eth_calls (~36 B calldata per isConsumed).
 const CONSUMED_BATCH_BYTES = 32_768;
 
 type GateContract = { gate: string; address: Address };
@@ -54,8 +55,8 @@ export async function getCachedGates(ctx: CacheContext): Promise<GateCacheEntry 
 export async function fetchGates(ctx: CacheContext): Promise<GateCacheEntry> {
   const ccid = contractChainId(ctx);
   const contracts = gatesFor(ctx.moduleType, ccid);
-  const client = contracts.length ? getClient(ctx) : null;
-  const read = await Promise.all(contracts.map((c) => readGate(client!, ctx, ccid, c)));
+  const client = getClient(ctx);
+  const read = await Promise.all(contracts.map((c) => readGate(client, ctx, ccid, c)));
   const entry: GateCacheEntry = {
     gates: read.filter((g): g is CachedGate => g !== null),
     lastFetchedAt: Date.now(),
@@ -117,12 +118,12 @@ async function loadLeaves(
   root: Hex,
   cid: string,
 ): Promise<Address[]> {
-  const key = treeStorageKey(ctx.chainId, gate);
+  const key = treeStorageKey(ccid, gate);
   const stored = (await chrome.storage.local.get(key))[key] as StoredTree | undefined;
   if (stored && stored.root.toLowerCase() === root.toLowerCase()) return stored.leaves;
 
   const fallback: string | undefined =
-    MERKLE_TREE_FALLBACKS[MODULE_NAMES[ctx.moduleType]]?.[ccid]?.[gate as keyof object];
+    MERKLE_TREE_FALLBACKS[MODULE_NAMES[ctx.moduleType]]?.[ccid]?.[gate as CONTRACT_NAMES];
   const urls = [...ipfsUrls(cid), ...(fallback ? [fallback] : [])];
   const tree = await fetchTree<[Address]>({ urls, root });
   if (!tree) throw new Error('No tree URL served a tree matching the on-chain root');

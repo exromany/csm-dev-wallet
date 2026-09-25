@@ -49,7 +49,7 @@ entrypoints/
   content.ts           — content script bridge (WXT defineContentScript)
   inpage.ts            — EIP-1193 provider injected into MAIN world
   popup/               — React UI
-    SharedAddresses.tsx  — Shared tab: addresses attached to >1 operator, across modules
+    SharedAddresses.tsx  — Shared tab: addresses on >1 operator or holding an unused gate proof, across modules
 lib/
   background/          — service worker modules (state, rpc-handler, rpc, operator-cache, anvil)
     gate-cache.ts        — unconsumed gate proofs per module/chain
@@ -152,9 +152,12 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
   are surfaced. The Shared **Gate** chip is a sibling of All, not a subset — it is the only view
   listing gate-only addresses; All still needs >1 attachment (gates count).
 - **Gate cache is split:** `gates_${module}_${chainId}` holds what the popup needs; the full leaf
-  list lives in `gate_tree_${chainId}_${gate}` keyed by root, so a refresh with an unchanged
-  on-chain root re-runs `isConsumed` without re-downloading the tree. Gate failures never raise
-  the popup error banner — a failed gate carries `error` and shows as ⚠ on the Shared tab.
+  list lives in `gate_tree_${contractChainId}_${gate}` (the contract chain id — `forkedFrom` on
+  Anvil, so a fork reuses the tree cached for its source chain) keyed by root, so a refresh with
+  an unchanged on-chain root re-runs `isConsumed` without re-downloading the tree. Gate failures
+  never raise the popup error banner — a failed gate carries `error` and shows as ⚠ on the Shared
+  tab. A cached entry holding an errored gate counts as stale, so it's retried on the next open
+  even though its `lastFetchedAt` is fresh.
 - **E2E seeds gates too:** specs that open Shared or connect an address seed `seedGates(...)`
   (even `[]`), or the worker fetches real trees from IPFS/GitHub mid-test.
 

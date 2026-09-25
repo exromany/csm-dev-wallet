@@ -153,6 +153,15 @@ describe('request-gates', () => {
     expect(events).toContainEqual({ type: 'gates-loading', chainId: 1, moduleType: 'csm', loading: false });
   });
 
+  it('refetches a fresh cache holding an errored gate', async () => {
+    const erroredGate = { ...GATE, error: 'rpc down' };
+    getCachedGates.mockResolvedValue({ gates: [erroredGate], lastFetchedAt: Date.now() });
+    fetchGates.mockResolvedValue({ gates: [GATE], lastFetchedAt: Date.now() });
+    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
+    expect(events).toContainEqual({ type: 'gates-update', chainId: 1, moduleType: 'csm', gates: [erroredGate], lastFetchedAt: expect.any(Number) });
+    expect(fetchGates).toHaveBeenCalledTimes(1);
+  });
+
   it('still replies on an unsupported network', async () => {
     const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 999, moduleType: 'csm' });
     expect(events).toContainEqual({ type: 'gates-loading', chainId: 999, moduleType: 'csm', loading: false });

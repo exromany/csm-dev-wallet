@@ -195,6 +195,19 @@ describe('fetchGates', () => {
     expect(gatesStorageKey(anvil)).toBe('gates_csm_31337');
   });
 
+  it('reuses the tree stored for the forked chain, keyed by contract chain id not chainId', async () => {
+    chain({ config: { [ICS]: [ROOT_1, CID, 2n, false], [IDVTC]: [zeroHash, '', 4n, false] } });
+    mockFetchTree.mockResolvedValue(treeOf([ADDR_A]));
+    await fetchGates(CTX);
+    expect(mockFetchTree).toHaveBeenCalledTimes(1);
+
+    const anvil: CacheContext = { chainId: 31337, moduleType: 'csm', rpcUrl: 'http://127.0.0.1:8545', forkedFrom: 1 };
+    const entry = await fetchGates(anvil);
+
+    expect(mockFetchTree).toHaveBeenCalledTimes(1);
+    expect(entry.gates[0]?.unconsumed).toEqual([getAddress(ADDR_A)]);
+  });
+
   it('makes no RPC call for a module without gates', async () => {
     const entry = await fetchGates({ chainId: 560048, moduleType: 'csm02', rpcUrl: 'https://rpc.example' });
     expect(entry.gates).toEqual([]);

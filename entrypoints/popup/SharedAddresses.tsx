@@ -209,27 +209,20 @@ function AddressCard({
 
       {open && (
         <div className="addr-body">
-          {entry.attachments.map((att) =>
-            att.type === 'operator' ? (
-              <AttachmentRow
-                key={attachmentKey(att)}
-                attachment={att}
-                siteModuleType={siteModuleType}
-                label={operatorLabels.get(att.operatorId, att.moduleType)}
-                onSetLabel={(l) => operatorLabels.set(att.operatorId, l, att.moduleType)}
-                onSelect={() => onSelect(entry.address, att)}
-              />
-            ) : (
-              <AttachmentRow
-                key={attachmentKey(att)}
-                attachment={att}
-                siteModuleType={siteModuleType}
-                label=""
-                editableLabel={false}
-                onSelect={() => onSelect(entry.address, att)}
-              />
-            ),
-          )}
+          {entry.attachments.map((att) => (
+            <AttachmentRow
+              key={attachmentKey(att)}
+              attachment={att}
+              siteModuleType={siteModuleType}
+              onSelect={() => onSelect(entry.address, att)}
+              {...(att.type === 'operator'
+                ? {
+                    label: operatorLabels.get(att.operatorId, att.moduleType),
+                    onSetLabel: (l: string) => operatorLabels.set(att.operatorId, l, att.moduleType),
+                  }
+                : { label: '', editableLabel: false as const })}
+            />
+          ))}
         </div>
       )}
     </div>

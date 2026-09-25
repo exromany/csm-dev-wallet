@@ -267,6 +267,7 @@ export default defineBackground(() => {
     update: (entry: E) => void;
     loading: (loading: boolean) => void;
     fail: (err: unknown) => void;
+    stale?: (entry: E) => boolean;
   };
 
   /** Broadcast cached data and auto-refresh if stale (or forced), deduping concurrent callers. */
@@ -274,7 +275,7 @@ export default defineBackground(() => {
     const cached = await r.getCached();
     if (cached) {
       r.update(cached);
-      if (!force && !isStale(cached)) return;
+      if (!force && !(r.stale ?? isStale)(cached)) return;
     }
 
     const running = inFlightRefreshes.get(r.key);
@@ -320,6 +321,8 @@ export default defineBackground(() => {
       loading: (loading) => broadcastToPopups({ type: 'gates-loading', chainId, moduleType, loading }),
       // Operators already surface RPC failures; a banner per gate fetch would double it.
       fail: (err) => console.warn('Gate fetch failed:', err),
+      // A failed fetch still writes an entry (with per-gate errors) — retry those on the next open.
+      stale: (e) => isStale(e) || e.gates.some((g) => g.error),
     }, force);
   }
 

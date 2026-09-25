@@ -97,7 +97,19 @@ async function main() {
       await page.locator('.staleness-label').waitFor();
       await page.locator('.gate-warn').waitFor();
       const overflow = await page.locator('.filter-bar').evaluate((el) => el.scrollWidth - el.clientWidth);
+
+      // The staleness label can shrink to absorb overflow — a fitting bar can still
+      // hide it entirely. Confirm it stays fully legible, not just present.
+      const labelOverflow = await page
+        .locator('.staleness-label')
+        .evaluate((el) => el.scrollWidth - el.clientWidth);
+
+      const chipHeights = await page.locator('.filter-btn').evaluateAll((els) => els.map((el) => el.offsetHeight));
+      console.log(`  (measured: bar overflow ${overflow}px, label overflow ${labelOverflow}px, chip heights ${chipHeights.join(',')})`);
+
       if (overflow > 0) throw new Error(`filter bar overflows by ${overflow}px`);
+      if (labelOverflow > 0) throw new Error(`staleness label truncated by ${labelOverflow}px`);
+      if (new Set(chipHeights).size > 1) throw new Error(`filter chips wrapped: heights ${chipHeights.join(', ')}`);
       await page.close();
     });
 
