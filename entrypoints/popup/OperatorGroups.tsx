@@ -96,6 +96,15 @@ export function OperatorGroups({
         </div>
       );
     }
+    if (scope === 'splits') {
+      return (
+        <div className="empty-state-rich">
+          <div className="empty-glyph">✓</div>
+          <div className="empty-headline">No fee splits set</div>
+          <div className="empty-hint">Operators that route part of their rewards to other addresses will show up here.</div>
+        </div>
+      );
+    }
     const message =
       allOperatorsCount > 0 ? 'No matching operators' : 'No operators found';
     return <div className="empty-state">{message}</div>;

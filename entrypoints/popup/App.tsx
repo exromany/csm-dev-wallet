@@ -174,10 +174,12 @@ export function App() {
     [operators, filterGroup, isFavorite, isGroupFavorite],
   );
 
-  // Pending/Claimer are list-only; on the Groups tab they read as "All". Derive
+  // Pending/Claimer/Splits are list-only; on the Groups tab they read as "All". Derive
   // rather than mutating filterGroup, so the user's choice survives a round-trip to Groups.
   const groupScope: FilterGroup =
-    activeTab === 'groups' && (filterGroup === 'pending' || filterGroup === 'claimer') ? 'all' : filterGroup;
+    activeTab === 'groups' && (filterGroup === 'pending' || filterGroup === 'claimer' || filterGroup === 'splits')
+      ? 'all'
+      : filterGroup;
 
   return (
     <div className="app">
@@ -307,6 +309,7 @@ export function App() {
                   })
                 }
                 onTypeClick={setSearch}
+                onSplitsClick={() => setFilterGroup('splits')}
               />
             )}
           </>
@@ -455,6 +458,13 @@ function SearchToolbar({
               data-hint="Operators with a custom rewards claimer (CLM) set"
             >
               Claimer
+            </button>
+            <button
+              className={`filter-btn hint ${filterGroup === 'splits' ? 'active' : ''}`}
+              onClick={() => onFilterGroup('splits')}
+              data-hint="Operators that route part of their rewards to split recipients (SPL)"
+            >
+              Splits
             </button>
           </>
         )}

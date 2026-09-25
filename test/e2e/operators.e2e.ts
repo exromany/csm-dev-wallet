@@ -222,6 +222,45 @@ async function main() {
       await page.close();
     });
 
+    // ── Test 9: SPL badge + Splits filter ──
+
+    await test('SPL badge shows on split operators, Splits chip narrows the list', async () => {
+      const withSplits = [
+        ...operators,
+        {
+          ...makeTestOperators(1)[0]!,
+          id: '6',
+          feeSplits: [{ recipient: '0x7777777777777777777777777777777777777777', share: '4000' }],
+        },
+      ];
+      await resetStateCaches(sw);
+      await seedOperators(sw, withSplits, 1, 'csm');
+      await seedGates(sw, [], 1, 'csm');
+      await seedGates(sw, [], 1, 'cm');
+      await seedModuleAvailability(sw, 1, { csm: true, cm: false });
+
+      const page = await openPopup(context, extensionId);
+      await page.waitForSelector('.operator-row');
+
+      const badges = await page.locator('.operator-splits').count();
+      if (badges !== 1) throw new Error(`Expected 1 SPL badge, got ${badges}`);
+
+      const allCount = await page.locator('.operator-row').count();
+      if (allCount !== 6) throw new Error(`Expected 6 rows in All, got ${allCount}`);
+
+      await page.click('.filter-btn:has-text("Splits")');
+      await page.waitForTimeout(300);
+
+      const splitCount = await page.locator('.operator-row').count();
+      if (splitCount !== 1) throw new Error(`Expected 1 row in Splits, got ${splitCount}`);
+
+      const id = await page.locator('.operator-id').textContent();
+      if (id !== '#6') throw new Error(`Expected #6, got ${id}`);
+
+      await page.close();
+      await seedOps();
+    });
+
     const { passed, failed } = summary();
     console.log(`\nResults: ${passed} passed, ${failed} failed`);
   } finally {

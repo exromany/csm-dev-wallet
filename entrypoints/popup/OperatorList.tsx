@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CachedOperator, AddressRole } from '../../lib/shared/types.js';
+import type { CachedOperator, AddressRole, FeeSplit } from '../../lib/shared/types.js';
 import {
   roleEntries,
   operatorKind,
@@ -8,7 +8,7 @@ import {
   operatorTypeHint,
   type RoleLabel,
 } from '../../lib/shared/attachments.js';
-import { truncateAddress } from '../../lib/popup/utils.js';
+import { truncateAddress, feeSplitsHint } from '../../lib/popup/utils.js';
 import { useCopyAddress } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
 import { IconCheck, IconCopy, IconStar } from './icons.js';
@@ -28,6 +28,7 @@ type Props = {
   };
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
   onTypeClick?: (query: string) => void;
+  onSplitsClick?: () => void;
 };
 
 export function OperatorList({
@@ -39,6 +40,7 @@ export function OperatorList({
   operatorLabels,
   onSelect,
   onTypeClick,
+  onSplitsClick,
 }: Props) {
   if (loading && operators.length === 0) {
     return (
@@ -67,6 +69,7 @@ export function OperatorList({
           onLabel={(label) => operatorLabels.set(op.id, label)}
           onSelect={onSelect}
           onTypeClick={onTypeClick}
+          onSplitsClick={onSplitsClick}
         />
       ))}
     </div>
@@ -82,6 +85,7 @@ export function OperatorRow({
   onLabel,
   onSelect,
   onTypeClick,
+  onSplitsClick,
 }: {
   operator: CachedOperator;
   selectedAddress?: string;
@@ -91,6 +95,7 @@ export function OperatorRow({
   onLabel: (label: string) => void;
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
   onTypeClick?: (query: string) => void;
+  onSplitsClick?: () => void;
 }) {
   const groups = groupAddresses(op);
   const hasSelected = groups.some(
@@ -121,6 +126,9 @@ export function OperatorRow({
             >
               {operatorTypeBadge(op.operatorType)}
             </button>
+          )}
+          {op.feeSplits && op.feeSplits.length > 0 && (
+            <SplitsBadge splits={op.feeSplits} onClick={onSplitsClick} />
           )}
           <LabelEditor
             label={label}
@@ -164,6 +172,29 @@ export function OperatorRow({
         )}
       </div>
     </div>
+  );
+}
+
+/** `<button>` when clickable (Operators tab, filters to split operators), plain `<span>` otherwise (Groups tab). */
+function SplitsBadge({ splits, onClick }: { splits: FeeSplit[]; onClick?: () => void }) {
+  const label = `SPL·${splits.length}`;
+  const hint = feeSplitsHint(splits);
+
+  if (!onClick) {
+    return <span className="operator-splits hint hint-pre" data-hint={hint}>{label}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="operator-splits hint hint-pre"
+      data-hint={hint}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

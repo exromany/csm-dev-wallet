@@ -155,4 +155,44 @@ describe('OperatorList', () => {
     fireEvent.click(screen.getByText('0x01'));
     expect(onTypeClick).toHaveBeenCalledWith('@0x01');
   });
+
+  it('renders the SPL badge with the recipient count when feeSplits is set', () => {
+    const ops = [makeOperator({
+      id: '1',
+      feeSplits: [{ recipient: ADDR_D, share: '4000' }, { recipient: ADDR_B, share: '2000' }],
+    })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('SPL·2')).toBeInTheDocument();
+  });
+
+  it('does not render the SPL badge when feeSplits is absent', () => {
+    const ops = [makeOperator({ id: '1' })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.queryByText(/^SPL·/)).not.toBeInTheDocument();
+  });
+
+  it('SPL badge carries the fee-splits hint text', () => {
+    const ops = [makeOperator({ id: '1', feeSplits: [{ recipient: ADDR_D, share: '4000' }] })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('SPL·1')).toHaveAttribute(
+      'data-hint',
+      'Fee splits · 1 recipient\n0xDdDd…dDDD · 40.00%\nOperator keeps 60.00%',
+    );
+  });
+
+  it('renders the SPL badge as a plain span when no onSplitsClick is passed (Groups tab)', () => {
+    const ops = [makeOperator({ id: '1', feeSplits: [{ recipient: ADDR_D, share: '4000' }] })];
+    const { container } = render(<OperatorList {...baseProps} operators={ops} />);
+    expect(container.querySelector('.operator-splits')?.tagName).toBe('SPAN');
+  });
+
+  it('renders the SPL badge as a button and calls onSplitsClick when passed (Operators tab)', () => {
+    const ops = [makeOperator({ id: '1', feeSplits: [{ recipient: ADDR_D, share: '4000' }] })];
+    const onSplitsClick = vi.fn();
+    render(<OperatorList {...baseProps} operators={ops} onSplitsClick={onSplitsClick} />);
+    const badge = screen.getByText('SPL·1');
+    expect(badge.tagName).toBe('BUTTON');
+    fireEvent.click(badge);
+    expect(onSplitsClick).toHaveBeenCalledTimes(1);
+  });
 });

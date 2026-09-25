@@ -23,6 +23,11 @@ export type AddressSource =
   | { type: 'anvil'; index: number }
   | { type: 'manual' };
 
+export type FeeSplit = {
+  recipient: Address;
+  share: string; // bigint serialized — basis points of MAX_BP = 10_000
+};
+
 export type CachedOperator = {
   id: string; // bigint serialized — chrome.storage can't hold bigints
   managerAddress: Address;
@@ -37,6 +42,8 @@ export type CachedOperator = {
   // for CM operators that belong to no group.
   groupId?: string; // bigint serialized
   groupName?: string; // optional on-chain title
+  // Accounting v3 getFeeSplits — set only when non-empty; absent = none or unknown.
+  feeSplits?: FeeSplit[];
 };
 
 export type OperatorCacheEntry = {

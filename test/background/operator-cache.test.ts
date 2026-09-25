@@ -1,15 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { zeroAddress } from 'viem';
-import { ADDR_A, ADDR_B, ADDR_C } from '../fixtures.js';
+import { ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 
 // ── Mocks ──
 
-const { mockReadContract } = vi.hoisted(() => ({ mockReadContract: vi.fn() }));
+const ACCOUNTING_ADDRESS = '0x9999999999999999999999999999999999999999';
+
+const { mockReadContract, mockMulticall } = vi.hoisted(() => ({
+  mockReadContract: vi.fn(),
+  mockMulticall: vi.fn(),
+}));
 vi.mock('viem', async () => {
   const actual = await vi.importActual('viem');
   return {
     ...actual,
-    createPublicClient: vi.fn(() => ({ readContract: mockReadContract })),
+    createPublicClient: vi.fn(() => ({ readContract: mockReadContract, multicall: mockMulticall })),
     http: vi.fn(),
   };
 });
@@ -22,11 +27,12 @@ vi.mock('@lidofinance/lido-csm-sdk/common', () => ({
   MODULE_NAME: { CSM: 'CSM', CM: 'CM', CSM_02: 'CSM_02' },
   MODULE_CONFIG: {
     CSM: {
-      1: { contractAddresses: {}, moduleId: 1n },
+      1: { contractAddresses: { accounting: '0x9999999999999999999999999999999999999999' }, moduleId: 1n },
+      // Hoodi CSM config has no accounting entry — enrichWithFeeSplits must tolerate that.
       560048: { contractAddresses: {}, moduleId: 1n },
     },
     CM: {
-      1: { contractAddresses: {}, moduleId: 2n },
+      1: { contractAddresses: { accounting: '0x9999999999999999999999999999999999999999' }, moduleId: 2n },
       560048: { contractAddresses: {}, moduleId: 2n },
     },
     // Hoodi-only, mirroring the SDK — no mainnet entry
@@ -62,6 +68,7 @@ vi.mock('@lidofinance/lido-csm-sdk/abi', () => ({
   SMDiscoveryV1Abi: [{ name: 'SMDiscoveryV1Abi' }],
   CuratedModuleAbi: [{ name: 'CuratedModuleAbi' }],
   MetaRegistryAbi: [{ name: 'MetaRegistryAbi' }],
+  AccountingAbi: [{ name: 'AccountingAbi' }],
 }));
 
 // ── Imports under test ──
@@ -93,6 +100,7 @@ beforeEach(() => {
   clearClientCache();
   vi.mocked(chrome.storage.local.get).mockResolvedValue({});
   vi.mocked(chrome.storage.local.set).mockResolvedValue(undefined);
+  mockMulticall.mockResolvedValue([]);
 });
 
 // ── storageKey ──
@@ -532,6 +540,87 @@ describe('fetchOperators (CM group enrichment)', () => {
     const entry = await fetchOperators(ctx({ chainId: 1, moduleType: 'cm' }));
     expect(entry.operators[0].groupId).toBe('11');
     expect(entry.operators[0].groupName).toBeUndefined();
+  });
+});
+
+describe('fetchOperators (fee splits enrichment)', () => {
+  const rawOperator = (overrides: Record<string, unknown> = {}) => ({
+    id: 1n,
+    managerAddress: ADDR_A,
+    rewardAddress: ADDR_B,
+    proposedManagerAddress: zeroAddress,
+    proposedRewardAddress: zeroAddress,
+    extendedManagerPermissions: true,
+    curveId: 0n,
+    ...overrides,
+  });
+
+  it('sets feeSplits when Accounting returns a non-empty result', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ id: 1n })]);
+    mockMulticall.mockResolvedValue([
+      { status: 'success', result: [{ recipient: ADDR_C, share: 4000n }, { recipient: ADDR_D, share: 2000n }] },
+    ]);
+
+    const entry = await fetchOperators(ctx());
+    expect(entry.operators[0].feeSplits).toEqual([
+      { recipient: ADDR_C, share: '4000' },
+      { recipient: ADDR_D, share: '2000' },
+    ]);
+  });
+
+  it('omits feeSplits when Accounting returns an empty array', async () => {
+    mockReadContract.mockResolvedValue([rawOperator()]);
+    mockMulticall.mockResolvedValue([{ status: 'success', result: [] }]);
+
+    const entry = await fetchOperators(ctx());
+    expect(entry.operators[0].feeSplits).toBeUndefined();
+  });
+
+  it('tolerates a per-operator multicall failure, leaving other rows enriched', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ id: 1n }), rawOperator({ id: 2n })]);
+    mockMulticall.mockResolvedValue([
+      { status: 'failure', error: new Error('revert') },
+      { status: 'success', result: [{ recipient: ADDR_C, share: 4000n }] },
+    ]);
+
+    const entry = await fetchOperators(ctx());
+    expect(entry.operators[0].feeSplits).toBeUndefined();
+    expect(entry.operators[1].feeSplits).toEqual([{ recipient: ADDR_C, share: '4000' }]);
+  });
+
+  it('tolerates the whole multicall rejecting, leaving operators unmarked', async () => {
+    mockReadContract.mockResolvedValue([rawOperator()]);
+    mockMulticall.mockRejectedValue(new Error('rpc down'));
+
+    const entry = await fetchOperators(ctx());
+    expect(entry.operators[0].feeSplits).toBeUndefined();
+  });
+
+  it('skips the call when the chain has no configured Accounting address', async () => {
+    mockReadContract.mockResolvedValue([rawOperator()]);
+
+    const entry = await fetchOperators(ctx({ chainId: 560048 }));
+    expect(mockMulticall).not.toHaveBeenCalled();
+    expect(entry.operators[0].feeSplits).toBeUndefined();
+  });
+
+  it('calls Accounting.getFeeSplits per operator id via one multicall', async () => {
+    mockReadContract.mockResolvedValue([rawOperator({ id: 5n })]);
+    mockMulticall.mockResolvedValue([{ status: 'success', result: [] }]);
+
+    await fetchOperators(ctx());
+
+    expect(mockMulticall).toHaveBeenCalledWith({
+      allowFailure: true,
+      batchSize: 32_768,
+      contracts: [
+        expect.objectContaining({
+          address: ACCOUNTING_ADDRESS,
+          functionName: 'getFeeSplits',
+          args: [5n],
+        }),
+      ],
+    });
   });
 });
 
