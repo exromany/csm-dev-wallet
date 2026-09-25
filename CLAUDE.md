@@ -150,7 +150,8 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
 - **Gate proofs are attachments:** `buildAttachmentIndex` takes operator caches *and* gate caches;
   a `GateAttachment` is keyed on (module, gate), never an operator id. Only unconsumed leaves
   are surfaced. The Shared **Gate** chip is a sibling of All, not a subset — it is the only view
-  listing gate-only addresses; All still needs >1 attachment (gates count).
+  listing gate-only addresses; All still needs >1 attachment (gates count) and at least one
+  operator among them.
 - **Gate cache is split:** `gates_${module}_${chainId}` holds what the popup needs; the full leaf
   list lives in `gate_tree_${contractChainId}_${gate}` (the contract chain id — `forkedFrom` on
   Anvil, so a fork reuses the tree cached for its source chain) keyed by root, so a refresh with

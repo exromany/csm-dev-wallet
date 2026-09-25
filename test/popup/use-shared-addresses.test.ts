@@ -338,6 +338,25 @@ describe('filterSharedAddresses — gate', () => {
     expect(filterSharedAddresses(list, '@ics', 'gate').map((e) => e.address).sort()).toEqual([ADDR_A, ADDR_C].sort());
     expect(filterSharedAddresses(list, 'ics', 'gate')).toHaveLength(2);
   });
+
+  it('All excludes an address with two gate attachments and no operator; Gate includes it', () => {
+    const twoGateIndex = buildAttachmentIndex(
+      { csm: [makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B })] },
+      {
+        csm: [
+          { ...ICS_GATE, unconsumed: [ADDR_C] },
+          { ...ICS_GATE, gate: 'idvtcGate', label: 'IDVTC', unconsumed: [ADDR_C] },
+        ],
+      },
+    );
+    const twoGateList = sharedAddresses(twoGateIndex, 'csm');
+    expect(filterSharedAddresses(twoGateList, '', 'all').map((e) => e.address)).not.toContain(ADDR_C);
+    expect(filterSharedAddresses(twoGateList, '', 'gate').map((e) => e.address)).toContain(ADDR_C);
+  });
+
+  it('All includes an address holding both an operator and a gate attachment', () => {
+    expect(filterSharedAddresses(list, '', 'all').map((e) => e.address)).toContain(ADDR_A);
+  });
 });
 
 describe('filterSharedAddresses', () => {

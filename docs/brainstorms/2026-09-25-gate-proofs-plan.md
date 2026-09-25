@@ -20,7 +20,7 @@
 - Storage keys: `gates_${moduleType}_${chainId}` (popup entry), `gate_tree_${chainId}_${gate}` (`{ root, leaves }`). Stale after 30 min.
 - Gate label = contract name with `curatedGate` prefix / `Gate` suffix stripped, uppercased (`icsGate` → `ICS`, `curatedGateIODCP` → `IODCP`).
 - Gate attachment identity = (moduleType, gate). `attachmentKey`: `${moduleType}:op:${id}` / `${moduleType}:gate:${gate}`.
-- Shared filters: All / Cross-module / Pending / Claimer require `attachments.length > 1` (gates count); Gate requires `entry.gate`, any count.
+- Shared filters: All / Cross-module / Pending / Claimer require `attachments.length > 1` (gates count) AND at least one operator attachment; Gate requires `entry.gate`, any count.
 - Commits: plain `git commit` (repo signs with `4A07D67C`). Never `--no-gpg-sign`. No co-author trailer.
 
 ## Review Focus

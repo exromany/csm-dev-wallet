@@ -124,8 +124,8 @@ type Attachment = OperatorAttachment | GateAttachment;
 
 **Filter chips:** All · Cross-module · Pending · Claimer · **Gate**.
 
-- All / Cross-module / Pending / Claimer: unchanged semantics — `attachments.length > 1`
-  (gates count toward it) plus their predicate.
+- All / Cross-module / Pending / Claimer: `attachments.length > 1` (gates count toward it) AND
+  at least one operator attachment, plus their predicate.
 - Gate: `entry.gate`, any count — the only view listing addresses that joined nothing yet.
   Hint: "Addresses with an unused gate proof — including ones not on any operator".
 - `#N` search matches operator attachments only; `@type` also matches gate attachments (by

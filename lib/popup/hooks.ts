@@ -373,8 +373,9 @@ export function filterSharedAddresses(
 ): AddressAttachments[] {
   const scoped = list.filter((e) => {
     // Gate is a sibling of All, not a subset: it is the only view that lists gate-only addresses.
+    // The other views need an operator too, since gates alone can push length past 1 (two unused proofs, no operator).
     if (filter === 'gate') return e.gate;
-    if (e.attachments.length < 2) return false;
+    if (e.attachments.length < 2 || !e.attachments.some((a) => a.type === 'operator')) return false;
     if (filter === 'cross') return e.crossModule;
     if (filter === 'pending') return e.pending;
     if (filter === 'claimer') return e.claimer;
