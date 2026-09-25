@@ -572,7 +572,7 @@ export function useCopyAddress() {
 
 // ── filterByGroup ──
 
-export type FilterGroup = 'all' | 'favorites' | 'pending' | 'claimer';
+export type FilterGroup = 'all' | 'favorites' | 'pending' | 'claimer' | 'splits';
 
 /**
  * Flat-list filter. Favorites includes operators starred individually OR
@@ -591,6 +591,7 @@ export function filterByGroup(
   }
   if (group === 'pending') return operators.filter((op) => op.proposedManagerAddress || op.proposedRewardsAddress);
   if (group === 'claimer') return operators.filter((op) => op.claimerAddress);
+  if (group === 'splits') return operators.filter((op) => op.feeSplits && op.feeSplits.length > 0);
   return operators;
 }
 
@@ -644,6 +645,7 @@ export function filterGroupedView(
   }
   if (scope === 'pending') return filterGroupedByPredicate(grouped, opIsPending);
   if (scope === 'claimer') return filterGroupedByPredicate(grouped, (op) => Boolean(op.claimerAddress));
+  if (scope === 'splits') return filterGroupedByPredicate(grouped, (op) => Boolean(op.feeSplits?.length));
   return {
     groups: grouped.groups.map((group) => ({ group, partial: false })),
     ungrouped: grouped.ungrouped,
@@ -690,6 +692,11 @@ export function filterOperators(
       (addressLabels[op.rewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       (op.proposedManagerAddress && (addressLabels[op.proposedManagerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||
       (op.proposedRewardsAddress && (addressLabels[op.proposedRewardsAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||
-      (op.claimerAddress && (addressLabels[op.claimerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)),
+      (op.claimerAddress && (addressLabels[op.claimerAddress.toLowerCase()] ?? '').toLowerCase().includes(q)) ||
+      (op.feeSplits?.some(
+        (s) =>
+          s.recipient.toLowerCase().includes(q) ||
+          (addressLabels[s.recipient.toLowerCase()] ?? '').toLowerCase().includes(q),
+      ) ?? false),
   );
 }

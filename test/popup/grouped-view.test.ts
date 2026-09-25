@@ -95,4 +95,20 @@ describe('filterGroupedView', () => {
     expect(result.groups[0].partial).toBe(true);
     expect(result.ungrouped.map((o) => o.id)).toEqual(['5']);
   });
+
+  it('"splits" strips non-split members from a group (partial), plus split ungrouped', () => {
+    const withSplits = [
+      og('1', '3', 'Kiln'),
+      og('2', '3', 'Kiln', { feeSplits: [{ recipient: ADDR_D, share: '4000' }] }),
+      og('3', '20'),
+      og('4'), // ungrouped
+      og('5', undefined, undefined, { feeSplits: [{ recipient: ADDR_D, share: '2500' }] }),
+    ];
+    const result = filterGroupedView(groupOperators(withSplits), 'splits', () => false);
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].group.id).toBe('3');
+    expect(result.groups[0].group.operators.map((o) => o.id)).toEqual(['2']);
+    expect(result.groups[0].partial).toBe(true);
+    expect(result.ungrouped.map((o) => o.id)).toEqual(['5']);
+  });
 });

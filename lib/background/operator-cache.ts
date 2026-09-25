@@ -9,6 +9,7 @@ import {
   SMDiscoveryV1Abi,
   CuratedModuleAbi,
   MetaRegistryAbi,
+  AccountingAbi,
 } from '@lidofinance/lido-csm-sdk/abi';
 import type { SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
@@ -19,6 +20,8 @@ export { clearClientCache, isStale } from './client.js';
 
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const BATCH_SIZE = 500n;
+// viem's 1 KB default would split a mainnet-sized fetch into dozens of eth_calls.
+const FEE_SPLITS_BATCH_BYTES = 32_768;
 
 // ── Module availability cache ──
 
@@ -158,6 +161,7 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
   if (ctx.moduleType === 'cm' && operators.length > 0) {
     await enrichWithGroups(client, discoveryAddress, moduleId, operators);
   }
+  await enrichWithFeeSplits(client, ccid, ctx.moduleType, operators);
 
   const entry = { operators, lastFetchedAt: Date.now() };
   await chrome.storage.local.set({ [storageKey(ctx)]: entry });
@@ -241,6 +245,43 @@ async function enrichWithGroups(
     }
   } catch {
     // Group enrichment is best-effort — failure leaves operators ungrouped.
+  }
+}
+
+/** Best-effort: sets `feeSplits` from Accounting v3; any failure leaves operators unmarked. */
+async function enrichWithFeeSplits(
+  client: PublicClient,
+  ccid: SupportedChainId,
+  moduleType: ModuleType,
+  operators: CachedOperator[],
+): Promise<void> {
+  const accounting = MODULE_CONFIG[MODULE_NAMES[moduleType]][ccid]?.contractAddresses.accounting;
+  if (!accounting || operators.length === 0) return;
+
+  try {
+    const results = await client.multicall({
+      allowFailure: true,
+      batchSize: FEE_SPLITS_BATCH_BYTES,
+      contracts: operators.map(
+        (op) =>
+          ({
+            address: accounting,
+            abi: AccountingAbi,
+            functionName: 'getFeeSplits',
+            args: [BigInt(op.id)],
+          }) as const,
+      ),
+    });
+
+    for (let i = 0; i < operators.length; i++) {
+      const row = results[i];
+      const op = operators[i];
+      if (op && row?.status === 'success' && row.result.length > 0) {
+        op.feeSplits = row.result.map((s) => ({ recipient: s.recipient, share: s.share.toString() }));
+      }
+    }
+  } catch {
+    // Fee-split enrichment is best-effort — failure leaves operators unmarked.
   }
 }
 

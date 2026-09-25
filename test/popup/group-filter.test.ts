@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filterByGroup } from '../../lib/popup/hooks.js';
-import { makeOperator, ADDR_A, ADDR_B, ADDR_D } from '../fixtures.js';
+import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
 
 const op1 = makeOperator({ id: '1' });
 const op2 = makeOperator({ id: '2', proposedManagerAddress: ADDR_B });
@@ -90,5 +90,15 @@ describe('filterByGroup', () => {
 
   it('excludes operators with no claimer address when group is "claimer"', () => {
     expect(filterByGroup(ops, 'claimer', neverFav)).toEqual([]);
+  });
+
+  it('returns operators with fee splits set when group is "splits"', () => {
+    const withSplits = makeOperator({ id: '6', feeSplits: [{ recipient: ADDR_C, share: '4000' }] });
+    const result = filterByGroup([op1, withSplits], 'splits', neverFav);
+    expect(result).toEqual([withSplits]);
+  });
+
+  it('excludes operators with no fee splits when group is "splits"', () => {
+    expect(filterByGroup(ops, 'splits', neverFav)).toEqual([]);
   });
 });

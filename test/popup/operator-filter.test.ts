@@ -176,3 +176,29 @@ describe('filterOperators @type search', () => {
     expect(filterOperators(typedOps, '@zzz')).toHaveLength(0);
   });
 });
+
+describe('filterOperators fee splits search', () => {
+  // A recipient address not otherwise used by `ops`, so label/substring matches stay exact.
+  const RECIPIENT = '0xEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEeEe' as const;
+  const withSplits = [
+    ...ops,
+    makeOperator({ id: '50', managerAddress: ADDR_A, feeSplits: [{ recipient: RECIPIENT, share: '4000' }] }),
+  ];
+
+  it('matches a split recipient address substring', () => {
+    const q = RECIPIENT.slice(2, 8).toLowerCase();
+    const result = filterOperators(withSplits, q);
+    expect(result.map((o) => o.id)).toEqual(['50']);
+  });
+
+  it('matches a split recipient address label', () => {
+    const labels: Record<string, string> = { [RECIPIENT.toLowerCase()]: 'Splitter Inc' };
+    const result = filterOperators(withSplits, 'splitter', labels);
+    expect(result.map((o) => o.id)).toEqual(['50']);
+  });
+
+  it('operators without feeSplits are unaffected by the recipient/label search', () => {
+    const result = filterOperators(withSplits, 'splitter', {});
+    expect(result).toEqual([]);
+  });
+});

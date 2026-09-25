@@ -161,6 +161,10 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
   even though its `lastFetchedAt` is fresh.
 - **E2E seeds gates too:** specs that open Shared or connect an address seed `seedGates(...)`
   (even `[]`), or the worker fetches real trees from IPFS/GitHub mid-test.
+- **Fee splits are not attachments:** `feeSplits` comes from Accounting v3 `getFeeSplits`
+  (multicall, best-effort — pre-v3 or missing config leaves it unset); `share` is basis points of
+  10 000, remainder stays with the operator. Recipients never enter `roleEntries`/
+  `buildAttachmentIndex`; the `SPL·N` badge and the list-only Splits filter are the whole surface.
 
 ## Playwright Testing API
 
