@@ -8,6 +8,7 @@ import {
   launchExtension,
   openPopup,
   seedOperators,
+  seedGates,
   seedState,
   seedModuleAvailability,
   makeTestOperators,
@@ -27,6 +28,8 @@ async function main() {
   async function seedFresh(favorites: string[] = []) {
     await seedState(sw, extensionId, { chainId: 1, moduleType: 'csm', favorites });
     await seedOperators(sw, operators, 1, 'csm');
+    await seedGates(sw, [], 1, 'csm');
+    await seedGates(sw, [], 1, 'cm');
     await seedModuleAvailability(sw, 1, { csm: true, cm: false });
   }
 
@@ -160,6 +163,8 @@ async function main() {
         id: String(101 + i),
       }));
       await seedOperators(sw, hoodiOps, 560048, 'csm');
+      await seedGates(sw, [], 560048, 'csm');
+      await seedGates(sw, [], 560048, 'cm');
       await seedModuleAvailability(sw, 560048, { csm: true, cm: false });
 
       const page = await openPopup(context, extensionId);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type RefObject } from 'react';
-import type { WalletState, CachedOperator, ModuleType } from '../shared/types.js';
+import type { WalletState, CachedOperator, CachedGate, ModuleType } from '../shared/types.js';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
@@ -225,16 +225,12 @@ export function useOperators(
 
 // ── useSharedAddresses ──
 
-export type SharedFilter = 'all' | 'cross' | 'pending' | 'claimer';
+export type SharedFilter = 'all' | 'cross' | 'pending' | 'claimer' | 'gate';
 
 /**
- * Addresses attached to more than one operator, at least one in the site's
- * current module — attachments are still gathered across every module deployed
- * on this network.
- *
- * Reuses `request-operators` (which already takes an arbitrary moduleType) rather
- * than adding a protocol message, so cold and stale caches fetch through exactly
- * the same path as the Operators tab.
+ * Addresses attached to more than one operator, or holding an unused gate proof,
+ * gathered by requesting operators and gates for every module available on this
+ * network (not just the site's current module).
  */
 export function useSharedAddresses(
   port: chrome.runtime.Port | null,
@@ -248,6 +244,9 @@ export function useSharedAddresses(
   const [loadingModules, setLoadingModules] = useState<ModuleType[]>([]);
   const [settledModules, setSettledModules] = useState<ModuleType[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Partial<Record<ModuleType, number>>>({});
+  const [gatesByModule, setGatesByModule] = useState<Partial<Record<ModuleType, CachedGate[]>>>({});
+  const [gatesLoadingModules, setGatesLoadingModules] = useState<ModuleType[]>([]);
+  const [gatesSettled, setGatesSettled] = useState<ModuleType[]>([]);
 
   // A stale availability cache written before a module existed omits its key —
   // "map is non-empty" isn't enough, every probed module must have answered.
@@ -269,9 +268,14 @@ export function useSharedAddresses(
     setLoadingModules([]);
     setSettledModules([]);
     setFetchedAt({});
+    setGatesByModule({});
+    setGatesLoadingModules([]);
+    setGatesSettled([]);
 
     const settle = (moduleType: ModuleType) =>
       setSettledModules((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
+    const settleGates = (moduleType: ModuleType) =>
+      setGatesSettled((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
 
     const handler = (event: PopupEvent) => {
       if (event.type === 'operators-update') {
@@ -293,12 +297,27 @@ export function useSharedAddresses(
         // counts as settled, or a stuck cache never lets `loading` clear.
         if (!event.loading) settle(event.moduleType);
       }
+      if (event.type === 'gates-update') {
+        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
+        setGatesByModule((prev) => ({ ...prev, [event.moduleType]: event.gates }));
+        settleGates(event.moduleType);
+      }
+      if (event.type === 'gates-loading') {
+        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
+        setGatesLoadingModules((prev) =>
+          event.loading
+            ? (prev.includes(event.moduleType) ? prev : [...prev, event.moduleType])
+            : prev.filter((m) => m !== event.moduleType),
+        );
+        if (!event.loading) settleGates(event.moduleType);
+      }
     };
 
     port.onMessage.addListener(handler);
     for (const moduleType of wanted) {
       try {
         port.postMessage({ type: 'request-operators', origin, chainId, moduleType } satisfies PopupCommand);
+        port.postMessage({ type: 'request-gates', origin, chainId, moduleType } satisfies PopupCommand);
       } catch {
         // Port disconnected — useWalletState reopens on focus
       }
@@ -311,13 +330,14 @@ export function useSharedAddresses(
     for (const moduleType of wanted) {
       try {
         port.postMessage({ type: 'refresh-operators', origin, chainId, moduleType } satisfies PopupCommand);
+        port.postMessage({ type: 'refresh-gates', origin, chainId, moduleType } satisfies PopupCommand);
       } catch {
         // Port disconnected — useWalletState reopens on focus
       }
     }
   }, [port, origin, chainId, wanted, resolved]);
 
-  const index = useMemo(() => buildAttachmentIndex(byModule), [byModule]);
+  const index = useMemo(() => buildAttachmentIndex(byModule, gatesByModule), [byModule, gatesByModule]);
   const addresses = useMemo(() => sharedAddresses(index, moduleType), [index, moduleType]);
 
   // Report the STALEST module, so "updated Xm ago" never overstates freshness.
@@ -334,7 +354,14 @@ export function useSharedAddresses(
   const answered = wanted.filter((m) => settledModules.includes(m)).length;
   const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
 
-  return { addresses, index, loading, lastFetchedAt, refresh };
+  const gatesAnswered = wanted.filter((m) => gatesSettled.includes(m)).length;
+  const gatesLoading = enabled && (gatesLoadingModules.length > 0 || gatesAnswered < wanted.length);
+  const gateErrors = useMemo(
+    () => MODULE_ORDER.flatMap((m) => (wanted.includes(m) ? gatesByModule[m] ?? [] : []).filter((g) => g.error).map((g) => g.label)),
+    [gatesByModule, wanted],
+  );
+
+  return { addresses, index, loading, lastFetchedAt, refresh, gatesLoading, gateErrors };
 }
 
 /** Scope + search filter for the Shared tab. */
@@ -345,6 +372,10 @@ export function filterSharedAddresses(
   addressLabels: Record<string, string> = {},
 ): AddressAttachments[] {
   const scoped = list.filter((e) => {
+    // Gate is a sibling of All, not a subset: it is the only view that lists gate-only addresses.
+    // The other views need an operator too, since gates alone can push length past 1 (two unused proofs, no operator).
+    if (filter === 'gate') return e.gate;
+    if (e.attachments.length < 2 || !e.attachments.some((a) => a.type === 'operator')) return false;
     if (filter === 'cross') return e.crossModule;
     if (filter === 'pending') return e.pending;
     if (filter === 'claimer') return e.claimer;
@@ -357,14 +388,16 @@ export function filterSharedAddresses(
   // #N → exact operator ID match, mirroring filterOperators
   if (raw.startsWith('#')) {
     const id = raw.slice(1);
-    return scoped.filter((e) => e.attachments.some((a) => a.operatorId === id));
+    return scoped.filter((e) => e.attachments.some((a) => a.type === 'operator' && a.operatorId === id));
   }
 
-  // @type → operator type match, mirroring filterOperators
+  // @type → operator type match, or an exact gate label, mirroring filterOperators
   if (raw.startsWith('@')) {
     const q = raw.slice(1).toLowerCase();
     if (!q) return scoped;
-    return scoped.filter((e) => e.attachments.some((a) => matchesTypeQuery(a.operatorType, q)));
+    return scoped.filter((e) =>
+      e.attachments.some((a) => matchesTypeQuery(a.operatorType, q) || (a.type === 'gate' && a.gateLabel.toLowerCase() === q)),
+    );
   }
 
   const q = raw.toLowerCase();
@@ -373,7 +406,7 @@ export function filterSharedAddresses(
       e.address.toLowerCase().includes(q) ||
       (addressLabels[e.address.toLowerCase()] ?? '').toLowerCase().includes(q) ||
       e.attachments.some(
-        (a) => a.operatorId.includes(q) || a.typeLabel.toLowerCase().includes(q),
+        (a) => (a.type === 'operator' && a.operatorId.includes(q)) || a.typeLabel.toLowerCase().includes(q),
       ),
   );
 }

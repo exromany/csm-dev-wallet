@@ -30,10 +30,11 @@ import {
   setForkedFrom,
   clearForkedFrom,
 } from '../lib/background/anvil.js';
+import { fetchGates, getCachedGates } from '../lib/background/gate-cache.js';
 import { CHAIN_ID, SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, DEFAULT_NETWORKS, type SupportedChainId } from '../lib/shared/networks.js';
 import { errorMessage } from '../lib/shared/errors.js';
 import { toggleFavorite } from '../lib/shared/favorites.js';
-import type { CacheContext, SiteState, GlobalSettings } from '../lib/shared/types.js';
+import type { CacheContext, SiteState, GlobalSettings, ModuleType } from '../lib/shared/types.js';
 import { BASELINE_MODULE, PROBED_MODULES } from '../lib/shared/modules.js';
 import {
   PORT_NAME,
@@ -259,50 +260,87 @@ export default defineBackground(() => {
     return { forkedFrom };
   }
 
-  /** Send cached operators and auto-refresh if stale (or forced) */
-  async function triggerRefresh(ctx: CacheContext, force = false) {
-    const cached = await getCachedOperators(ctx);
+  type CachedRefresh<E extends { lastFetchedAt: number }> = {
+    key: string;
+    getCached: () => Promise<E | null>;
+    fetch: () => Promise<E>;
+    update: (entry: E) => void;
+    loading: (loading: boolean) => void;
+    fail: (err: unknown) => void;
+    stale?: (entry: E) => boolean;
+  };
+
+  /** Broadcast cached data and auto-refresh if stale (or forced), deduping concurrent callers. */
+  async function refreshCached<E extends { lastFetchedAt: number }>(r: CachedRefresh<E>, force: boolean) {
+    const cached = await r.getCached();
     if (cached) {
-      broadcastToPopups({
-        type: 'operators-update',
-        chainId: ctx.chainId,
-        moduleType: ctx.moduleType,
-        operators: cached.operators,
-        lastFetchedAt: cached.lastFetchedAt,
-      });
-      if (!force && !isStale(cached)) return;
+      r.update(cached);
+      if (!force && !(r.stale ?? isStale)(cached)) return;
     }
 
-    const key = `${ctx.moduleType}:${ctx.chainId}`;
-    const running = inFlightRefreshes.get(key);
+    const running = inFlightRefreshes.get(r.key);
     if (running) return running;
 
     const task = (async () => {
-      broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: true });
+      r.loading(true);
       try {
-        const entry = await fetchOperators(ctx);
-        broadcastToPopups({
-          type: 'operators-update',
-          chainId: ctx.chainId,
-          moduleType: ctx.moduleType,
-          operators: entry.operators,
-          lastFetchedAt: entry.lastFetchedAt,
-        });
+        r.update(await r.fetch());
       } catch (err: unknown) {
-        broadcastToPopups({
-          type: 'error',
-          message: `Failed to fetch operators: ${errorMessage(err)}`,
-        });
+        r.fail(err);
       } finally {
-        broadcastToPopups({ type: 'operators-loading', chainId: ctx.chainId, moduleType: ctx.moduleType, loading: false });
+        r.loading(false);
       }
     })();
-    inFlightRefreshes.set(key, task);
+    inFlightRefreshes.set(r.key, task);
     try {
       await task;
     } finally {
-      inFlightRefreshes.delete(key);
+      inFlightRefreshes.delete(r.key);
     }
+  }
+
+  function triggerRefresh(ctx: CacheContext, force = false) {
+    const { chainId, moduleType } = ctx;
+    return refreshCached({
+      key: `operators:${moduleType}:${chainId}`,
+      getCached: () => getCachedOperators(ctx),
+      fetch: () => fetchOperators(ctx),
+      update: (e) => broadcastToPopups({ type: 'operators-update', chainId, moduleType, operators: e.operators, lastFetchedAt: e.lastFetchedAt }),
+      loading: (loading) => broadcastToPopups({ type: 'operators-loading', chainId, moduleType, loading }),
+      fail: (err) => broadcastToPopups({ type: 'error', message: `Failed to fetch operators: ${errorMessage(err)}` }),
+    }, force);
+  }
+
+  function triggerGateRefresh(ctx: CacheContext, force = false) {
+    const { chainId, moduleType } = ctx;
+    return refreshCached({
+      key: `gates:${moduleType}:${chainId}`,
+      getCached: () => getCachedGates(ctx),
+      fetch: () => fetchGates(ctx),
+      update: (e) => broadcastToPopups({ type: 'gates-update', chainId, moduleType, gates: e.gates, lastFetchedAt: e.lastFetchedAt }),
+      loading: (loading) => broadcastToPopups({ type: 'gates-loading', chainId, moduleType, loading }),
+      // Operators already surface RPC failures; a banner per gate fetch would double it.
+      fail: (err) => console.warn('Gate fetch failed:', err),
+      // A failed fetch still writes an entry (with per-gate errors) — retry those on the next open.
+      stale: (e) => isStale(e) || e.gates.some((g) => g.error),
+    }, force);
+  }
+
+  async function resolveCacheContext(chainId: number, moduleType: ModuleType): Promise<CacheContext | null> {
+    const globalSettings = await getGlobalSettings();
+    if (chainId === ANVIL_CHAIN_ID) {
+      const rpcUrl = globalSettings.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
+      let forkedFrom = await getForkedFrom();
+      if (!forkedFrom) {
+        forkedFrom = await detectAnvilFork(rpcUrl);
+        if (forkedFrom) await setForkedFrom(forkedFrom);
+      }
+      return forkedFrom ? { chainId, moduleType, rpcUrl, forkedFrom } : null;
+    }
+    const supported = chainId as SupportedChainId;
+    if (!SUPPORTED_CHAIN_IDS.includes(supported)) return null;
+    const rpcUrl = globalSettings.customRpcUrls[chainId] ?? DEFAULT_NETWORKS[supported]?.rpcUrl ?? DEFAULT_NETWORKS[1 as SupportedChainId].rpcUrl;
+    return { chainId, moduleType, rpcUrl };
   }
 
   /** Send persisted module availability immediately, then recheck via RPC. */
@@ -445,63 +483,29 @@ export default defineBackground(() => {
       }
 
       case 'request-operators': {
-        const globalSettings = await getGlobalSettings();
-        if (command.chainId === ANVIL_CHAIN_ID) {
-          const rpcUrl = globalSettings.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
-          let forkedFrom = await getForkedFrom();
-          if (!forkedFrom) {
-            forkedFrom = await detectAnvilFork(rpcUrl);
-            if (forkedFrom) await setForkedFrom(forkedFrom);
-          }
-          if (forkedFrom) {
-            const ctx: CacheContext = {
-              chainId: ANVIL_CHAIN_ID,
-              moduleType: command.moduleType,
-              rpcUrl,
-              forkedFrom,
-            };
-            await triggerRefresh(ctx);
-          } else {
-            // No fork to read from: still reply so the popup's loading flag clears.
-            broadcastToPopups({ type: 'operators-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
-          }
-          break;
-        }
-        const chainId = command.chainId as SupportedChainId;
-        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
-          // Unsupported network: still reply so the popup's loading flag clears.
-          broadcastToPopups({ type: 'operators-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
-          break;
-        }
-        const rpcUrl = globalSettings.customRpcUrls[command.chainId] ?? DEFAULT_NETWORKS[chainId]?.rpcUrl ?? DEFAULT_NETWORKS[1 as SupportedChainId].rpcUrl;
-        await triggerRefresh({ chainId: command.chainId, moduleType: command.moduleType, rpcUrl });
+        const ctx = await resolveCacheContext(command.chainId, command.moduleType);
+        if (ctx) await triggerRefresh(ctx);
+        else broadcastToPopups({ type: 'operators-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
         break;
       }
 
       case 'refresh-operators': {
-        const globalSettings = await getGlobalSettings();
-        if (command.chainId === ANVIL_CHAIN_ID) {
-          const rpcUrl = globalSettings.customRpcUrls[ANVIL_CHAIN_ID] ?? ANVIL_NETWORK.rpcUrl;
-          let forkedFrom = await getForkedFrom();
-          if (!forkedFrom) {
-            forkedFrom = await detectAnvilFork(rpcUrl);
-            if (forkedFrom) await setForkedFrom(forkedFrom);
-          }
-          if (forkedFrom) {
-            const ctx: CacheContext = {
-              chainId: ANVIL_CHAIN_ID,
-              moduleType: command.moduleType,
-              rpcUrl,
-              forkedFrom,
-            };
-            await triggerRefresh(ctx, true);
-          }
-          break;
-        }
-        const chainId = command.chainId as SupportedChainId;
-        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) break;
-        const rpcUrl = globalSettings.customRpcUrls[command.chainId] ?? DEFAULT_NETWORKS[chainId]?.rpcUrl ?? DEFAULT_NETWORKS[1 as SupportedChainId].rpcUrl;
-        await triggerRefresh({ chainId: command.chainId, moduleType: command.moduleType, rpcUrl }, true);
+        const ctx = await resolveCacheContext(command.chainId, command.moduleType);
+        if (ctx) await triggerRefresh(ctx, true);
+        break;
+      }
+
+      case 'request-gates': {
+        const ctx = await resolveCacheContext(command.chainId, command.moduleType);
+        if (ctx) await triggerGateRefresh(ctx);
+        else broadcastToPopups({ type: 'gates-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
+        break;
+      }
+
+      case 'refresh-gates': {
+        const ctx = await resolveCacheContext(command.chainId, command.moduleType);
+        if (ctx) await triggerGateRefresh(ctx, true);
+        else broadcastToPopups({ type: 'gates-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
         break;
       }
 

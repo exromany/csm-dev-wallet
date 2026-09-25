@@ -103,7 +103,9 @@ describe('AttachedOperators', () => {
       el.textContent?.includes('CM·PO'),
     )!;
     fireEvent.click(cmRow);
-    expect(onSelect).toHaveBeenCalledWith('7', 'manager', 'cm');
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'operator', operatorId: '7', primaryRole: 'manager', moduleType: 'cm' }),
+    );
   });
 
   it('is not capped at five attachments, and is capped at six', () => {
@@ -133,5 +135,16 @@ describe('AttachedOperators', () => {
     const label = screen.getByText('Kiln');
     fireEvent.click(label);
     expect(container.querySelector('.operator-label-input')).not.toBeInTheDocument();
+  });
+
+  it('summarises operators and gates in the trigger and lists the gate row', () => {
+    const index = buildAttachmentIndex(
+      { csm: [makeOperator({ id: '7', managerAddress: ADDR_A })] },
+      { csm: [{ gate: 'icsGate', label: 'ICS', curveId: '2', operatorType: 'CSM_ICS', paused: false, unconsumed: [ADDR_A], leafCount: 1 }] },
+    );
+    const { container, onSelect } = renderPanel({ entry: index.get(ADDR_A.toLowerCase()) });
+    expect(container.querySelector('.ops-trigger')!.textContent).toBe('1 op · ICS');
+    fireEvent.click(container.querySelector('.ops-pop .attach-row.gate')!);
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ type: 'gate', gate: 'icsGate' }));
   });
 });

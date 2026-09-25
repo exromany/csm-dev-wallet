@@ -8,6 +8,7 @@ import {
   launchExtension,
   openPopup,
   seedOperators,
+  seedGates,
   seedState,
   seedModuleAvailability,
   goToTab,
@@ -66,6 +67,8 @@ async function main() {
     await seedState(sw, extensionId, { chainId: 1, moduleType: 'csm' });
     await seedOperators(sw, CSM_OPS, 1, 'csm');
     await seedOperators(sw, CM_OPS, 1, 'cm');
+    await seedGates(sw, [], 1, 'csm');
+    await seedGates(sw, [], 1, 'cm');
     await seedModuleAvailability(sw, 1, { csm: true, cm: true });
   }
 

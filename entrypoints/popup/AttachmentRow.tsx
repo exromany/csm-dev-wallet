@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ModuleType } from '../../lib/shared/types.js';
-import { roleHint, typeHint, type Attachment } from '../../lib/shared/attachments.js';
+import { gatePillHint, roleHint, typeHint, type Attachment } from '../../lib/shared/attachments.js';
 import { LabelEditor } from './LabelEditor.js';
 
 type Props = {
@@ -21,6 +21,25 @@ export function AttachmentRow({
   onSelect,
   editableLabel = true,
 }: Props) {
+  if (att.type === 'gate') {
+    return (
+      <div className={`attach-row gate kind-${att.kind}`} onClick={onSelect}>
+        <span className="attach-ribbon" />
+        <span className="attach-id mono gate-id">gate</span>
+        <span className="attach-type hint" data-hint={typeHint(att, siteModuleType)}>{att.typeLabel}</span>
+        <div className="spacer" />
+        <div className="chip-pills">
+          <span
+            className={`role-pill hint hint-right ${att.paused ? 'dashed' : 'tint-gate'}`}
+            data-hint={gatePillHint(att)}
+          >
+            {att.paused ? 'PAUSED' : 'PROOF'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`attach-row kind-${att.kind}`}

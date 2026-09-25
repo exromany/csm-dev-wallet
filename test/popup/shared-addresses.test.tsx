@@ -43,6 +43,8 @@ function renderTab(overrides: Partial<React.ComponentProps<typeof SharedAddresse
       addressLabels={{}}
       operatorLabels={operatorLabels}
       siteModuleType="csm"
+      gatesLoading={false}
+      gateErrors={[]}
       onRefresh={() => {}}
       onSelect={onSelect}
       onSetAddressLabel={onSetAddressLabel}
@@ -77,7 +79,10 @@ describe('SharedAddresses', () => {
       el.textContent?.includes('CM·PO'),
     )!;
     fireEvent.click(cmRow);
-    expect(onSelect).toHaveBeenCalledWith(ADDR_A, '7', 'manager', 'cm');
+    expect(onSelect).toHaveBeenCalledWith(
+      ADDR_A,
+      expect.objectContaining({ type: 'operator', operatorId: '7', primaryRole: 'manager', moduleType: 'cm' }),
+    );
   });
 
   it('marks the connected address at the card level, leaving every attachment selectable', () => {
@@ -92,7 +97,10 @@ describe('SharedAddresses', () => {
       el.textContent?.includes('CM·PO'),
     )!;
     fireEvent.click(cmRow);
-    expect(onSelect).toHaveBeenCalledWith(ADDR_A, '7', 'manager', 'cm');
+    expect(onSelect).toHaveBeenCalledWith(
+      ADDR_A,
+      expect.objectContaining({ type: 'operator', operatorId: '7', primaryRole: 'manager', moduleType: 'cm' }),
+    );
   });
 
   it('does not confuse CSM #7 with CM #7', () => {
@@ -109,11 +117,17 @@ describe('SharedAddresses', () => {
 
     const csmRow = [...rows].find((el) => el.textContent?.includes('CSM·0x01'))!;
     fireEvent.click(csmRow);
-    expect(onSelect).toHaveBeenLastCalledWith(ADDR_A, '7', 'manager', 'csm');
+    expect(onSelect).toHaveBeenLastCalledWith(
+      ADDR_A,
+      expect.objectContaining({ type: 'operator', operatorId: '7', primaryRole: 'manager', moduleType: 'csm' }),
+    );
 
     const cmRow = [...rows].find((el) => el.textContent?.includes('CM·PO'))!;
     fireEvent.click(cmRow);
-    expect(onSelect).toHaveBeenLastCalledWith(ADDR_A, '7', 'manager', 'cm');
+    expect(onSelect).toHaveBeenLastCalledWith(
+      ADDR_A,
+      expect.objectContaining({ type: 'operator', operatorId: '7', primaryRole: 'manager', moduleType: 'cm' }),
+    );
   });
 
   it('narrows to cross-module addresses when the chip is clicked', () => {
@@ -223,5 +237,53 @@ describe('SharedAddresses', () => {
     expect(csmRow.querySelector('.role-pill')!.getAttribute('data-hint')).toBe(
       roleHint(att.pills[0]),
     );
+  });
+});
+
+const ICS_GATE = { gate: 'icsGate', label: 'ICS', curveId: '2', operatorType: 'CSM_ICS', paused: false, unconsumed: [ADDR_C], leafCount: 3 };
+const gateOnly = sharedAddresses(buildAttachmentIndex({}, { csm: [ICS_GATE] }), 'csm');
+
+describe('SharedAddresses — gates', () => {
+  it('lists a gate-only address under the Gate chip only', () => {
+    const { container, getByText } = renderTab({ addresses: gateOnly });
+    expect(container.querySelectorAll('.addr-card')).toHaveLength(0);
+    fireEvent.click(getByText('Gate'));
+    expect(container.querySelectorAll('.addr-card')).toHaveLength(1);
+  });
+
+  it('renders a gate row with a PROOF pill and selects it as a gate attachment', () => {
+    const { container, getByText, onSelect } = renderTab({ addresses: gateOnly });
+    fireEvent.click(getByText('Gate'));
+    fireEvent.click(container.querySelector('.addr-head')!);
+    const row = container.querySelector('.attach-row.gate')!;
+    expect(row.textContent).toContain('CSM·ICS');
+    expect(row.querySelector('.role-pill')!.textContent).toBe('PROOF');
+    fireEvent.click(row);
+    expect(onSelect).toHaveBeenCalledWith(ADDR_C, expect.objectContaining({ type: 'gate', gate: 'icsGate', moduleType: 'csm' }));
+  });
+
+  it('shows PAUSED for a paused gate', () => {
+    const paused = sharedAddresses(buildAttachmentIndex({}, { csm: [{ ...ICS_GATE, paused: true }] }), 'csm');
+    const { container, getByText } = renderTab({ addresses: paused });
+    fireEvent.click(getByText('Gate'));
+    fireEvent.click(container.querySelector('.addr-head')!);
+    expect(container.querySelector('.attach-row.gate .role-pill')!.textContent).toBe('PAUSED');
+  });
+
+  it('shows a gate-tree spinner under Gate while gates load', () => {
+    const { getByText } = renderTab({ addresses: [], gatesLoading: true });
+    fireEvent.click(getByText('Gate'));
+    expect(getByText('Loading gate trees…')).toBeInTheDocument();
+  });
+
+  it('shows the gate empty state once gates settle with nothing', () => {
+    const { getByText } = renderTab({ addresses: [], gatesLoading: false });
+    fireEvent.click(getByText('Gate'));
+    expect(getByText('No unused gate proofs')).toBeInTheDocument();
+  });
+
+  it('warns about unavailable gate trees', () => {
+    const { container } = renderTab({ gateErrors: ['ICS', 'PTO'] });
+    expect(container.querySelector('.gate-warn')!.getAttribute('data-hint')).toBe('Gate tree unavailable: ICS, PTO');
   });
 });

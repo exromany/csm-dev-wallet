@@ -13,8 +13,13 @@ import {
   countHint,
   operatorTypeBadge,
   matchesTypeQuery,
+  attachmentKey,
+  gateLabels,
+  attachSummary,
+  gatePillHint,
 } from '../../lib/shared/attachments.js';
 import { makeOperator, ADDR_A, ADDR_B, ADDR_C, ADDR_D } from '../fixtures.js';
+import type { CachedGate } from '../../lib/shared/types.js';
 
 describe('roleEntries', () => {
   it('returns manager and rewards, marking whichever is owner', () => {
@@ -507,5 +512,109 @@ describe('countHint', () => {
     expect(countHint(index.get(ADDR_A.toLowerCase())!)).toBe(
       'Attached to 1 CSM operator, 1 CSM 0x02 operator and 1 CM operator — spans 3 modules.',
     );
+  });
+});
+
+function makeGate(overrides: Partial<CachedGate> = {}): CachedGate {
+  return {
+    gate: 'icsGate', label: 'ICS', curveId: '2', operatorType: 'CSM_ICS',
+    paused: false, unconsumed: [], leafCount: 10, ...overrides,
+  };
+}
+
+describe('gate attachments', () => {
+  it('adds a gate attachment for each unconsumed address', () => {
+    const index = buildAttachmentIndex({}, { csm: [makeGate({ unconsumed: [ADDR_C] })] });
+    const entry = index.get(ADDR_C.toLowerCase())!;
+    expect(entry.attachments).toEqual([
+      {
+        type: 'gate', moduleType: 'csm', gate: 'icsGate', gateLabel: 'ICS', paused: false,
+        operatorType: 'CSM_ICS', curveId: '2', typeLabel: 'CSM·ICS', kind: 'csm-ics',
+      },
+    ]);
+    expect(entry.gate).toBe(true);
+  });
+
+  it('merges a lowercase tree leaf with the checksummed operator address into one entry', () => {
+    const op = makeOperator({ id: '7', managerAddress: ADDR_A, rewardsAddress: ADDR_B });
+    const index = buildAttachmentIndex(
+      { csm: [op] },
+      { csm: [makeGate({ unconsumed: [ADDR_A.toLowerCase() as `0x${string}`] })] },
+    );
+    const entry = index.get(ADDR_A.toLowerCase())!;
+    expect(entry.address).toBe(ADDR_A);
+    expect(entry.attachments.map((a) => a.type)).toEqual(['operator', 'gate']);
+  });
+
+  it('keeps the gate badge even when the curve is unknown', () => {
+    const index = buildAttachmentIndex({}, { cm: [makeGate({ gate: 'curatedGatePTO', label: 'PTO', operatorType: 'CC' })] });
+    expect(index.size).toBe(0);
+    const withLeaf = buildAttachmentIndex({}, {
+      cm: [makeGate({ gate: 'curatedGatePTO', label: 'PTO', operatorType: 'CC', unconsumed: [ADDR_D] })],
+    });
+    const att = withLeaf.get(ADDR_D.toLowerCase())!.attachments[0]!;
+    expect(att.typeLabel).toBe('CM·PTO');
+    expect(att.kind).toBe('cc');
+  });
+
+  it('skips errored gates', () => {
+    const index = buildAttachmentIndex({}, { csm: [makeGate({ unconsumed: [ADDR_C], error: 'boom' })] });
+    expect(index.size).toBe(0);
+  });
+
+  it('never counts gates as pending or claimer', () => {
+    const index = buildAttachmentIndex({}, { csm: [makeGate({ unconsumed: [ADDR_C] })] });
+    const entry = index.get(ADDR_C.toLowerCase())!;
+    expect(entry.pending).toBe(false);
+    expect(entry.claimer).toBe(false);
+  });
+
+  it('keys operator and gate attachments apart', () => {
+    const index = buildAttachmentIndex(
+      { csm: [makeOperator({ id: '7', managerAddress: ADDR_A })] },
+      { csm: [makeGate({ unconsumed: [ADDR_A] })] },
+    );
+    expect(index.get(ADDR_A.toLowerCase())!.attachments.map(attachmentKey)).toEqual(['csm:op:7', 'csm:gate:icsGate']);
+  });
+});
+
+describe('sharedAddresses with gates', () => {
+  it('includes a gate-only address, but only in its own module', () => {
+    const index = buildAttachmentIndex({}, { cm: [makeGate({ gate: 'curatedGatePTO', label: 'PTO', unconsumed: [ADDR_C] })] });
+    expect(sharedAddresses(index, 'cm').map((e) => e.address)).toEqual([ADDR_C]);
+    expect(sharedAddresses(index, 'csm')).toEqual([]);
+  });
+});
+
+describe('gate counts and hints', () => {
+  const index = buildAttachmentIndex(
+    { csm: [makeOperator({ id: '7', managerAddress: ADDR_A }), makeOperator({ id: '8', managerAddress: ADDR_A })] },
+    { csm: [makeGate({ unconsumed: [ADDR_A, ADDR_C] }), makeGate({ gate: 'idvtcGate', label: 'IDVTC', unconsumed: [ADDR_C] })] },
+  );
+  const both = index.get(ADDR_A.toLowerCase())!;
+  const gatesOnly = index.get(ADDR_C.toLowerCase())!;
+
+  it('counts operators per module, then lists gate labels', () => {
+    expect(moduleCounts(both)).toEqual({ csm: 2 });
+    expect(countLabel(both)).toBe('2 CSM · ICS');
+    expect(countLabel(gatesOnly)).toBe('ICS · IDVTC');
+    expect(gateLabels(gatesOnly)).toEqual(['ICS', 'IDVTC']);
+  });
+
+  it('describes operators and unused proofs in the count hint', () => {
+    expect(countHint(both)).toBe('Attached to 2 CSM operators · unused ICS proof.');
+    expect(countHint(gatesOnly)).toBe('Unused ICS and IDVTC proofs.');
+  });
+
+  it('summarises for the hover trigger', () => {
+    expect(attachSummary(both)).toBe('2 ops · ICS');
+    expect(attachSummary(gatesOnly)).toBe('ICS · IDVTC');
+  });
+
+  it('hints the gate pill by paused state', () => {
+    const att = gatesOnly.attachments[0]!;
+    if (att.type !== 'gate') throw new Error('expected gate');
+    expect(gatePillHint(att)).toBe('Unused proof in the ICS gate tree');
+    expect(gatePillHint({ ...att, paused: true })).toBe('ICS gate paused — proof unused, joining blocked');
   });
 });

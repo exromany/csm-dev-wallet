@@ -9,6 +9,7 @@
 import {
   launchExtension,
   seedOperators,
+  seedGates,
   seedModuleAvailability,
   makeTestOperators,
   createRunner,
@@ -54,6 +55,8 @@ async function main() {
   async function seed() {
     await resetStateCaches(sw);
     await seedOperators(sw, operators, 1, 'csm');
+    await seedGates(sw, [], 1, 'csm');
+    await seedGates(sw, [], 1, 'cm');
     await seedModuleAvailability(sw, 1, { csm: true, cm: false });
   }
 
@@ -185,6 +188,7 @@ async function main() {
       await seed();
       await seedDappState(sw, dappOrigin, { selectedAddress, isConnected: true });
       await seedOperators(sw, makeTestOperators(2), 560048, 'csm');
+      await seedGates(sw, [], 560048, 'csm');
       await seedModuleAvailability(sw, 560048, { csm: true, cm: false });
 
       const page = await openTestDapp(context, dapp.url);

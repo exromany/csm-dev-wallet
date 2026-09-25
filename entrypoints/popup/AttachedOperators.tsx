@@ -1,6 +1,6 @@
 import React from 'react';
-import type { AddressRole, ModuleType } from '../../lib/shared/types.js';
-import { countLabel, type AddressAttachments } from '../../lib/shared/attachments.js';
+import type { ModuleType } from '../../lib/shared/types.js';
+import { attachSummary, attachmentKey, countLabel, type AddressAttachments, type Attachment } from '../../lib/shared/attachments.js';
 import { AttachmentRow } from './AttachmentRow.js';
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
   loading: boolean;
   siteModuleType: ModuleType;
   operatorLabel: (operatorId: string, moduleType: ModuleType) => string;
-  onSelect: (operatorId: string, role: AddressRole, moduleType: ModuleType) => void;
+  onSelect: (attachment: Attachment) => void;
 };
 
 export function AttachedOperators({
@@ -31,13 +31,12 @@ export function AttachedOperators({
 
   if (!entry) return null;
 
-  const n = entry.attachments.length;
-  const capped = n > 5;
+  const capped = entry.attachments.length > 5;
 
   return (
     <span className="ops-anchor">
       <button className={`ops-trigger attach-count ${entry.crossModule ? 'cross' : ''}`}>
-        {n} {n === 1 ? 'op' : 'ops'}
+        {attachSummary(entry)}
       </button>
       <div className={`ops-pop ${capped ? 'capped' : ''}`}>
         <div className="ops-pop-head">
@@ -48,12 +47,12 @@ export function AttachedOperators({
         <div className="ops-scroll">
           {entry.attachments.map((att) => (
             <AttachmentRow
-              key={`${att.moduleType}:${att.operatorId}`}
+              key={attachmentKey(att)}
               attachment={att}
               siteModuleType={siteModuleType}
-              label={operatorLabel(att.operatorId, att.moduleType)}
+              label={att.type === 'operator' ? operatorLabel(att.operatorId, att.moduleType) : ''}
               editableLabel={false}
-              onSelect={() => onSelect(att.operatorId, att.primaryRole, att.moduleType)}
+              onSelect={() => onSelect(att)}
             />
           ))}
         </div>

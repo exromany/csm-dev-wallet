@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import type { AddressRole, ModuleType } from '../../lib/shared/types.js';
-import { countHint, countLabel, type AddressAttachments } from '../../lib/shared/attachments.js';
+import type { ModuleType } from '../../lib/shared/types.js';
+import { attachmentKey, countHint, countLabel, type Attachment, type AddressAttachments } from '../../lib/shared/attachments.js';
 import { truncateAddress, formatTimeAgo } from '../../lib/popup/utils.js';
 import { useCopyAddress, filterSharedAddresses, type SharedFilter } from '../../lib/popup/hooks.js';
 import { LabelEditor } from './LabelEditor.js';
@@ -20,13 +20,10 @@ type Props = {
   operatorLabels: OperatorLabels;
   selectedAddress?: string;
   siteModuleType: ModuleType;
+  gatesLoading: boolean;
+  gateErrors: string[];
   onRefresh: () => void;
-  onSelect: (
-    address: string,
-    operatorId: string,
-    role: AddressRole,
-    moduleType: ModuleType,
-  ) => void;
+  onSelect: (address: string, attachment: Attachment) => void;
   onSetAddressLabel: (address: string, label: string) => void;
 };
 
@@ -38,6 +35,8 @@ export function SharedAddresses({
   operatorLabels,
   selectedAddress,
   siteModuleType,
+  gatesLoading,
+  gateErrors,
   onRefresh,
   onSelect,
   onSetAddressLabel,
@@ -54,7 +53,14 @@ export function SharedAddresses({
   const hints: Partial<Record<SharedFilter, string>> = {
     pending: 'Addresses caught up in a proposed role change',
     claimer: 'Addresses set as a custom rewards claimer',
+    gate: 'Addresses with an unused gate proof — including ones not on any operator',
   };
+  // Claimer/Gate sit near the bar's right edge — a left-anchored tooltip
+  // would run past it, so they open leftward like the gate-warn icon.
+  const rightAnchored = new Set<SharedFilter>(['claimer', 'gate']);
+
+  const gateView = filter === 'gate';
+  const busy = gateView ? gatesLoading : loading;
 
   return (
     <>
@@ -79,11 +85,12 @@ export function SharedAddresses({
               ['cross', 'Cross-module'],
               ['pending', 'Pending'],
               ['claimer', 'Claimer'],
+              ['gate', 'Gate'],
             ] satisfies ReadonlyArray<readonly [SharedFilter, string]>
           ).map(([value, label]) => (
             <button
               key={value}
-              className={`filter-btn ${hints[value] ? 'hint' : ''} ${filter === value ? 'active' : ''}`}
+              className={`filter-btn ${hints[value] ? 'hint' : ''} ${rightAnchored.has(value) ? 'hint-right' : ''} ${filter === value ? 'active' : ''}`}
               onClick={() => setFilter(value)}
               data-hint={hints[value]}
             >
@@ -91,6 +98,9 @@ export function SharedAddresses({
             </button>
           ))}
           <div className="spacer" />
+          {gateErrors.length > 0 && (
+            <span className="gate-warn hint hint-right" data-hint={`Gate tree unavailable: ${gateErrors.join(', ')}`}>⚠</span>
+          )}
           {lastFetchedAt && (
             <span className="staleness-label">updated {formatTimeAgo(lastFetchedAt)}</span>
           )}
@@ -100,17 +110,19 @@ export function SharedAddresses({
         </div>
       </div>
 
-      {loading && shown.length === 0 ? (
+      {busy && shown.length === 0 ? (
         <div className="loading">
           <div className="spinner" />
-          <p>Loading operators...</p>
+          <p>{gateView ? 'Loading gate trees…' : 'Loading operators...'}</p>
         </div>
       ) : shown.length === 0 ? (
         <div className="empty-state-rich">
           <div className="empty-glyph">⇉</div>
-          <div className="empty-headline">No shared addresses</div>
+          <div className="empty-headline">{gateView ? 'No unused gate proofs' : 'No shared addresses'}</div>
           <div className="empty-hint">
-            Addresses attached to more than one operator, at least one in the current module, show up here.
+            {gateView
+              ? "Addresses in a gate's merkle tree that haven't used their proof yet show up here."
+              : 'Addresses attached to more than one operator, at least one in the current module, show up here.'}
           </div>
         </div>
       ) : (
@@ -199,14 +211,16 @@ function AddressCard({
         <div className="addr-body">
           {entry.attachments.map((att) => (
             <AttachmentRow
-              key={`${att.moduleType}:${att.operatorId}`}
+              key={attachmentKey(att)}
               attachment={att}
               siteModuleType={siteModuleType}
-              label={operatorLabels.get(att.operatorId, att.moduleType)}
-              onSetLabel={(l) => operatorLabels.set(att.operatorId, l, att.moduleType)}
-              onSelect={() =>
-                onSelect(entry.address, att.operatorId, att.primaryRole, att.moduleType)
-              }
+              onSelect={() => onSelect(entry.address, att)}
+              {...(att.type === 'operator'
+                ? {
+                    label: operatorLabels.get(att.operatorId, att.moduleType),
+                    onSetLabel: (l: string) => operatorLabels.set(att.operatorId, l, att.moduleType),
+                  }
+                : { label: '', editableLabel: false as const })}
             />
           ))}
         </div>

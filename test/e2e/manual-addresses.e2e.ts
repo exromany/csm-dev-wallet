@@ -12,6 +12,7 @@ import {
   clickAdd,
   clickManualRow,
   connectedPill,
+  seedGates,
 } from './helpers.js';
 
 const { test, summary } = createRunner();
@@ -21,7 +22,12 @@ const INVALID_ADDRESS = '0xinvalid';
 
 async function main() {
   console.log('Loading extension...\n');
-  const { context, extensionId } = await launchExtension();
+  const { context, extensionId, sw } = await launchExtension();
+
+  // Selecting a manual address (test 4) makes the popup fetch cross-module
+  // attachments, gates included — seed empty so it doesn't hit real mainnet trees.
+  await seedGates(sw, [], 1, 'csm');
+  await seedGates(sw, [], 1, 'cm');
 
   try {
     // ── Test 1: Empty state message visible ──

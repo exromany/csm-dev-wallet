@@ -1,8 +1,7 @@
-import { createPublicClient, http, zeroAddress, type Address, type PublicClient, type Chain } from 'viem';
+import { zeroAddress, type Address, type PublicClient } from 'viem';
 import {
   COMMON_ADDRESSES,
   MODULE_CONFIG,
-  MODULE_NAME,
   getOperatorTypeByCurveId,
 } from '@lidofinance/lido-csm-sdk/common';
 import {
@@ -11,51 +10,15 @@ import {
   CuratedModuleAbi,
   MetaRegistryAbi,
 } from '@lidofinance/lido-csm-sdk/abi';
-import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
+import type { SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
 import type { ModuleAvailability } from '../shared/messages.js';
+import { MODULE_NAMES, contractChainId, getClient } from './client.js';
 
-const STALE_MS = 30 * 60 * 1000; // 30 minutes
+export { clearClientCache, isStale } from './client.js';
+
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const BATCH_SIZE = 500n;
-
-const MODULE_NAMES: Record<ModuleType, MODULE_NAME> = {
-  csm: MODULE_NAME.CSM,
-  cm: MODULE_NAME.CM,
-  csm02: MODULE_NAME.CSM_02,
-};
-
-/** The chain whose contracts/ABIs to use — forkedFrom for Anvil, chainId otherwise */
-function contractChainId(ctx: CacheContext): SupportedChainId {
-  return (ctx.forkedFrom ?? ctx.chainId) as SupportedChainId;
-}
-
-// ── Client cache ──
-
-const clientCache = new Map<string, PublicClient>();
-
-function getClient(ctx: CacheContext): PublicClient {
-  const ccid = contractChainId(ctx);
-  const network = DEFAULT_NETWORKS[ccid];
-  const key = `${ccid}:${ctx.rpcUrl}`;
-
-  let client = clientCache.get(key);
-  if (!client) {
-    const isCustom = ctx.rpcUrl !== network.rpcUrl;
-    client = createPublicClient({
-      chain: network.viemChain as Chain,
-      transport: http(ctx.rpcUrl, {
-        timeout: isCustom ? 120_000 : 10_000,
-      }),
-    });
-    clientCache.set(key, client);
-  }
-  return client;
-}
-
-export function clearClientCache() {
-  clientCache.clear();
-}
 
 // ── Module availability cache ──
 
@@ -325,8 +288,4 @@ export async function getCachedOperators(ctx: CacheContext): Promise<OperatorCac
   const key = storageKey(ctx);
   const data = await chrome.storage.local.get(key);
   return (data[key] as OperatorCacheEntry | undefined) ?? null;
-}
-
-export function isStale(entry: OperatorCacheEntry): boolean {
-  return Date.now() - entry.lastFetchedAt > STALE_MS;
 }

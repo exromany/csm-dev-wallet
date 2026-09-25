@@ -736,17 +736,19 @@ input:focus {
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 1px;
   margin-top: 8px;
 }
 
 .filter-btn {
   font-size: 11px;
-  padding: 3px 9px;
+  padding: 3px 5px;
   border-radius: 99px;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--dim);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-btn:hover {
@@ -763,6 +765,11 @@ input:focus {
   font-size: 10px;
   color: var(--dim-2);
   white-space: nowrap;
+  /* Shared's extra Gate chip + gate-warn icon leave it the least room —
+     truncate rather than push the bar wider than the popup. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .refresh-btn {
@@ -1062,6 +1069,12 @@ input:focus {
   background: transparent;
   border: 1px dashed color-mix(in srgb, var(--dim) 50%, transparent);
   color: var(--dim);
+}
+
+/* Takes the row's ribbon colour, so the pill matches the operator type the gate grants. */
+.role-pill.tint-gate {
+  background: color-mix(in srgb, var(--ribbon-color) 16%, transparent);
+  color: var(--ribbon-color);
 }
 
 /* ── Loading / empty ─────────────────────────────── */
@@ -1670,6 +1683,15 @@ input:focus {
    the role pills off the row. */
 .attach-row .operator-label .text {
   max-width: 96px;
+}
+
+.attach-id.gate-id {
+  color: var(--dim);
+}
+
+.gate-warn {
+  font-size: 11px;
+  color: var(--warn);
 }
 
 /* ── Hover hints ──────────────────────────────────────── */
