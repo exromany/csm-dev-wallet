@@ -6,7 +6,6 @@ import {
 } from '@lidofinance/lido-csm-sdk/common';
 import {
   SMDiscoveryAbi,
-  SMDiscoveryV1Abi,
   CuratedModuleAbi,
   MetaRegistryAbi,
   AccountingAbi,
@@ -147,11 +146,8 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
         info.proposedRewardAddress !== zeroAddress
           ? info.proposedRewardAddress
           : undefined,
-      // Legacy (V1) rows have no claimerAddress field at all — the fallback in readOperatorBatch.
       claimerAddress:
-        'claimerAddress' in info && info.claimerAddress !== zeroAddress
-          ? info.claimerAddress
-          : undefined,
+        info.claimerAddress !== zeroAddress ? info.claimerAddress : undefined,
       extendedManagerPermissions: info.extendedManagerPermissions,
       curveId: curveId.toString(),
       operatorType: resolveOperatorType(ccid, ctx.moduleType, curveId),
@@ -285,44 +281,18 @@ async function enrichWithFeeSplits(
   }
 }
 
-/** Modern read, then legacy on failure; rethrows the modern error if both fail. */
-export async function readWithLegacyFallback<T, U>(
-  read: () => Promise<T>,
-  readLegacy: () => Promise<U>,
-): Promise<T | U> {
-  try {
-    return await read();
-  } catch (err) {
-    try {
-      return await readLegacy();
-    } catch {
-      throw err;
-    }
-  }
-}
-
 async function readOperatorBatch(
   client: PublicClient,
   discoveryAddress: Address,
   moduleId: bigint,
   offset: bigint,
 ) {
-  return readWithLegacyFallback(
-    () =>
-      client.readContract({
-        address: discoveryAddress,
-        abi: SMDiscoveryAbi,
-        functionName: 'getAllNodeOperators',
-        args: [moduleId, offset, BATCH_SIZE],
-      }),
-    () =>
-      client.readContract({
-        address: discoveryAddress,
-        abi: SMDiscoveryV1Abi,
-        functionName: 'getAllNodeOperators',
-        args: [moduleId, offset, BATCH_SIZE],
-      }),
-  );
+  return client.readContract({
+    address: discoveryAddress,
+    abi: SMDiscoveryAbi,
+    functionName: 'getAllNodeOperators',
+    args: [moduleId, offset, BATCH_SIZE],
+  });
 }
 
 export async function getCachedOperators(ctx: CacheContext): Promise<OperatorCacheEntry | null> {
