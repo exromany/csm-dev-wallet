@@ -120,7 +120,7 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
 - **CSM SDK imports:** Contract addresses come from `@lidofinance/lido-csm-sdk/common` subpath, not the main entry
 - **Content script timing:** Must run at `document_start` to inject provider before dapp scripts execute
 - **CM module:** May not be deployed on all networks — `fetchAllOperators` catches and re-throws after caching empty result
-- **Modules:** `lib/shared/modules.ts` is the registry — `MODULE_ORDER` (display order), `BASELINE_MODULE`, the derived `PROBED_MODULES`, and the `MODULE_LABEL`/`MODULE_SHORT` names. Add a module there, not in a local array: background probing, the picker, and the Shared tab all read from it. CSM is the baseline — assumed available everywhere and the fallback the popup switches to; only the others are RPC-probed. CSM 0x02 is Hoodi-only, so `MODULE_CONFIG[CSM_02][mainnet]` is undefined — lookups must tolerate a missing per-chain config. Its SDK operator type is `CSM2_DEF`, not `CSM_02_DEF`
+- **Modules:** `lib/shared/modules.ts` is the registry — `MODULE_ORDER` (display order), `BASELINE_MODULE`, the derived `PROBED_MODULES`, and the `MODULE_LABEL`/`MODULE_SHORT` names. Add a module there, not in a local array: background probing, the picker, and the Shared tab all read from it. CSM is the baseline — assumed available everywhere and the fallback the popup switches to; only the others are RPC-probed. Per-chain module config can be missing (e.g. a module not deployed on a chain), so lookups must tolerate an undefined `MODULE_CONFIG[module][chainId]`. CSM 0x02's SDK operator type is `CSM2_DEF`, not `CSM_02_DEF`
 - **Module availability:** `ModuleAvailability` is a `Partial<Record<ModuleType, boolean>>`; a value persisted before a module existed omits that key, so `undefined` means "not known yet", never "absent". Consumers must wait for every `PROBED_MODULES` entry to answer rather than checking the map is non-empty
 - **Favorites scoping:** Stored as `"moduleType:chainId:operatorId"` (e.g. `"csm:1:42"`). Legacy bare IDs migrated on load.
 - **State migration:** `migrateLegacy()` in `lib/background/state.ts` handles legacy storage formats — don't assume storage shape is current
@@ -130,10 +130,6 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
 - **Proposed roles are attachments:** `P-MGR`/`P-RWD` count in `buildAttachmentIndex`, which is
   what the Shared tab's Pending filter selects on. `CLM` (claimer) is a plain role pill — never
   owner, never proposed; Claimer filter on Operators and Shared tabs selects on it.
-- **SMDiscovery legacy ABI:** the upgraded impl (with `claimerAddress`) isn't live on every
-  network. `readOperatorBatch` reads with `SMDiscoveryAbi` and falls back to `SMDiscoveryV1Abi`
-  on a decode error; legacy rows have no claimer. Don't drop the fallback until all networks are
-  upgraded.
 - **Settings is not a tab:** six tabs overflow the 400px popup, so it lives as a row inside the
   network/module popover. `goToTab(page, 'Settings')` in the e2e helpers opens `.netmod-chip`
   and clicks `.netmod-option.settings`.
