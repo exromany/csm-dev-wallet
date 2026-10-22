@@ -49,12 +49,15 @@ async function readRoles(ctx: CacheContext): Promise<CachedRole[]> {
     });
     const members = results.map((r) => (r.status === 'success' ? r.result.map((a) => getAddress(a)) : []));
     const unique = [...new Set(members.flat())];
-    const codes = await Promise.all(unique.map((a) => client.getCode({ address: a })));
-    const isContract = new Map(unique.map((a, i) => [a, !!codes[i] && codes[i] !== '0x']));
+    const codes = await Promise.allSettled(unique.map((a) => client.getCode({ address: a })));
+    const isContract = new Map<Address, boolean | undefined>(unique.map((a, i) => {
+      const c = codes[i]!;
+      return [a, c.status === 'fulfilled' ? !!c.value && c.value !== '0x' : undefined];
+    }));
     return roles.map((role, i) => {
       const r = results[i]!;
       return r.status === 'success'
-        ? { role, holders: members[i]!.map((a) => ({ address: a, isContract: isContract.get(a)! })) }
+        ? { role, holders: members[i]!.map((a) => ({ address: a, isContract: isContract.get(a) })) }
         : { role, holders: [], error: errorMessage(r.error) };
     });
   } catch (err) {

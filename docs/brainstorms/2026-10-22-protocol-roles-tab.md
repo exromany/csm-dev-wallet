@@ -67,8 +67,8 @@ errored role counts as stale.
   address highlighted.
 - Selecting a row sends `select-address` with source `{ type: 'role', role }` and the row's
   `moduleType` when it differs from the site's — the widget needs the holder's module open.
-- Tab overflow: six tabs fill ~372 of 372px. `.tab` horizontal padding 10 → 8px; verify with a
-  CM + Anvil screenshot.
+- Tab overflow: six tabs take ~362 of the 440px popup at the default 10px `.tab` padding, so no
+  padding change; guarded by an e2e overflow check on CM + Anvil.
 
 ## Testing
 

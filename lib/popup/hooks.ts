@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type RefObject } from 'react';
-import type { WalletState, CachedOperator, CachedGate, ModuleType } from '../shared/types.js';
+import type { WalletState, CachedOperator, CachedGate, CachedRole, RoleHolder, ModuleType } from '../shared/types.js';
+import type { ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
-import { MODULE_ORDER, BASELINE_MODULE, PROBED_MODULES } from '../shared/modules.js';
+import { MODULE_ORDER, BASELINE_MODULE, PROBED_MODULES, PROTOCOL_ROLES } from '../shared/modules.js';
 import type { Address } from 'viem';
 import {
   buildAttachmentIndex,
@@ -223,6 +224,18 @@ export function useOperators(
   return { operators: filtered, allOperators: operators, loading, lastFetchedAt, search, setSearch, refresh };
 }
 
+// ── useWantedModules ──
+
+/** Modules to request on this network, and whether every availability answer is in. */
+function useWantedModules(availableModules: ModuleAvailability) {
+  // A stale availability cache written before a module existed omits its key —
+  // "map is non-empty" isn't enough, every probed module must have answered.
+  const resolved = PROBED_MODULES.every((m) => availableModules[m] !== undefined);
+  const wantedKey = MODULE_ORDER.filter((m) => m === BASELINE_MODULE || availableModules[m]).join(',');
+  const wanted = useMemo<ModuleType[]>(() => wantedKey.split(',') as ModuleType[], [wantedKey]);
+  return { wanted, resolved };
+}
+
 // ── useSharedAddresses ──
 
 export type SharedFilter = 'all' | 'cross' | 'pending' | 'claimer' | 'gate';
@@ -248,11 +261,7 @@ export function useSharedAddresses(
   const [gatesLoadingModules, setGatesLoadingModules] = useState<ModuleType[]>([]);
   const [gatesSettled, setGatesSettled] = useState<ModuleType[]>([]);
 
-  // A stale availability cache written before a module existed omits its key —
-  // "map is non-empty" isn't enough, every probed module must have answered.
-  const resolved = PROBED_MODULES.every((m) => availableModules[m] !== undefined);
-  const wantedKey = MODULE_ORDER.filter((m) => m === BASELINE_MODULE || availableModules[m]).join(',');
-  const wanted = useMemo<ModuleType[]>(() => wantedKey.split(',') as ModuleType[], [wantedKey]);
+  const { wanted, resolved } = useWantedModules(availableModules);
   const chainIdRef = useRef(chainId);
   chainIdRef.current = chainId;
 
@@ -362,6 +371,100 @@ export function useSharedAddresses(
   );
 
   return { addresses, index, loading, lastFetchedAt, refresh, gatesLoading, gateErrors };
+}
+
+// ── useRoleHolders ──
+
+export type RoleGroup = {
+  role: ProtocolRole;
+  entries: { moduleType: ModuleType; holders: RoleHolder[]; error?: string }[];
+};
+
+/** Pure: PROTOCOL_ROLES order, then MODULE_ORDER; only modules in `wanted` that hold the role. */
+export function groupRoles(
+  byModule: Partial<Record<ModuleType, CachedRole[]>>,
+  wanted: ModuleType[],
+): RoleGroup[] {
+  return PROTOCOL_ROLES.flatMap(({ role }) => {
+    const entries = MODULE_ORDER.filter((m) => wanted.includes(m)).flatMap((moduleType) => {
+      const found = byModule[moduleType]?.find((r) => r.role === role);
+      return found
+        ? [{ moduleType, holders: found.holders, ...(found.error ? { error: found.error } : {}) }]
+        : [];
+    });
+    return entries.length > 0 ? [{ role, entries }] : [];
+  });
+}
+
+/** Protocol role holders across every module available on this network. */
+export function useRoleHolders(
+  port: chrome.runtime.Port | null,
+  origin: string | null,
+  chainId: number,
+  availableModules: ModuleAvailability,
+  enabled: boolean,
+) {
+  const [byModule, setByModule] = useState<Partial<Record<ModuleType, CachedRole[]>>>({});
+  const [loadingModules, setLoadingModules] = useState<ModuleType[]>([]);
+  const [settled, setSettled] = useState<ModuleType[]>([]);
+  const { wanted, resolved } = useWantedModules(availableModules);
+  const chainIdRef = useRef(chainId);
+  chainIdRef.current = chainId;
+
+  useEffect(() => {
+    if (!port || !origin || !enabled || !resolved) return;
+
+    setByModule({});
+    setLoadingModules([]);
+    setSettled([]);
+
+    const settle = (moduleType: ModuleType) =>
+      setSettled((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
+
+    const handler = (event: PopupEvent) => {
+      if (event.type === 'roles-update') {
+        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
+        setByModule((prev) => ({ ...prev, [event.moduleType]: event.roles }));
+        settle(event.moduleType);
+      }
+      if (event.type === 'roles-loading') {
+        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
+        setLoadingModules((prev) =>
+          event.loading
+            ? (prev.includes(event.moduleType) ? prev : [...prev, event.moduleType])
+            : prev.filter((m) => m !== event.moduleType),
+        );
+        if (!event.loading) settle(event.moduleType);
+      }
+    };
+
+    port.onMessage.addListener(handler);
+    for (const moduleType of wanted) {
+      try {
+        port.postMessage({ type: 'request-roles', origin, chainId, moduleType } satisfies PopupCommand);
+      } catch {
+        // Port disconnected — useWalletState reopens on focus
+      }
+    }
+    return () => port.onMessage.removeListener(handler);
+  }, [port, origin, chainId, wanted, enabled, resolved]);
+
+  const refresh = useCallback(() => {
+    if (!port || !origin || !resolved) return;
+    for (const moduleType of wanted) {
+      try {
+        port.postMessage({ type: 'refresh-roles', origin, chainId, moduleType } satisfies PopupCommand);
+      } catch {
+        // Port disconnected — useWalletState reopens on focus
+      }
+    }
+  }, [port, origin, chainId, wanted, resolved]);
+
+  const groups = useMemo(() => groupRoles(byModule, wanted), [byModule, wanted]);
+  const answered = wanted.filter((m) => settled.includes(m)).length;
+  const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
+
+  return { groups, loading, refresh };
 }
 
 /** Scope + search filter for the Shared tab. */

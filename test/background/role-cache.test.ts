@@ -87,6 +87,22 @@ describe('fetchRoles', () => {
     expect(rolesStorageKey(CTX)).toBe('roles_cm_1');
   });
 
+  it('keeps holders when a getCode fails, leaving that holder unclassified', async () => {
+    mockMulticall.mockResolvedValue([
+      { status: 'success', result: [ADDR_A, ADDR_B] },
+      { status: 'success', result: [] },
+    ]);
+    mockGetCode.mockImplementation(async ({ address }: { address: string }) => {
+      if (address === getAddress(ADDR_B)) throw new Error('code down');
+      return undefined;
+    });
+    const entry = await fetchRoles(CTX);
+    expect(entry.roles).toEqual([
+      { role: PENALTY, holders: [{ address: getAddress(ADDR_A), isContract: false }, { address: getAddress(ADDR_B) }] },
+      { role: TOPUP, holders: [] },
+    ]);
+  });
+
   it('checksums holders', async () => {
     mockMulticall.mockResolvedValue([
       { status: 'success', result: [ADDR_A.toLowerCase()] },

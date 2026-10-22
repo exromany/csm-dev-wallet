@@ -50,9 +50,11 @@ entrypoints/
   inpage.ts            — EIP-1193 provider injected into MAIN world
   popup/               — React UI
     SharedAddresses.tsx  — Shared tab: addresses on >1 operator or holding an unused gate proof, across modules
+    RoleHolders.tsx      — Roles tab: protocol role holders grouped by role, across modules
 lib/
   background/          — service worker modules (state, rpc-handler, rpc, operator-cache, anvil)
     gate-cache.ts        — unconsumed gate proofs per module/chain
+    role-cache.ts        — protocol role holders per module/chain
     client.ts            — shared viem client
   popup/               — React hooks and utils
   shared/              — types, messages, network configs (used by all layers)
@@ -130,7 +132,8 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
 - **Proposed roles are attachments:** `P-MGR`/`P-RWD` count in `buildAttachmentIndex`, which is
   what the Shared tab's Pending filter selects on. `CLM` (claimer) is a plain role pill — never
   owner, never proposed; Claimer filter on Operators and Shared tabs selects on it.
-- **Settings is not a tab:** six tabs overflow the 400px popup, so it lives as a row inside the
+- **Settings is not a tab:** six tabs (Operators/Groups/Shared/Manual/Roles/Anvil) take ~362 of the
+  440px popup at the default 10px padding; a seventh would crowd it, so Settings lives as a row inside the
   network/module popover. `goToTab(page, 'Settings')` in the e2e helpers opens `.netmod-chip`
   and clicks `.netmod-option.settings`.
 - **Shared tab spans every module:** it issues `request-operators` for each available module and
@@ -157,6 +160,14 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
   even though its `lastFetchedAt` is fresh.
 - **E2E seeds gates too:** specs that open Shared or connect an address seed `seedGates(...)`
   (even `[]`), or the worker fetches real trees from IPFS/GitHub mid-test.
+- **Protocol roles:** `PROTOCOL_ROLES` in `lib/shared/modules.ts` is typed on the SDK's
+  `ProtocolRole`, so an SDK rename breaks typecheck. Both roles live on the module contract and
+  are read via `BaseModuleAbi.getRoleMembers` (the CuratedModule ABI lacks it). Role holders are
+  not attachments — `buildAttachmentIndex` never sees them. Cache is `roles_${module}_${chainId}`;
+  failures never raise the popup banner, and an entry holding an errored role counts as stale.
+  A module with no config on the chain yields an empty entry, not an error.
+- **E2E seeds roles:** specs that open Roles call `seedRoles(...)`, or the worker reads live
+  `getRoleMembers` mid-test.
 - **Fee splits are not attachments:** `feeSplits` comes from Accounting v3 `getFeeSplits`
   (multicall, best-effort — pre-v3 or missing config leaves it unset); `share` is basis points of
   10 000, remainder stays with the operator. Recipients never enter `roleEntries`/

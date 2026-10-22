@@ -5,7 +5,7 @@ import { chromium, type BrowserContext, type Page, type Worker } from 'playwrigh
 import { createServer, type Server } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry, CachedGate, GateCacheEntry } from '../../lib/shared/types.js';
+import type { CachedOperator, WalletState, SiteState, GlobalSettings, ModuleType, OperatorCacheEntry, CachedGate, GateCacheEntry, CachedRole, RoleCacheEntry } from '../../lib/shared/types.js';
 import type { ModuleAvailability } from '../../lib/shared/messages.js';
 
 const EXTENSION_PATH = resolve(import.meta.dirname, '../../.output/chrome-mv3');
@@ -56,7 +56,7 @@ export async function openPopup(context: BrowserContext, extensionId: string): P
   return page;
 }
 
-export type TabName = 'Operators' | 'Shared' | 'Manual' | 'Settings';
+export type TabName = 'Operators' | 'Shared' | 'Manual' | 'Roles' | 'Settings';
 
 export async function goToTab(page: Page, tab: TabName) {
   // Settings moved out of the tab bar into the network/module popover.
@@ -70,6 +70,7 @@ export async function goToTab(page: Page, tab: TabName) {
   if (tab === 'Manual') await page.waitForSelector('.manual-form');
   if (tab === 'Operators') await page.waitForSelector('.search-bar input');
   if (tab === 'Shared') await page.waitForSelector('.filter-bar');
+  if (tab === 'Roles') await page.waitForSelector('.role-group, .empty-state');
 }
 
 // ── UI helpers ──────────────────────────────────────────
@@ -186,6 +187,23 @@ export async function seedGates(
 ) {
   const key = `gates_${moduleType}_${chainId}`;
   const entry: GateCacheEntry = { gates, lastFetchedAt };
+  await sw.evaluate(
+    async ([k, v]) => {
+      await chrome.storage.local.set({ [k]: v });
+    },
+    [key, entry] as const,
+  );
+}
+
+export async function seedRoles(
+  sw: Worker,
+  roles: CachedRole[],
+  chainId: number,
+  moduleType: ModuleType = 'csm',
+  lastFetchedAt: number = Date.now(),
+) {
+  const key = `roles_${moduleType}_${chainId}`;
+  const entry: RoleCacheEntry = { roles, lastFetchedAt };
   await sw.evaluate(
     async ([k, v]) => {
       await chrome.storage.local.set({ [k]: v });

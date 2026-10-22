@@ -1341,6 +1341,121 @@ button.topup-badge {
   line-height: 1;
 }
 
+/* ── Roles tab ───────────────────────────────── */
+
+.roles-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.role-group {
+  margin-bottom: 10px;
+}
+
+.role-group summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.role-name {
+  font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.role-scope {
+  font-size: 10px;
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.role-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.role-row:hover {
+  border-color: var(--border-strong);
+}
+
+.role-row.selected {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.role-row .body {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-row .addr {
+  font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.role-module,
+.role-kind {
+  font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.role-module {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.role-kind {
+  color: var(--dim);
+  background: var(--surface-2);
+}
+
+.role-note {
+  font-size: 11px;
+  color: var(--dim);
+  padding: 2px 4px 8px;
+}
+
+.role-note.error {
+  color: var(--warn);
+}
+
 /* Anvil entries reuse manual-entry, with an index badge */
 .anvil-index {
   font-size: 9px;

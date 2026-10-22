@@ -8,6 +8,7 @@ import {
   useAnvilStatus,
   useOperatorLabels,
   useSharedAddresses,
+  useRoleHolders,
   filterByGroup,
   type FilterGroup,
 } from '../../lib/popup/hooks.js';
@@ -20,6 +21,7 @@ import { OperatorGroups } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { AnvilAccounts } from './AnvilAccounts.js';
 import { SharedAddresses } from './SharedAddresses.js';
+import { RoleHolders } from './RoleHolders.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
 import { IconClose, IconMoon, IconSearch, IconSun } from './icons.js';
@@ -71,6 +73,7 @@ export function App() {
   const [netModOpen, setNetModOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const sharedVisitedRef = useRef(false);
+  const rolesVisitedRef = useRef(false);
 
   // Switch tabs locally for an instant response, and persist the choice per-site
   // so it's restored on reopen. Settings is intentionally not persisted.
@@ -151,6 +154,9 @@ export function App() {
     availableModules,
     needAttachments,
   );
+
+  rolesVisitedRef.current ||= activeTab === 'roles';
+  const roleHolders = useRoleHolders(port, origin, state.chainId, availableModules, rolesVisitedRef.current);
 
   const selectAttachment = useCallback(
     (address: string, att: Attachment) =>
@@ -244,6 +250,7 @@ export function App() {
             ...(showGroups ? ([['groups', 'Groups']] as const) : []),
             ['shared', 'Shared'],
             ['manual', 'Manual'],
+            ['roles', 'Roles'],
             ...(onAnvil ? ([['anvil', 'Anvil']] as const) : []),
           ] satisfies ReadonlyArray<readonly [Tab, string]>
         ).map(([t, label]) => (
@@ -358,6 +365,25 @@ export function App() {
             onSelect={selectAttachment}
             onSetAddressLabel={(address, label) =>
               send({ type: 'set-address-label', address, label })
+            }
+          />
+        )}
+
+        {activeTab === 'roles' && (
+          <RoleHolders
+            groups={roleHolders.groups}
+            loading={roleHolders.loading}
+            selectedAddress={state.selectedAddress?.address}
+            addressLabels={state.addressLabels}
+            onRefresh={roleHolders.refresh}
+            onSelect={(address, role, moduleType) =>
+              send({
+                type: 'select-address',
+                address,
+                source: { type: 'role', role },
+                // Only sent when it differs, so same-module picks keep the existing behaviour.
+                ...(moduleType !== state.moduleType ? { moduleType } : {}),
+              })
             }
           />
         )}
