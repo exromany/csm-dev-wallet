@@ -29,6 +29,7 @@ type Props = {
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
   onTypeClick?: (query: string) => void;
   onSplitsClick?: () => void;
+  onTopUpClick?: () => void;
 };
 
 export function OperatorList({
@@ -41,6 +42,7 @@ export function OperatorList({
   onSelect,
   onTypeClick,
   onSplitsClick,
+  onTopUpClick,
 }: Props) {
   if (loading && operators.length === 0) {
     return (
@@ -70,6 +72,7 @@ export function OperatorList({
           onSelect={onSelect}
           onTypeClick={onTypeClick}
           onSplitsClick={onSplitsClick}
+          onTopUpClick={onTopUpClick}
         />
       ))}
     </div>
@@ -86,6 +89,7 @@ export function OperatorRow({
   onSelect,
   onTypeClick,
   onSplitsClick,
+  onTopUpClick,
 }: {
   operator: CachedOperator;
   selectedAddress?: string;
@@ -96,6 +100,7 @@ export function OperatorRow({
   onSelect: (address: string, operatorId: string, role: AddressRole) => void;
   onTypeClick?: (query: string) => void;
   onSplitsClick?: () => void;
+  onTopUpClick?: () => void;
 }) {
   const groups = groupAddresses(op);
   const hasSelected = groups.some(
@@ -130,6 +135,7 @@ export function OperatorRow({
           {op.feeSplits && op.feeSplits.length > 0 && (
             <SplitsBadge splits={op.feeSplits} onClick={onSplitsClick} />
           )}
+          {op.topUpDisabled && <TopUpBadge onClick={onTopUpClick} />}
           <LabelEditor
             label={label}
             onSave={onLabel}
@@ -194,6 +200,28 @@ function SplitsBadge({ splits, onClick }: { splits: FeeSplit[]; onClick?: () => 
       }}
     >
       {label}
+    </button>
+  );
+}
+
+/** `<button>` when clickable (Operators tab, filters to top-up-off operators), plain `<span>` otherwise. */
+function TopUpBadge({ onClick }: { onClick?: () => void }) {
+  const hint = 'Top-up allocation disabled';
+
+  if (!onClick) {
+    return <span className="topup-badge hint" data-hint={hint}>NO TOP-UP</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="topup-badge hint"
+      data-hint={hint}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      NO TOP-UP
     </button>
   );
 }

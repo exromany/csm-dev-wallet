@@ -161,6 +161,10 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
   (multicall, best-effort — pre-v3 or missing config leaves it unset); `share` is basis points of
   10 000, remainder stays with the operator. Recipients never enter `roleEntries`/
   `buildAttachmentIndex`; the `SPL·N` badge and the list-only Splits filter are the whole surface.
+- **Top-up allocation is absence-means-unknown:** `topUpDisabled` is CM-only, from a CuratedModule v2
+  `isTopUpAllocationEnabled` multicall, set only when it returns false. v1 reverts → absent
+  (absent = enabled or unknown), so never infer disabled from absence. The CM-only `Top-up off`
+  filter works on both the Operators and Groups tabs.
 
 ## Playwright Testing API
 

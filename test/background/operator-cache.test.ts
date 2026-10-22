@@ -493,6 +493,91 @@ describe('fetchOperators (CM group enrichment)', () => {
   });
 });
 
+describe('fetchOperators (CM top-up allocation enrichment)', () => {
+  const rawOperator = (id: bigint) => ({
+    id,
+    managerAddress: ADDR_A,
+    rewardAddress: ADDR_B,
+    proposedManagerAddress: zeroAddress,
+    proposedRewardAddress: zeroAddress,
+    extendedManagerPermissions: true,
+    curveId: 0n,
+  });
+
+  function setupCm(operators: ReturnType<typeof rawOperator>[]) {
+    mockReadContract.mockImplementation((args: { functionName: string }) => {
+      switch (args.functionName) {
+        case 'getAllNodeOperators':
+          return Promise.resolve(operators);
+        case 'moduleCache':
+          return Promise.resolve(['0x5555555555555555555555555555555555555555']);
+        case 'META_REGISTRY':
+          return Promise.resolve('0x7777777777777777777777777777777777777777');
+        case 'getNodeOperatorGroupId':
+          return Promise.resolve(3n);
+        case 'getOperatorGroup':
+          return Promise.resolve({ name: 'G', subNodeOperators: [], externalOperators: [] });
+        default:
+          return Promise.reject(new Error(`unmocked: ${args.functionName}`));
+      }
+    });
+  }
+
+  const cmCtx = () => ctx({ chainId: 1, moduleType: 'cm' });
+  const topUpCall = () =>
+    mockMulticall.mock.calls.map((c) => c[0]).find((a) => a.contracts[0].functionName === 'isTopUpAllocationEnabled');
+
+  it('sets topUpDisabled only when the module returns false', async () => {
+    setupCm([rawOperator(1n), rawOperator(2n)]);
+    mockMulticall.mockResolvedValue([
+      { status: 'success', result: false },
+      { status: 'success', result: true },
+    ]);
+
+    const entry = await fetchOperators(cmCtx());
+    expect(entry.operators[0].topUpDisabled).toBe(true);
+    expect(entry.operators[1].topUpDisabled).toBeUndefined();
+  });
+
+  it('leaves operators unmarked when the call reverts (CuratedModule v1)', async () => {
+    setupCm([rawOperator(1n)]);
+    mockMulticall.mockResolvedValue([{ status: 'failure', error: new Error('revert') }]);
+
+    const entry = await fetchOperators(cmCtx());
+    expect(entry.operators[0].topUpDisabled).toBeUndefined();
+  });
+
+  it('keeps group enrichment when the top-up multicall rejects', async () => {
+    setupCm([rawOperator(1n)]);
+    mockMulticall.mockRejectedValue(new Error('rpc down'));
+
+    const entry = await fetchOperators(cmCtx());
+    expect(entry.operators[0].topUpDisabled).toBeUndefined();
+    expect(entry.operators[0].groupId).toBe('3');
+  });
+
+  it('queries the CuratedModule per operator id', async () => {
+    setupCm([rawOperator(5n)]);
+    mockMulticall.mockResolvedValue([{ status: 'success', result: true }]);
+
+    await fetchOperators(cmCtx());
+    const call = topUpCall();
+    expect(call.contracts[0]).toMatchObject({
+      address: '0x5555555555555555555555555555555555555555',
+      functionName: 'isTopUpAllocationEnabled',
+      args: [5n],
+    });
+  });
+
+  it('does not query top-up allocation for CSM', async () => {
+    mockReadContract.mockResolvedValue([rawOperator(1n)]);
+    mockMulticall.mockResolvedValue([{ status: 'success', result: [] }]);
+
+    await fetchOperators(ctx({ chainId: 1, moduleType: 'csm' }));
+    expect(topUpCall()).toBeUndefined();
+  });
+});
+
 describe('fetchOperators (fee splits enrichment)', () => {
   const rawOperator = (overrides: Record<string, unknown> = {}) => ({
     id: 1n,

@@ -778,6 +778,8 @@ input:focus {
   border: none;
   color: var(--accent);
   padding: 2px 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .refresh-btn:disabled {
@@ -888,7 +890,20 @@ input:focus {
   letter-spacing: 0.3px;
 }
 
-button.operator-splits {
+.topup-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+  font-weight: 700;
+  font-family: 'SF Mono', 'Consolas', ui-monospace, monospace;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+button.operator-splits,
+button.topup-badge {
   cursor: pointer;
 }
 

@@ -169,17 +169,21 @@ export function App() {
   const { isFavorite } = favorites;
   const { isFavorite: isGroupFavorite } = groupFavorites;
 
+  const showTopUp = state.moduleType === 'cm';
+  // Top-up off is CM-only; derive "All" elsewhere so the choice survives a switch back to CM.
+  const moduleFilter: FilterGroup = filterGroup === 'topup' && !showTopUp ? 'all' : filterGroup;
+
   const displayOperators = useMemo(
-    () => filterByGroup(operators, filterGroup, isFavorite, isGroupFavorite),
-    [operators, filterGroup, isFavorite, isGroupFavorite],
+    () => filterByGroup(operators, moduleFilter, isFavorite, isGroupFavorite),
+    [operators, moduleFilter, isFavorite, isGroupFavorite],
   );
 
   // Pending/Claimer/Splits are list-only; on the Groups tab they read as "All". Derive
   // rather than mutating filterGroup, so the user's choice survives a round-trip to Groups.
   const groupScope: FilterGroup =
-    activeTab === 'groups' && (filterGroup === 'pending' || filterGroup === 'claimer' || filterGroup === 'splits')
+    activeTab === 'groups' && (moduleFilter === 'pending' || moduleFilter === 'claimer' || moduleFilter === 'splits')
       ? 'all'
-      : filterGroup;
+      : moduleFilter;
 
   return (
     <div className="app">
@@ -263,6 +267,7 @@ export function App() {
               filterGroup={groupScope}
               onFilterGroup={setFilterGroup}
               showPending={activeTab === 'operators'}
+              showTopUp={showTopUp}
               loading={loading}
               lastFetchedAt={lastFetchedAt}
               onRefresh={refresh}
@@ -310,6 +315,7 @@ export function App() {
                 }
                 onTypeClick={setSearch}
                 onSplitsClick={() => setFilterGroup('splits')}
+                onTopUpClick={() => setFilterGroup('topup')}
               />
             )}
           </>
@@ -398,6 +404,7 @@ function SearchToolbar({
   filterGroup,
   onFilterGroup,
   showPending,
+  showTopUp,
   loading,
   lastFetchedAt,
   onRefresh,
@@ -408,6 +415,7 @@ function SearchToolbar({
   filterGroup: FilterGroup;
   onFilterGroup: (group: FilterGroup) => void;
   showPending: boolean;
+  showTopUp: boolean;
   loading: boolean;
   lastFetchedAt: number | null;
   onRefresh: () => void;
@@ -467,6 +475,15 @@ function SearchToolbar({
               Splits
             </button>
           </>
+        )}
+        {showTopUp && (
+          <button
+            className={`filter-btn hint ${filterGroup === 'topup' ? 'active' : ''}`}
+            onClick={() => onFilterGroup('topup')}
+            data-hint="Curated operators with top-up allocation disabled (NO TOP-UP)"
+          >
+            Top-up
+          </button>
         )}
         <div className="spacer" />
         {lastFetchedAt && (

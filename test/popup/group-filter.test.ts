@@ -101,4 +101,13 @@ describe('filterByGroup', () => {
   it('excludes operators with no fee splits when group is "splits"', () => {
     expect(filterByGroup(ops, 'splits', neverFav)).toEqual([]);
   });
+
+  it('returns only top-up-disabled operators when group is "topup"', () => {
+    const noTopUp = makeOperator({ id: '7', topUpDisabled: true });
+    expect(filterByGroup([op1, noTopUp], 'topup', neverFav)).toEqual([noTopUp]);
+  });
+
+  it('returns nothing when no operator has top-up disabled and group is "topup"', () => {
+    expect(filterByGroup(ops, 'topup', neverFav)).toEqual([]);
+  });
 });
