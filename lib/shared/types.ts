@@ -1,4 +1,5 @@
 import type { Address } from 'viem';
+import type { ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
 import type { SupportedChainId } from './networks.js';
 
 export type ModuleType = 'csm' | 'cm' | 'csm02';
@@ -20,6 +21,7 @@ export type AddressRole =
 export type AddressSource =
   | { type: 'operator'; operatorId: string; role: AddressRole }
   | { type: 'gate'; gate: string }
+  | { type: 'role'; role: ProtocolRole }
   | { type: 'anvil'; index: number }
   | { type: 'manual' };
 
@@ -69,6 +71,13 @@ export type GateCacheEntry = {
   gates: CachedGate[];
   lastFetchedAt: number;
 };
+
+export type RoleHolder = { address: Address; isContract: boolean };
+
+/** `error` set → the role couldn't be read; `holders` is empty. */
+export type CachedRole = { role: ProtocolRole; holders: RoleHolder[]; error?: string };
+
+export type RoleCacheEntry = { roles: CachedRole[]; lastFetchedAt: number };
 
 export type SelectedAddress = {
   address: Address;

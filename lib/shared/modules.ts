@@ -1,3 +1,4 @@
+import type { ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
 import type { ModuleType } from './types.js';
 
 /** Every module, in display order. */
@@ -19,3 +20,9 @@ export const MODULE_LABEL: Record<ModuleType, string> = {
 export const MODULE_SHORT: Record<ModuleType, string> = {
   csm: 'CSM', csm02: 'CSM02', cm: 'CM',
 };
+
+/** Protocol roles the SDK gates widget actions on, and the modules whose contract holds each. */
+export const PROTOCOL_ROLES: readonly { role: ProtocolRole; modules: readonly ModuleType[] }[] = [
+  { role: 'REPORT_GENERAL_DELAYED_PENALTY_ROLE', modules: MODULE_ORDER },
+  { role: 'ENABLE_TOP_UP_ALLOCATION_ROLE', modules: ['cm'] },
+];

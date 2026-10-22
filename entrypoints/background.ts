@@ -31,6 +31,7 @@ import {
   clearForkedFrom,
 } from '../lib/background/anvil.js';
 import { fetchGates, getCachedGates } from '../lib/background/gate-cache.js';
+import { fetchRoles, getCachedRoles } from '../lib/background/role-cache.js';
 import { CHAIN_ID, SUPPORTED_CHAIN_IDS, ANVIL_CHAIN_ID, ANVIL_NETWORK, DEFAULT_NETWORKS, type SupportedChainId } from '../lib/shared/networks.js';
 import { errorMessage } from '../lib/shared/errors.js';
 import { toggleFavorite } from '../lib/shared/favorites.js';
@@ -326,6 +327,30 @@ export default defineBackground(() => {
     }, force);
   }
 
+  function triggerRoleRefresh(ctx: CacheContext, force = false) {
+    const { chainId, moduleType } = ctx;
+    return refreshCached({
+      key: `roles:${moduleType}:${chainId}`,
+      getCached: () => getCachedRoles(ctx),
+      fetch: () => fetchRoles(ctx),
+      update: (e) => broadcastToPopups({ type: 'roles-update', chainId, moduleType, roles: e.roles, lastFetchedAt: e.lastFetchedAt }),
+      loading: (loading) => broadcastToPopups({ type: 'roles-loading', chainId, moduleType, loading }),
+      fail: (err) => console.warn('Role fetch failed:', err),
+      stale: (e) => isStale(e) || e.roles.some((r) => r.error),
+    }, force);
+  }
+
+  async function refreshSecondary(
+    kind: 'gates' | 'roles',
+    { chainId, moduleType }: { chainId: number; moduleType: ModuleType },
+    force: boolean,
+  ) {
+    const ctx = await resolveCacheContext(chainId, moduleType);
+    if (!ctx) broadcastToPopups({ type: `${kind}-loading`, chainId, moduleType, loading: false });
+    else if (kind === 'gates') await triggerGateRefresh(ctx, force);
+    else await triggerRoleRefresh(ctx, force);
+  }
+
   async function resolveCacheContext(chainId: number, moduleType: ModuleType): Promise<CacheContext | null> {
     const globalSettings = await getGlobalSettings();
     if (chainId === ANVIL_CHAIN_ID) {
@@ -495,19 +520,21 @@ export default defineBackground(() => {
         break;
       }
 
-      case 'request-gates': {
-        const ctx = await resolveCacheContext(command.chainId, command.moduleType);
-        if (ctx) await triggerGateRefresh(ctx);
-        else broadcastToPopups({ type: 'gates-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
+      case 'request-gates':
+        await refreshSecondary('gates', command, false);
         break;
-      }
 
-      case 'refresh-gates': {
-        const ctx = await resolveCacheContext(command.chainId, command.moduleType);
-        if (ctx) await triggerGateRefresh(ctx, true);
-        else broadcastToPopups({ type: 'gates-loading', chainId: command.chainId, moduleType: command.moduleType, loading: false });
+      case 'refresh-gates':
+        await refreshSecondary('gates', command, true);
         break;
-      }
+
+      case 'request-roles':
+        await refreshSecondary('roles', command, false);
+        break;
+
+      case 'refresh-roles':
+        await refreshSecondary('roles', command, true);
+        break;
 
       case 'toggle-favorite': {
         const { origin } = command;
