@@ -44,6 +44,8 @@ export type CachedOperator = {
   groupName?: string; // optional on-chain title
   // Accounting v3 getFeeSplits — set only when non-empty; absent = none or unknown.
   feeSplits?: FeeSplit[];
+  // CM-only: CuratedModule v2 isTopUpAllocationEnabled === false. Absent = enabled or unknown.
+  topUpDisabled?: true;
 };
 
 export type OperatorCacheEntry = {

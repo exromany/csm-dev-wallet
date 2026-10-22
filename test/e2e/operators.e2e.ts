@@ -10,6 +10,7 @@ import {
   seedOperators,
   seedGates,
   seedModuleAvailability,
+  seedState,
   makeTestOperators,
   createRunner,
   resetStateCaches,
@@ -258,6 +259,39 @@ async function main() {
       if (id !== '#6') throw new Error(`Expected #6, got ${id}`);
 
       await page.close();
+      await seedOps();
+    });
+
+    // ── Test 10: Top-up filter (CM only) ──
+
+    await test('Top-up chip is CM-only and narrows to NO TOP-UP operators', async () => {
+      const cmOps = makeTestOperators(3).map((op, i) => ({
+        ...op,
+        ...(i === 1 ? { topUpDisabled: true as const } : {}),
+      }));
+      await resetStateCaches(sw);
+      await seedState(sw, extensionId, { chainId: 1, moduleType: 'cm' });
+      await seedOperators(sw, cmOps, 1, 'cm');
+      await seedGates(sw, [], 1, 'csm');
+      await seedGates(sw, [], 1, 'cm');
+      await seedModuleAvailability(sw, 1, { csm: true, cm: true });
+
+      const page = await openPopup(context, extensionId);
+      await page.waitForSelector('.operator-row');
+
+      const badges = await page.locator('.topup-badge').count();
+      if (badges !== 1) throw new Error(`Expected 1 NO TOP-UP badge, got ${badges}`);
+
+      await page.click('.filter-btn:has-text("Top-up")');
+      await page.waitForTimeout(300);
+
+      const rows = await page.locator('.operator-row').count();
+      if (rows !== 1) throw new Error(`Expected 1 row in Top-up, got ${rows}`);
+      const id = await page.locator('.operator-id').textContent();
+      if (id !== '#2') throw new Error(`Expected #2, got ${id}`);
+
+      await page.close();
+      await seedState(sw, extensionId, { chainId: 1, moduleType: 'csm' });
       await seedOps();
     });
 

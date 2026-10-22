@@ -156,6 +156,13 @@ describe('OperatorList', () => {
     expect(onTypeClick).toHaveBeenCalledWith('@0x01');
   });
 
+  it('renders the NO TOP-UP badge only when topUpDisabled is set', () => {
+    const ops = [makeOperator({ id: '1', topUpDisabled: true }), makeOperator({ id: '2' })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getAllByText('NO TOP-UP')).toHaveLength(1);
+    expect(screen.getByText('NO TOP-UP')).toHaveAttribute('data-hint', 'Top-up allocation disabled');
+  });
+
   it('renders the SPL badge with the recipient count when feeSplits is set', () => {
     const ops = [makeOperator({
       id: '1',
@@ -194,5 +201,21 @@ describe('OperatorList', () => {
     expect(badge.tagName).toBe('BUTTON');
     fireEvent.click(badge);
     expect(onSplitsClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the NO TOP-UP badge as a plain span when no onTopUpClick is passed', () => {
+    const ops = [makeOperator({ id: '1', topUpDisabled: true })];
+    render(<OperatorList {...baseProps} operators={ops} />);
+    expect(screen.getByText('NO TOP-UP').tagName).toBe('SPAN');
+  });
+
+  it('renders the NO TOP-UP badge as a button and calls onTopUpClick when passed', () => {
+    const ops = [makeOperator({ id: '1', topUpDisabled: true })];
+    const onTopUpClick = vi.fn();
+    render(<OperatorList {...baseProps} operators={ops} onTopUpClick={onTopUpClick} />);
+    const badge = screen.getByText('NO TOP-UP');
+    expect(badge.tagName).toBe('BUTTON');
+    fireEvent.click(badge);
+    expect(onTopUpClick).toHaveBeenCalledTimes(1);
   });
 });

@@ -20,7 +20,7 @@ export { clearClientCache, isStale } from './client.js';
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const BATCH_SIZE = 500n;
 // viem's 1 KB default would split a mainnet-sized fetch into dozens of eth_calls.
-const FEE_SPLITS_BATCH_BYTES = 32_768;
+const MULTICALL_BATCH_BYTES = 32_768;
 
 // ── Module availability cache ──
 
@@ -155,7 +155,11 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
   });
 
   if (ctx.moduleType === 'cm' && operators.length > 0) {
-    await enrichWithGroups(client, discoveryAddress, moduleId, operators);
+    const curatedModule = await resolveModuleAddress(client, discoveryAddress, moduleId);
+    if (curatedModule) {
+      await enrichWithGroups(client, curatedModule, operators);
+      await enrichWithTopUpAllocation(client, curatedModule, operators);
+    }
   }
   await enrichWithFeeSplits(client, ccid, ctx.moduleType, operators);
 
@@ -164,12 +168,30 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
   return entry;
 }
 
+/** Best-effort SMDiscovery.moduleCache lookup; null when unresolved or not deployed. */
+async function resolveModuleAddress(
+  client: PublicClient,
+  discoveryAddress: Address,
+  moduleId: bigint,
+): Promise<Address | null> {
+  try {
+    const [moduleAddress] = await client.readContract({
+      address: discoveryAddress,
+      abi: SMDiscoveryAbi,
+      functionName: 'moduleCache',
+      args: [moduleId],
+    });
+    return moduleAddress === zeroAddress ? null : moduleAddress;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * CM-only: decorate operators in-place with `groupId` + optional `groupName`
  * sourced from on-chain MetaRegistry.
  *
- * Flow: SMDiscovery.moduleCache(moduleId) → CuratedModule address →
- * CuratedModule.META_REGISTRY() → MetaRegistry. Per operator:
+ * Flow: CuratedModule.META_REGISTRY() → MetaRegistry. Per operator:
  * getNodeOperatorGroupId(opId). Per unique non-zero groupId: getOperatorGroup
  * for the title.
  *
@@ -178,19 +200,10 @@ export async function fetchOperators(ctx: CacheContext): Promise<OperatorCacheEn
  */
 async function enrichWithGroups(
   client: PublicClient,
-  discoveryAddress: Address,
-  moduleId: bigint,
+  moduleAddress: Address,
   operators: CachedOperator[],
 ): Promise<void> {
   try {
-    const [moduleAddress] = await client.readContract({
-      address: discoveryAddress,
-      abi: SMDiscoveryAbi,
-      functionName: 'moduleCache',
-      args: [moduleId],
-    });
-    if (moduleAddress === zeroAddress) return;
-
     const metaRegistry = await client.readContract({
       address: moduleAddress,
       abi: CuratedModuleAbi,
@@ -244,6 +257,37 @@ async function enrichWithGroups(
   }
 }
 
+/** CM-only best-effort: sets `topUpDisabled` when CuratedModule v2 reports false; v1 reverts leave operators unmarked. */
+async function enrichWithTopUpAllocation(
+  client: PublicClient,
+  moduleAddress: Address,
+  operators: CachedOperator[],
+): Promise<void> {
+  try {
+    const results = await client.multicall({
+      allowFailure: true,
+      batchSize: MULTICALL_BATCH_BYTES,
+      contracts: operators.map(
+        (op) =>
+          ({
+            address: moduleAddress,
+            abi: CuratedModuleAbi,
+            functionName: 'isTopUpAllocationEnabled',
+            args: [BigInt(op.id)],
+          }) as const,
+      ),
+    });
+
+    for (let i = 0; i < operators.length; i++) {
+      const row = results[i];
+      const op = operators[i];
+      if (op && row?.status === 'success' && row.result === false) op.topUpDisabled = true;
+    }
+  } catch {
+    // Best-effort — failure leaves operators unmarked.
+  }
+}
+
 /** Best-effort: sets `feeSplits` from Accounting v3; any failure leaves operators unmarked. */
 async function enrichWithFeeSplits(
   client: PublicClient,
@@ -257,7 +301,7 @@ async function enrichWithFeeSplits(
   try {
     const results = await client.multicall({
       allowFailure: true,
-      batchSize: FEE_SPLITS_BATCH_BYTES,
+      batchSize: MULTICALL_BATCH_BYTES,
       contracts: operators.map(
         (op) =>
           ({

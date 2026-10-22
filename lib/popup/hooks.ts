@@ -572,7 +572,7 @@ export function useCopyAddress() {
 
 // ── filterByGroup ──
 
-export type FilterGroup = 'all' | 'favorites' | 'pending' | 'claimer' | 'splits';
+export type FilterGroup = 'all' | 'favorites' | 'pending' | 'claimer' | 'splits' | 'topup';
 
 /**
  * Flat-list filter. Favorites includes operators starred individually OR
@@ -592,6 +592,7 @@ export function filterByGroup(
   if (group === 'pending') return operators.filter((op) => op.proposedManagerAddress || op.proposedRewardsAddress);
   if (group === 'claimer') return operators.filter((op) => op.claimerAddress);
   if (group === 'splits') return operators.filter((op) => op.feeSplits && op.feeSplits.length > 0);
+  if (group === 'topup') return operators.filter((op) => op.topUpDisabled);
   return operators;
 }
 
@@ -646,6 +647,7 @@ export function filterGroupedView(
   if (scope === 'pending') return filterGroupedByPredicate(grouped, opIsPending);
   if (scope === 'claimer') return filterGroupedByPredicate(grouped, (op) => Boolean(op.claimerAddress));
   if (scope === 'splits') return filterGroupedByPredicate(grouped, (op) => Boolean(op.feeSplits?.length));
+  if (scope === 'topup') return filterGroupedByPredicate(grouped, (op) => Boolean(op.topUpDisabled));
   return {
     groups: grouped.groups.map((group) => ({ group, partial: false })),
     ungrouped: grouped.ungrouped,
