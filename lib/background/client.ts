@@ -1,5 +1,6 @@
 import { createPublicClient, http, type PublicClient, type Chain } from 'viem';
-import { MODULE_NAME } from '@lidofinance/lido-csm-sdk/common';
+import type { Address } from 'viem';
+import { MODULE_CONFIG, MODULE_NAME } from '@lidofinance/lido-csm-sdk/common';
 import { DEFAULT_NETWORKS, type SupportedChainId } from '../shared/networks.js';
 import type { CacheContext, ModuleType } from '../shared/types.js';
 
@@ -10,6 +11,11 @@ export const MODULE_NAMES: Record<ModuleType, MODULE_NAME> = {
   cm: MODULE_NAME.CM,
   csm02: MODULE_NAME.CSM_02,
 };
+
+/** Deployed contract addresses for a module on a chain; empty when the module isn't deployed there. */
+export function moduleContractAddresses(moduleType: ModuleType, chainId: SupportedChainId): Record<string, Address | undefined> {
+  return MODULE_CONFIG[MODULE_NAMES[moduleType]][chainId]?.contractAddresses ?? {};
+}
 
 /** The chain whose contracts/ABIs to use — forkedFrom for Anvil, chainId otherwise */
 export function contractChainId(ctx: CacheContext): SupportedChainId {

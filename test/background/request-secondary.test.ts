@@ -73,6 +73,10 @@ const fetchGates = vi.fn();
 const getCachedGates = vi.fn();
 vi.mock('../../lib/background/gate-cache.ts', () => ({ fetchGates, getCachedGates }));
 
+const fetchRoles = vi.fn();
+const getCachedRoles = vi.fn();
+vi.mock('../../lib/background/role-cache.ts', () => ({ fetchRoles, getCachedRoles }));
+
 // ── Chrome API stubs ──
 let connectListener: (port: chrome.runtime.Port) => void;
 
@@ -84,6 +88,8 @@ beforeEach(() => {
   getCachedOperators.mockResolvedValue(null);
   getCachedGates.mockResolvedValue(null);
   fetchGates.mockResolvedValue({ gates: [], lastFetchedAt: 1 });
+  getCachedRoles.mockResolvedValue(null);
+  fetchRoles.mockResolvedValue({ roles: [], lastFetchedAt: 1 });
 
   chrome.runtime.onConnect = {
     addListener: vi.fn((fn) => { connectListener = fn; }),
@@ -131,59 +137,71 @@ const GATE = {
   paused: false, unconsumed: [ADDR_A], leafCount: 1,
 };
 
-describe('request-gates', () => {
+const ROLE = {
+  role: 'REPORT_GENERAL_DELAYED_PENALTY_ROLE' as const,
+  holders: [{ address: ADDR_A, isContract: false }],
+};
+
+const KINDS = [
+  { kind: 'gates', fetch: fetchGates, getCached: getCachedGates, item: GATE, errored: { ...GATE, error: 'rpc down' } },
+  { kind: 'roles', fetch: fetchRoles, getCached: getCachedRoles, item: ROLE, errored: { ...ROLE, holders: [], error: 'rpc down' } },
+] as const;
+
+describe.each(KINDS)('$kind requests', ({ kind, fetch, getCached, item, errored }) => {
+  const request = (chainId: number) =>
+    ({ type: `request-${kind}`, origin: TEST_ORIGIN, chainId, moduleType: 'csm' }) as PopupCommand;
+  const loadingEvent = (chainId: number) =>
+    ({ type: `${kind}-loading`, chainId, moduleType: 'csm', loading: false });
+
   it('broadcasts a fresh cache without refetching', async () => {
-    getCachedGates.mockResolvedValue({ gates: [GATE], lastFetchedAt: Date.now() });
-    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
-    expect(events).toContainEqual({ type: 'gates-update', chainId: 1, moduleType: 'csm', gates: [GATE], lastFetchedAt: expect.any(Number) });
-    expect(fetchGates).not.toHaveBeenCalled();
+    getCached.mockResolvedValue({ [kind]: [item], lastFetchedAt: Date.now() });
+    const events = await send(request(1));
+    expect(events).toContainEqual({ type: `${kind}-update`, chainId: 1, moduleType: 'csm', [kind]: [item], lastFetchedAt: expect.any(Number) });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('fetches on a cold cache, bracketed by gates-loading', async () => {
-    fetchGates.mockResolvedValue({ gates: [GATE], lastFetchedAt: 5 });
-    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
-    const types = events.filter((e) => e.type.startsWith('gates-')).map((e) => e.type === 'gates-loading' ? `loading:${e.loading}` : e.type);
-    expect(types).toEqual(['loading:true', 'gates-update', 'loading:false']);
+  it('fetches on a cold cache, bracketed by loading', async () => {
+    fetch.mockResolvedValue({ [kind]: [item], lastFetchedAt: 5 });
+    const events = await send(request(1));
+    const types = events.filter((e) => e.type.startsWith(`${kind}-`)).map((e) => e.type === `${kind}-loading` ? `loading:${(e as { loading: boolean }).loading}` : e.type);
+    expect(types).toEqual(['loading:true', `${kind}-update`, 'loading:false']);
   });
 
-  it('never broadcasts an error banner when the gate fetch fails', async () => {
-    fetchGates.mockRejectedValue(new Error('rpc down'));
-    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
+  it('never broadcasts an error banner when the fetch fails', async () => {
+    fetch.mockRejectedValue(new Error('rpc down'));
+    const events = await send(request(1));
     expect(events.some((e) => e.type === 'error')).toBe(false);
-    expect(events).toContainEqual({ type: 'gates-loading', chainId: 1, moduleType: 'csm', loading: false });
+    expect(events).toContainEqual(loadingEvent(1));
   });
 
-  it('refetches a fresh cache holding an errored gate', async () => {
-    const erroredGate = { ...GATE, error: 'rpc down' };
-    getCachedGates.mockResolvedValue({ gates: [erroredGate], lastFetchedAt: Date.now() });
-    fetchGates.mockResolvedValue({ gates: [GATE], lastFetchedAt: Date.now() });
-    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
-    expect(events).toContainEqual({ type: 'gates-update', chainId: 1, moduleType: 'csm', gates: [erroredGate], lastFetchedAt: expect.any(Number) });
-    expect(fetchGates).toHaveBeenCalledTimes(1);
+  it('refetches a fresh cache holding an errored entry', async () => {
+    getCached.mockResolvedValue({ [kind]: [errored], lastFetchedAt: Date.now() });
+    fetch.mockResolvedValue({ [kind]: [item], lastFetchedAt: Date.now() });
+    const events = await send(request(1));
+    expect(events).toContainEqual({ type: `${kind}-update`, chainId: 1, moduleType: 'csm', [kind]: [errored], lastFetchedAt: expect.any(Number) });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('still replies on an unsupported network', async () => {
-    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 999, moduleType: 'csm' });
-    expect(events).toContainEqual({ type: 'gates-loading', chainId: 999, moduleType: 'csm', loading: false });
+    const events = await send(request(999));
+    expect(events).toContainEqual(loadingEvent(999));
   });
 
   it('still replies on Anvil without a detectable fork', async () => {
     detectAnvilFork.mockResolvedValue(null);
-    const events = await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 31337, moduleType: 'csm' });
-    expect(events).toContainEqual({ type: 'gates-loading', chainId: 31337, moduleType: 'csm', loading: false });
+    const events = await send(request(31337));
+    expect(events).toContainEqual(loadingEvent(31337));
   });
 
   it('uses the forked chain on Anvil', async () => {
     getForkedFrom.mockResolvedValue(1);
-    await send({ type: 'request-gates', origin: TEST_ORIGIN, chainId: 31337, moduleType: 'csm' });
-    expect(fetchGates).toHaveBeenCalledWith(expect.objectContaining({ chainId: 31337, forkedFrom: 1 }));
+    await send(request(31337));
+    expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ chainId: 31337, forkedFrom: 1 }));
   });
-});
 
-describe('refresh-gates', () => {
-  it('refetches even when the cache is fresh', async () => {
-    getCachedGates.mockResolvedValue({ gates: [GATE], lastFetchedAt: Date.now() });
-    await send({ type: 'refresh-gates', origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' });
-    expect(fetchGates).toHaveBeenCalledTimes(1);
+  it('refresh refetches even when the cache is fresh', async () => {
+    getCached.mockResolvedValue({ [kind]: [item], lastFetchedAt: Date.now() });
+    await send({ type: `refresh-${kind}`, origin: TEST_ORIGIN, chainId: 1, moduleType: 'csm' } as PopupCommand);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

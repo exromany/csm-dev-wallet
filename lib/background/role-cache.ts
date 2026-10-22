@@ -1,10 +1,10 @@
 import { getAddress, keccak256, toBytes, type Address } from 'viem';
-import { MODULE_CONFIG, MODULE_CONTRACT, type ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
+import { MODULE_CONTRACT, type ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
 import { BaseModuleAbi } from '@lidofinance/lido-csm-sdk/abi';
 import { PROTOCOL_ROLES } from '../shared/modules.js';
 import type { CacheContext, CachedRole, ModuleType, RoleCacheEntry } from '../shared/types.js';
 import { errorMessage } from '../shared/errors.js';
-import { MODULE_NAMES, contractChainId, getClient } from './client.js';
+import { MODULE_NAMES, contractChainId, getClient, moduleContractAddresses } from './client.js';
 
 export function rolesFor(moduleType: ModuleType): ProtocolRole[] {
   return PROTOCOL_ROLES.filter((r) => r.modules.includes(moduleType)).map((r) => r.role);
@@ -29,9 +29,7 @@ export async function fetchRoles(ctx: CacheContext): Promise<RoleCacheEntry> {
 
 async function readRoles(ctx: CacheContext): Promise<CachedRole[]> {
   const name = MODULE_NAMES[ctx.moduleType];
-  const addresses: Record<string, Address | undefined> =
-    MODULE_CONFIG[name][contractChainId(ctx)]?.contractAddresses ?? {};
-  const address = addresses[MODULE_CONTRACT[name]];
+  const address = moduleContractAddresses(ctx.moduleType, contractChainId(ctx))[MODULE_CONTRACT[name]];
   if (!address) return [];
 
   const roles = rolesFor(ctx.moduleType);
@@ -47,19 +45,23 @@ async function readRoles(ctx: CacheContext): Promise<CachedRole[]> {
         args: [keccak256(toBytes(role))],
       } as const)),
     });
-    const members = results.map((r) => (r.status === 'success' ? r.result.map((a) => getAddress(a)) : []));
-    const unique = [...new Set(members.flat())];
+    const outcomes = results.map((r, i) => {
+      const role = roles[i]!;
+      return r.status === 'success'
+        ? { role, members: r.result.map((a) => getAddress(a)) }
+        : { role, members: [], error: errorMessage(r.error) };
+    });
+    const unique = [...new Set(outcomes.flatMap((o) => o.members))];
     const codes = await Promise.allSettled(unique.map((a) => client.getCode({ address: a })));
     const isContract = new Map<Address, boolean | undefined>(unique.map((a, i) => {
       const c = codes[i]!;
       return [a, c.status === 'fulfilled' ? !!c.value && c.value !== '0x' : undefined];
     }));
-    return roles.map((role, i) => {
-      const r = results[i]!;
-      return r.status === 'success'
-        ? { role, holders: members[i]!.map((a) => ({ address: a, isContract: isContract.get(a) })) }
-        : { role, holders: [], error: errorMessage(r.error) };
-    });
+    return outcomes.map(({ role, members, error }) => ({
+      role,
+      holders: members.map((a) => ({ address: a, isContract: isContract.get(a) })),
+      ...(error !== undefined && { error }),
+    }));
   } catch (err) {
     return roles.map((role) => ({ role, holders: [], error: errorMessage(err) }));
   }

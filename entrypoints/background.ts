@@ -340,15 +340,17 @@ export default defineBackground(() => {
     }, force);
   }
 
+  const secondaryRefreshers = { gates: triggerGateRefresh, roles: triggerRoleRefresh };
+
+  /** Gates/roles share one flow; an unresolvable context just clears the popup's loading state. */
   async function refreshSecondary(
-    kind: 'gates' | 'roles',
+    kind: keyof typeof secondaryRefreshers,
     { chainId, moduleType }: { chainId: number; moduleType: ModuleType },
     force: boolean,
   ) {
     const ctx = await resolveCacheContext(chainId, moduleType);
     if (!ctx) broadcastToPopups({ type: `${kind}-loading`, chainId, moduleType, loading: false });
-    else if (kind === 'gates') await triggerGateRefresh(ctx, force);
-    else await triggerRoleRefresh(ctx, force);
+    else await secondaryRefreshers[kind](ctx, force);
   }
 
   async function resolveCacheContext(chainId: number, moduleType: ModuleType): Promise<CacheContext | null> {
@@ -521,19 +523,13 @@ export default defineBackground(() => {
       }
 
       case 'request-gates':
-        await refreshSecondary('gates', command, false);
-        break;
-
       case 'refresh-gates':
-        await refreshSecondary('gates', command, true);
+        await refreshSecondary('gates', command, command.type === 'refresh-gates');
         break;
 
       case 'request-roles':
-        await refreshSecondary('roles', command, false);
-        break;
-
       case 'refresh-roles':
-        await refreshSecondary('roles', command, true);
+        await refreshSecondary('roles', command, command.type === 'refresh-roles');
         break;
 
       case 'toggle-favorite': {

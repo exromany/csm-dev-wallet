@@ -161,55 +161,46 @@ export async function seedState(sw: Worker, extensionId: string, state: Partial<
   ]);
 }
 
-export async function seedOperators(
+async function seedCache(sw: Worker, key: string, entry: unknown) {
+  await sw.evaluate(
+    async ([k, v]) => {
+      await chrome.storage.local.set({ [k]: v });
+    },
+    [key, entry] as const,
+  );
+}
+
+export function seedOperators(
   sw: Worker,
   operators: CachedOperator[],
   chainId: number,
   moduleType: ModuleType = 'csm',
   lastFetchedAt: number = Date.now(),
 ) {
-  const key = `operators_${moduleType}_${chainId}`;
   const entry: OperatorCacheEntry = { operators, lastFetchedAt };
-  await sw.evaluate(
-    async ([k, v]) => {
-      await chrome.storage.local.set({ [k]: v });
-    },
-    [key, entry] as const,
-  );
+  return seedCache(sw, `operators_${moduleType}_${chainId}`, entry);
 }
 
-export async function seedGates(
+export function seedGates(
   sw: Worker,
   gates: CachedGate[],
   chainId: number,
   moduleType: ModuleType = 'csm',
   lastFetchedAt: number = Date.now(),
 ) {
-  const key = `gates_${moduleType}_${chainId}`;
   const entry: GateCacheEntry = { gates, lastFetchedAt };
-  await sw.evaluate(
-    async ([k, v]) => {
-      await chrome.storage.local.set({ [k]: v });
-    },
-    [key, entry] as const,
-  );
+  return seedCache(sw, `gates_${moduleType}_${chainId}`, entry);
 }
 
-export async function seedRoles(
+export function seedRoles(
   sw: Worker,
   roles: CachedRole[],
   chainId: number,
   moduleType: ModuleType = 'csm',
   lastFetchedAt: number = Date.now(),
 ) {
-  const key = `roles_${moduleType}_${chainId}`;
   const entry: RoleCacheEntry = { roles, lastFetchedAt };
-  await sw.evaluate(
-    async ([k, v]) => {
-      await chrome.storage.local.set({ [k]: v });
-    },
-    [key, entry] as const,
-  );
+  return seedCache(sw, `roles_${moduleType}_${chainId}`, entry);
 }
 
 export async function seedModuleAvailability(
