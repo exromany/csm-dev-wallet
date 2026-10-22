@@ -21,8 +21,8 @@ importers:
   .:
     dependencies:
       '@lidofinance/lido-csm-sdk':
-        specifier: ^2.6.0
-        version: 2.6.0(@lidofinance/lido-ethereum-sdk@4.8.0(viem@2.56.3(typescript@5.9.3)(zod@4.6.7)))(typescript@5.9.3)(viem@2.56.3(typescript@5.9.3)(zod@4.6.7))
+        specifier: ^3.0.0
+        version: 3.0.0(@lidofinance/lido-ethereum-sdk@4.8.0(viem@2.56.3(typescript@5.9.3)(zod@4.6.7)))(typescript@5.9.3)(viem@2.56.3(typescript@5.9.3)(zod@4.6.7))
       '@lidofinance/lido-ethereum-sdk':
         specifier: ^4.8.0
         version: 4.8.0(viem@2.56.3(typescript@5.9.3)(zod@4.6.7))
@@ -531,8 +531,8 @@ packages:
   '@libp2p/logger@5.2.0':
     resolution: {integrity: sha512-OEFS529CnIKfbWEHmuCNESw9q0D0hL8cQ8klQfjIVPur15RcgAEgc1buQ7Y6l0B6tCYg120bp55+e9tGvn8c0g==}
 
-  '@lidofinance/lido-csm-sdk@2.6.0':
-    resolution: {integrity: sha512-VjsNF4HJgekXPY0UciWcdP+46yqaXbsj8dX7OoZA6iuZI27DkliHI3JZRrhR/APtDhKH1efWmdqf0apk4VKreQ==}
+  '@lidofinance/lido-csm-sdk@3.0.0':
+    resolution: {integrity: sha512-1W1nDCUzXYBr1OLjdAgScfBwR/D+OktLNkM+oQoAanq5Xdr9mw4RFtmw0ggU7ByAA+OsejJ2O1sINqhZmVN57Q==}
     engines: {node: '>=24'}
     peerDependencies:
       '@lidofinance/lido-ethereum-sdk': ^4.8.0
@@ -2853,7 +2853,7 @@ snapshots:
       multiformats: 13.4.2
       weald: 1.1.3
 
-  '@lidofinance/lido-csm-sdk@2.6.0(@lidofinance/lido-ethereum-sdk@4.8.0(viem@2.56.3(typescript@5.9.3)(zod@4.6.7)))(typescript@5.9.3)(viem@2.56.3(typescript@5.9.3)(zod@4.6.7))':
+  '@lidofinance/lido-csm-sdk@3.0.0(@lidofinance/lido-ethereum-sdk@4.8.0(viem@2.56.3(typescript@5.9.3)(zod@4.6.7)))(typescript@5.9.3)(viem@2.56.3(typescript@5.9.3)(zod@4.6.7))':
     dependencies:
       '@chainsafe/ssz': 1.8.1
       '@lidofinance/lido-ethereum-sdk': 4.8.0(viem@2.56.3(typescript@5.9.3)(zod@4.6.7))
