@@ -40,14 +40,14 @@ describe('App — role holder selection', () => {
   });
 
   it('switches the site to the holder module when it differs', () => {
-    fireEvent.click(document.querySelectorAll('.role-row')[1]!);
+    fireEvent.click(document.querySelectorAll('.role-group .manual-entry')[1]!);
     expect(selectCalls(port)).toContainEqual(expect.objectContaining({
       type: 'select-address', address: ADDR_B, source: { type: 'role', role: PENALTY }, moduleType: 'cm',
     }));
   });
 
   it('omits moduleType for a holder on the site module', () => {
-    fireEvent.click(document.querySelectorAll('.role-row')[0]!);
+    fireEvent.click(document.querySelectorAll('.role-group .manual-entry')[0]!);
     const [call] = selectCalls(port);
     expect(call).toMatchObject({ address: ADDR_A, source: { type: 'role', role: PENALTY } });
     expect(call).not.toHaveProperty('moduleType');

@@ -1,11 +1,11 @@
 import React from 'react';
 import type { Address } from 'viem';
 import type { ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
-import type { ModuleType } from '../../lib/shared/types.js';
+import type { ModuleType, RoleHolder } from '../../lib/shared/types.js';
 import { MODULE_SHORT } from '../../lib/shared/modules.js';
 import { truncateAddress } from '../../lib/popup/utils.js';
-import { useCopyAddress, type RoleGroup } from '../../lib/popup/hooks.js';
-import { IconCheck, IconCopy } from './icons.js';
+import type { RoleGroup } from '../../lib/popup/hooks.js';
+import { CopyButton } from './CopyButton.js';
 
 type Props = {
   groups: RoleGroup[];
@@ -16,12 +16,66 @@ type Props = {
   onRefresh: () => void;
 };
 
-export function RoleHolders({ groups, loading, selectedAddress, addressLabels, onSelect, onRefresh }: Props) {
-  const { copy, isCopied } = useCopyAddress();
+type Entry = RoleGroup['entries'][number];
 
+type RowProps = {
+  holder: RoleHolder;
+  tag: string;
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+};
+
+function RoleRow({ holder: { address, isContract }, tag, label, selected, onSelect }: RowProps) {
+  return (
+    <div
+      className={`manual-entry ${selected ? 'selected' : ''} ${label ? '' : 'no-name'}`}
+      onClick={onSelect}
+    >
+      <span className="role-pill tint-mgr">{tag}</span>
+      <div className="body">
+        {label && <div className="name">{label}</div>}
+        <div className="addr">{truncateAddress(address)}</div>
+      </div>
+      {isContract !== undefined && <span className="role-pill kind">{isContract ? 'contract' : 'EOA'}</span>}
+      <CopyButton address={address} />
+    </div>
+  );
+}
+
+type EntryProps = {
+  role: ProtocolRole;
+  entry: Entry;
+  selectedAddress?: string;
+  addressLabels: Record<string, string>;
+  onSelect: Props['onSelect'];
+};
+
+function ModuleEntry({ role, entry: { moduleType, holders, error }, selectedAddress, addressLabels, onSelect }: EntryProps) {
+  const tag = MODULE_SHORT[moduleType];
+  if (error) return <div className="role-note error hint" data-hint={error}>{tag} ⚠</div>;
+  if (holders.length === 0) return <div className="role-note">{tag} — no holders</div>;
+  return (
+    <>
+      {holders.map((holder) => (
+        <RoleRow
+          key={holder.address}
+          holder={holder}
+          tag={tag}
+          label={addressLabels[holder.address.toLowerCase()] ?? ''}
+          selected={selectedAddress?.toLowerCase() === holder.address.toLowerCase()}
+          onSelect={() => onSelect(holder.address, role, moduleType)}
+        />
+      ))}
+    </>
+  );
+}
+
+export function RoleHolders({ groups, loading, selectedAddress, addressLabels, onSelect, onRefresh }: Props) {
   return (
     <div className="panel">
-      <div className="roles-bar">
+      <div className="filter-bar">
+        <span className="spacer" />
         <button className="refresh-btn" onClick={onRefresh} disabled={loading}>
           {loading ? 'loading…' : '↻ refresh'}
         </button>
@@ -42,44 +96,16 @@ export function RoleHolders({ groups, loading, selectedAddress, addressLabels, o
               <span className="role-scope">{entries.map((e) => MODULE_SHORT[e.moduleType]).join(' · ')}</span>
               <span className="role-count">{entries.reduce((n, e) => n + e.holders.length, 0)}</span>
             </summary>
-            {entries.map(({ moduleType, holders, error }) => {
-              const tag = MODULE_SHORT[moduleType];
-              if (error) {
-                return (
-                  <div key={moduleType} className="role-note error hint" data-hint={error}>{tag} ⚠</div>
-                );
-              }
-              if (holders.length === 0) {
-                return <div key={moduleType} className="role-note">{tag} — no holders</div>;
-              }
-              return holders.map(({ address, isContract }) => {
-                const label = addressLabels[address.toLowerCase()] ?? '';
-                const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
-                const copied = isCopied(address);
-                return (
-                  <div
-                    key={`${moduleType}:${address}`}
-                    className={`role-row ${selected ? 'selected' : ''}`}
-                    onClick={() => onSelect(address, role, moduleType)}
-                  >
-                    <span className="role-module">{tag}</span>
-                    <div className="body">
-                      {label && <div className="role-label">{label}</div>}
-                      <div className="addr">{truncateAddress(address)}</div>
-                    </div>
-                    {isContract !== undefined && <span className="role-kind">{isContract ? 'contract' : 'EOA'}</span>}
-                    <button
-                      className={`btn-copy hint hint-right ${copied ? 'copied' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); copy(address); }}
-                      data-hint={copied ? 'Copied' : 'Copy address'}
-                      aria-label={copied ? 'Copied' : 'Copy address'}
-                    >
-                      {copied ? <IconCheck /> : <IconCopy />}
-                    </button>
-                  </div>
-                );
-              });
-            })}
+            {entries.map((entry) => (
+              <ModuleEntry
+                key={entry.moduleType}
+                role={role}
+                entry={entry}
+                selectedAddress={selectedAddress}
+                addressLabels={addressLabels}
+                onSelect={onSelect}
+              />
+            ))}
           </details>
         ))
       )}

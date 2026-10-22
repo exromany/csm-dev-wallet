@@ -66,9 +66,9 @@ async function main() {
     await test('The top-up group lists the contract holder with a contract tag', async () => {
       await seedFresh();
       const page = await openRoles();
-      const row = page.locator('.role-group', { hasText: TOPUP }).locator('.role-row');
+      const row = page.locator('.role-group', { hasText: TOPUP }).locator('.manual-entry');
       await row.waitFor();
-      const kind = (await row.locator('.role-kind').innerText()).trim();
+      const kind = (await row.locator('.role-pill.kind').innerText()).trim();
       if (kind !== 'contract') throw new Error(`kind: ${kind}`);
       await page.close();
     });
@@ -76,7 +76,7 @@ async function main() {
     await test('Selecting a CM holder connects it and switches the module to CM', async () => {
       await seedFresh();
       const page = await openRoles();
-      await page.locator('.role-group', { hasText: TOPUP }).locator('.role-row').click();
+      await page.locator('.role-group', { hasText: TOPUP }).locator('.manual-entry').click();
       await page.waitForTimeout(400);
       const pill = await page.locator('.connected-pill').innerText();
       if (!pill.toLowerCase().includes(CONTRACT_B.slice(0, 6))) throw new Error(`pill: ${pill}`);

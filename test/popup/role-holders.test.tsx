@@ -44,17 +44,17 @@ describe('RoleHolders', () => {
 
   it('tags holders as contract or EOA', () => {
     setup();
-    const rows = [...document.querySelectorAll('.role-row')];
+    const rows = [...document.querySelectorAll('.role-group .manual-entry')];
     expect(rows).toHaveLength(2);
     expect(rows[0]!.textContent).toContain('CSM');
-    expect(rows[0]!.querySelector('.role-kind')!.textContent).toBe('EOA');
-    expect(rows[1]!.querySelector('.role-kind')!.textContent).toBe('contract');
+    expect(rows[0]!.querySelector('.role-pill.kind')!.textContent).toBe('EOA');
+    expect(rows[1]!.querySelector('.role-pill.kind')!.textContent).toBe('contract');
   });
 
   it('shows no tag when contract status is unknown', () => {
     setup({ groups: [{ role: PENALTY, entries: [{ moduleType: 'cm', holders: [{ address: ADDR_A }] }] }] });
-    expect(document.querySelectorAll('.role-row')).toHaveLength(1);
-    expect(document.querySelector('.role-kind')).toBeNull();
+    expect(document.querySelectorAll('.role-group .manual-entry')).toHaveLength(1);
+    expect(document.querySelector('.role-pill.kind')).toBeNull();
   });
 
   it('shows the address label when one is set', () => {
@@ -64,13 +64,13 @@ describe('RoleHolders', () => {
 
   it('selects a holder with its role and module', () => {
     const { onSelect } = setup();
-    fireEvent.click(document.querySelectorAll('.role-row')[1]!);
+    fireEvent.click(document.querySelectorAll('.role-group .manual-entry')[1]!);
     expect(onSelect).toHaveBeenCalledWith(ADDR_B, PENALTY, 'cm');
   });
 
   it('copying does not select', () => {
     const { onSelect } = setup();
-    fireEvent.click(document.querySelector('.role-row .btn-copy')!);
+    fireEvent.click(document.querySelector('.role-group .manual-entry .btn-copy')!);
     expect(onSelect).not.toHaveBeenCalled();
   });
 
@@ -88,7 +88,7 @@ describe('RoleHolders', () => {
 
   it('marks the connected holder, case-insensitively', () => {
     setup({ selectedAddress: ADDR_A.toLowerCase() });
-    const rows = document.querySelectorAll('.role-row');
+    const rows = document.querySelectorAll('.role-group .manual-entry');
     expect(rows[0]!.classList.contains('selected')).toBe(true);
     expect(rows[1]!.classList.contains('selected')).toBe(false);
   });

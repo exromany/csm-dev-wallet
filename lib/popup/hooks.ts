@@ -236,9 +236,138 @@ function useWantedModules(availableModules: ModuleAvailability) {
   return { wanted, resolved };
 }
 
+// ── useModuleFeed ──
+
+type FeedMessage<T> =
+  | { kind: 'update'; chainId: number; moduleType: ModuleType; data: T; fetchedAt?: number }
+  | { kind: 'loading'; chainId: number; moduleType: ModuleType; loading: boolean };
+
+type FeedCommand =
+  | 'request-operators' | 'refresh-operators'
+  | 'request-gates' | 'refresh-gates'
+  | 'request-roles' | 'refresh-roles';
+
+type FeedConfig<T> = {
+  request: FeedCommand;
+  refresh: FeedCommand;
+  /** Must be referentially stable. */
+  parse: (event: PopupEvent) => FeedMessage<T> | null;
+};
+
+function safePost(port: chrome.runtime.Port, command: PopupCommand) {
+  try {
+    port.postMessage(command);
+  } catch {
+    // Port disconnected — useWalletState reopens on focus
+  }
+}
+
+const addModule = (prev: ModuleType[], m: ModuleType) => (prev.includes(m) ? prev : [...prev, m]);
+
+/** Per-module request/refresh/stream state shared by the Shared and Roles tabs. */
+function useModuleFeed<T>(
+  config: FeedConfig<T>,
+  port: chrome.runtime.Port | null,
+  origin: string | null,
+  chainId: number,
+  wanted: ModuleType[],
+  resolved: boolean,
+  enabled: boolean,
+) {
+  const { request, refresh: refreshType, parse } = config;
+  const [byModule, setByModule] = useState<Partial<Record<ModuleType, T>>>({});
+  const [loadingModules, setLoadingModules] = useState<ModuleType[]>([]);
+  const [settled, setSettled] = useState<ModuleType[]>([]);
+  const [fetchedAt, setFetchedAt] = useState<Partial<Record<ModuleType, number>>>({});
+  const chainIdRef = useRef(chainId);
+  chainIdRef.current = chainId;
+
+  useEffect(() => {
+    if (!port || !origin || !enabled || !resolved) return;
+
+    setByModule({});
+    setLoadingModules([]);
+    setSettled([]);
+    setFetchedAt({});
+
+    const handler = (event: PopupEvent) => {
+      const msg = parse(event);
+      if (!msg || msg.chainId !== chainIdRef.current || !wanted.includes(msg.moduleType)) return;
+      const { moduleType } = msg;
+      if (msg.kind === 'update') {
+        setByModule((prev) => ({ ...prev, [moduleType]: msg.data }));
+        setSettled((prev) => addModule(prev, moduleType));
+        if (msg.fetchedAt !== undefined) {
+          setFetchedAt((prev) => ({ ...prev, [moduleType]: msg.fetchedAt }));
+        }
+      } else {
+        setLoadingModules((prev) =>
+          msg.loading ? addModule(prev, moduleType) : prev.filter((m) => m !== moduleType),
+        );
+        // A failed fetch broadcasts loading:false with no update — still counts
+        // as settled, or a stuck cache never lets `loading` clear.
+        if (!msg.loading) setSettled((prev) => addModule(prev, moduleType));
+      }
+    };
+
+    port.onMessage.addListener(handler);
+    for (const moduleType of wanted) {
+      safePost(port, { type: request, origin, chainId, moduleType } as PopupCommand);
+    }
+    return () => port.onMessage.removeListener(handler);
+  }, [port, origin, chainId, wanted, enabled, resolved, request, parse]);
+
+  const refresh = useCallback(() => {
+    if (!port || !origin || !resolved) return;
+    for (const moduleType of wanted) {
+      safePost(port, { type: refreshType, origin, chainId, moduleType } as PopupCommand);
+    }
+  }, [port, origin, chainId, wanted, resolved, refreshType]);
+
+  // Counts must never render half-built: a module that hasn't settled yet
+  // keeps the whole feed in its loading state.
+  const answered = wanted.filter((m) => settled.includes(m)).length;
+  const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
+
+  return { byModule, loading, refresh, fetchedAt };
+}
+
 // ── useSharedAddresses ──
 
 export type SharedFilter = 'all' | 'cross' | 'pending' | 'claimer' | 'gate';
+
+const operatorsFeed: FeedConfig<CachedOperator[]> = {
+  request: 'request-operators',
+  refresh: 'refresh-operators',
+  parse: (e) =>
+    e.type === 'operators-update'
+      ? { kind: 'update', chainId: e.chainId, moduleType: e.moduleType, data: e.operators, fetchedAt: e.lastFetchedAt }
+      : e.type === 'operators-loading'
+        ? { kind: 'loading', chainId: e.chainId, moduleType: e.moduleType, loading: e.loading }
+        : null,
+};
+
+const gatesFeed: FeedConfig<CachedGate[]> = {
+  request: 'request-gates',
+  refresh: 'refresh-gates',
+  parse: (e) =>
+    e.type === 'gates-update'
+      ? { kind: 'update', chainId: e.chainId, moduleType: e.moduleType, data: e.gates }
+      : e.type === 'gates-loading'
+        ? { kind: 'loading', chainId: e.chainId, moduleType: e.moduleType, loading: e.loading }
+        : null,
+};
+
+const rolesFeed: FeedConfig<CachedRole[]> = {
+  request: 'request-roles',
+  refresh: 'refresh-roles',
+  parse: (e) =>
+    e.type === 'roles-update'
+      ? { kind: 'update', chainId: e.chainId, moduleType: e.moduleType, data: e.roles }
+      : e.type === 'roles-loading'
+        ? { kind: 'loading', chainId: e.chainId, moduleType: e.moduleType, loading: e.loading }
+        : null,
+};
 
 /**
  * Addresses attached to more than one operator, or holding an unused gate proof,
@@ -253,124 +382,41 @@ export function useSharedAddresses(
   availableModules: ModuleAvailability,
   enabled: boolean,
 ) {
-  const [byModule, setByModule] = useState<Partial<Record<ModuleType, CachedOperator[]>>>({});
-  const [loadingModules, setLoadingModules] = useState<ModuleType[]>([]);
-  const [settledModules, setSettledModules] = useState<ModuleType[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<Partial<Record<ModuleType, number>>>({});
-  const [gatesByModule, setGatesByModule] = useState<Partial<Record<ModuleType, CachedGate[]>>>({});
-  const [gatesLoadingModules, setGatesLoadingModules] = useState<ModuleType[]>([]);
-  const [gatesSettled, setGatesSettled] = useState<ModuleType[]>([]);
-
   const { wanted, resolved } = useWantedModules(availableModules);
-  const chainIdRef = useRef(chainId);
-  chainIdRef.current = chainId;
+  // Held off until the Shared tab is visited (`enabled`), so a popup that never
+  // opens it doesn't fire a full fetch of every module on every open. Also held
+  // off until availability is known, so `wanted` doesn't change identity mid-flight.
+  const ops = useModuleFeed(operatorsFeed, port, origin, chainId, wanted, resolved, enabled);
+  const gates = useModuleFeed(gatesFeed, port, origin, chainId, wanted, resolved, enabled);
 
-  useEffect(() => {
-    // Held off until the Shared tab is actually visited, so a popup that never
-    // opens it doesn't fire a redundant CSM fetch (Operators tab already does)
-    // plus a full fetch of every other module on every open. Also held off until
-    // every module's availability is known, so `wanted` doesn't change identity
-    // mid-flight and re-request.
-    if (!port || !origin || !enabled || !resolved) return;
-
-    setByModule({});
-    setLoadingModules([]);
-    setSettledModules([]);
-    setFetchedAt({});
-    setGatesByModule({});
-    setGatesLoadingModules([]);
-    setGatesSettled([]);
-
-    const settle = (moduleType: ModuleType) =>
-      setSettledModules((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
-    const settleGates = (moduleType: ModuleType) =>
-      setGatesSettled((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
-
-    const handler = (event: PopupEvent) => {
-      if (event.type === 'operators-update') {
-        if (event.chainId !== chainIdRef.current) return;
-        if (!wanted.includes(event.moduleType)) return;
-        setByModule((prev) => ({ ...prev, [event.moduleType]: event.operators }));
-        settle(event.moduleType);
-        setFetchedAt((prev) => ({ ...prev, [event.moduleType]: event.lastFetchedAt }));
-      }
-      if (event.type === 'operators-loading') {
-        if (event.chainId !== chainIdRef.current) return;
-        if (!wanted.includes(event.moduleType)) return;
-        setLoadingModules((prev) =>
-          event.loading
-            ? (prev.includes(event.moduleType) ? prev : [...prev, event.moduleType])
-            : prev.filter((m) => m !== event.moduleType),
-        );
-        // A failed fetch broadcasts loading:false with no operators-update — still
-        // counts as settled, or a stuck cache never lets `loading` clear.
-        if (!event.loading) settle(event.moduleType);
-      }
-      if (event.type === 'gates-update') {
-        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
-        setGatesByModule((prev) => ({ ...prev, [event.moduleType]: event.gates }));
-        settleGates(event.moduleType);
-      }
-      if (event.type === 'gates-loading') {
-        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
-        setGatesLoadingModules((prev) =>
-          event.loading
-            ? (prev.includes(event.moduleType) ? prev : [...prev, event.moduleType])
-            : prev.filter((m) => m !== event.moduleType),
-        );
-        if (!event.loading) settleGates(event.moduleType);
-      }
-    };
-
-    port.onMessage.addListener(handler);
-    for (const moduleType of wanted) {
-      try {
-        port.postMessage({ type: 'request-operators', origin, chainId, moduleType } satisfies PopupCommand);
-        port.postMessage({ type: 'request-gates', origin, chainId, moduleType } satisfies PopupCommand);
-      } catch {
-        // Port disconnected — useWalletState reopens on focus
-      }
-    }
-    return () => port.onMessage.removeListener(handler);
-  }, [port, origin, chainId, wanted, enabled, resolved]);
-
+  const refreshOps = ops.refresh;
+  const refreshGates = gates.refresh;
   const refresh = useCallback(() => {
-    if (!port || !origin || !resolved) return;
-    for (const moduleType of wanted) {
-      try {
-        port.postMessage({ type: 'refresh-operators', origin, chainId, moduleType } satisfies PopupCommand);
-        port.postMessage({ type: 'refresh-gates', origin, chainId, moduleType } satisfies PopupCommand);
-      } catch {
-        // Port disconnected — useWalletState reopens on focus
-      }
-    }
-  }, [port, origin, chainId, wanted, resolved]);
+    refreshOps();
+    refreshGates();
+  }, [refreshOps, refreshGates]);
 
+  const byModule = ops.byModule;
+  const gatesByModule = gates.byModule;
   const index = useMemo(() => buildAttachmentIndex(byModule, gatesByModule), [byModule, gatesByModule]);
   const addresses = useMemo(() => sharedAddresses(index, moduleType), [index, moduleType]);
 
   // Report the STALEST module, so "updated Xm ago" never overstates freshness.
   // A module that settled without an operators-update (e.g. a failed fetch)
   // has no stamp — null out rather than silently reporting a partial index.
+  const fetchedAt = ops.fetchedAt;
   const lastFetchedAt = useMemo(() => {
     const stamps = wanted.map((m) => fetchedAt[m]);
     if (stamps.some((t) => t === undefined)) return null;
     return Math.min(...(stamps as number[]));
   }, [fetchedAt, wanted]);
 
-  // Counts must never render half-built, so a module that hasn't settled yet
-  // (update received, or a failed fetch) keeps the whole tab in its loading state.
-  const answered = wanted.filter((m) => settledModules.includes(m)).length;
-  const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
-
-  const gatesAnswered = wanted.filter((m) => gatesSettled.includes(m)).length;
-  const gatesLoading = enabled && (gatesLoadingModules.length > 0 || gatesAnswered < wanted.length);
   const gateErrors = useMemo(
     () => MODULE_ORDER.flatMap((m) => (wanted.includes(m) ? gatesByModule[m] ?? [] : []).filter((g) => g.error).map((g) => g.label)),
     [gatesByModule, wanted],
   );
 
-  return { addresses, index, loading, lastFetchedAt, refresh, gatesLoading, gateErrors };
+  return { addresses, index, loading: ops.loading, lastFetchedAt, refresh, gatesLoading: gates.loading, gateErrors };
 }
 
 // ── useRoleHolders ──
@@ -380,17 +426,15 @@ export type RoleGroup = {
   entries: { moduleType: ModuleType; holders: RoleHolder[]; error?: string }[];
 };
 
-/** Pure: PROTOCOL_ROLES order, then MODULE_ORDER; only modules in `wanted` that hold the role. */
+/** Pure: PROTOCOL_ROLES order, then `wanted` order (already MODULE_ORDER); only modules that hold the role. */
 export function groupRoles(
   byModule: Partial<Record<ModuleType, CachedRole[]>>,
   wanted: ModuleType[],
 ): RoleGroup[] {
   return PROTOCOL_ROLES.flatMap(({ role }) => {
-    const entries = MODULE_ORDER.filter((m) => wanted.includes(m)).flatMap((moduleType) => {
+    const entries = wanted.flatMap((moduleType) => {
       const found = byModule[moduleType]?.find((r) => r.role === role);
-      return found
-        ? [{ moduleType, holders: found.holders, ...(found.error ? { error: found.error } : {}) }]
-        : [];
+      return found ? [{ moduleType, holders: found.holders, error: found.error }] : [];
     });
     return entries.length > 0 ? [{ role, entries }] : [];
   });
@@ -404,65 +448,9 @@ export function useRoleHolders(
   availableModules: ModuleAvailability,
   enabled: boolean,
 ) {
-  const [byModule, setByModule] = useState<Partial<Record<ModuleType, CachedRole[]>>>({});
-  const [loadingModules, setLoadingModules] = useState<ModuleType[]>([]);
-  const [settled, setSettled] = useState<ModuleType[]>([]);
   const { wanted, resolved } = useWantedModules(availableModules);
-  const chainIdRef = useRef(chainId);
-  chainIdRef.current = chainId;
-
-  useEffect(() => {
-    if (!port || !origin || !enabled || !resolved) return;
-
-    setByModule({});
-    setLoadingModules([]);
-    setSettled([]);
-
-    const settle = (moduleType: ModuleType) =>
-      setSettled((prev) => (prev.includes(moduleType) ? prev : [...prev, moduleType]));
-
-    const handler = (event: PopupEvent) => {
-      if (event.type === 'roles-update') {
-        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
-        setByModule((prev) => ({ ...prev, [event.moduleType]: event.roles }));
-        settle(event.moduleType);
-      }
-      if (event.type === 'roles-loading') {
-        if (event.chainId !== chainIdRef.current || !wanted.includes(event.moduleType)) return;
-        setLoadingModules((prev) =>
-          event.loading
-            ? (prev.includes(event.moduleType) ? prev : [...prev, event.moduleType])
-            : prev.filter((m) => m !== event.moduleType),
-        );
-        if (!event.loading) settle(event.moduleType);
-      }
-    };
-
-    port.onMessage.addListener(handler);
-    for (const moduleType of wanted) {
-      try {
-        port.postMessage({ type: 'request-roles', origin, chainId, moduleType } satisfies PopupCommand);
-      } catch {
-        // Port disconnected — useWalletState reopens on focus
-      }
-    }
-    return () => port.onMessage.removeListener(handler);
-  }, [port, origin, chainId, wanted, enabled, resolved]);
-
-  const refresh = useCallback(() => {
-    if (!port || !origin || !resolved) return;
-    for (const moduleType of wanted) {
-      try {
-        port.postMessage({ type: 'refresh-roles', origin, chainId, moduleType } satisfies PopupCommand);
-      } catch {
-        // Port disconnected — useWalletState reopens on focus
-      }
-    }
-  }, [port, origin, chainId, wanted, resolved]);
-
+  const { byModule, loading, refresh } = useModuleFeed(rolesFeed, port, origin, chainId, wanted, resolved, enabled);
   const groups = useMemo(() => groupRoles(byModule, wanted), [byModule, wanted]);
-  const answered = wanted.filter((m) => settled.includes(m)).length;
-  const loading = enabled && (loadingModules.length > 0 || answered < wanted.length);
 
   return { groups, loading, refresh };
 }
