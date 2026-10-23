@@ -21,7 +21,6 @@ export function AnvilAccounts({
   onSetLabel,
   onSelect,
 }: Props) {
-
   if (accounts.length === 0) {
     return (
       <div className="panel">

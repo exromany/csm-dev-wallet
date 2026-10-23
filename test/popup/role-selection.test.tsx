@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, fireEvent } from '@testing-library/react';
 import { App } from '../../entrypoints/popup/App.js';
 import { createMockPort, type MockPort } from '../setup.js';
-import { makeState, ADDR_A, ADDR_B } from '../fixtures.js';
+import { makeState, ADDR_A } from '../fixtures.js';
 import type { PopupEvent } from '../../lib/shared/messages.js';
 
 const PENALTY = 'REPORT_GENERAL_DELAYED_PENALTY_ROLE';
@@ -32,24 +32,18 @@ describe('App — role holder selection', () => {
         type: 'roles-update', chainId: 1, moduleType: 'csm', lastFetchedAt: 1,
         roles: [{ role: PENALTY, holders: [{ address: ADDR_A, isContract: false }] }],
       } satisfies PopupEvent);
-      port._emit({
-        type: 'roles-update', chainId: 1, moduleType: 'cm', lastFetchedAt: 1,
-        roles: [{ role: PENALTY, holders: [{ address: ADDR_B, isContract: true }] }],
-      } satisfies PopupEvent);
     });
   });
 
-  it('switches the site to the holder module when it differs', () => {
-    fireEvent.click(document.querySelectorAll('.role-group .manual-entry')[1]!);
-    expect(selectCalls(port)).toContainEqual(expect.objectContaining({
-      type: 'select-address', address: ADDR_B, source: { type: 'role', role: PENALTY }, moduleType: 'cm',
-    }));
-  });
-
-  it('omits moduleType for a holder on the site module', () => {
+  it('selects a holder with role source and no moduleType', () => {
     fireEvent.click(document.querySelectorAll('.role-group .manual-entry')[0]!);
     const [call] = selectCalls(port);
-    expect(call).toMatchObject({ address: ADDR_A, source: { type: 'role', role: PENALTY } });
+    expect(call).toMatchObject({ type: 'select-address', address: ADDR_A, source: { type: 'role', role: PENALTY } });
     expect(call).not.toHaveProperty('moduleType');
+  });
+
+  it('requests roles for the site module only', () => {
+    const requests = port.postMessage.mock.calls.map(([m]) => m).filter((m) => m.type === 'request-roles');
+    expect(requests.map((m) => m.moduleType)).toEqual(['csm']);
   });
 });

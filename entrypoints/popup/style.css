@@ -1366,12 +1366,6 @@ button.topup-badge {
   min-width: 0;
 }
 
-.role-scope {
-  font-size: 10px;
-  color: var(--dim-2);
-  white-space: nowrap;
-}
-
 .role-count {
   margin-left: auto;
   font-size: 10px;

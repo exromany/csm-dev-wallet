@@ -8,6 +8,8 @@
 
 **Tech Stack:** WXT, React, viem, `@lidofinance/lido-csm-sdk` (ABI + constants + `ProtocolRole` type), vitest, raw Playwright e2e.
 
+> **Superseded:** the popup later narrowed to the current module only (no cross-module grouping, module tag or module switch on select). See the spec's Popup section.
+
 **Spec:** `docs/brainstorms/2026-10-22-protocol-roles-tab.md`
 
 ## Global Constraints

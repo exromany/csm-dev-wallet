@@ -1,27 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { RoleHolders } from '../../entrypoints/popup/RoleHolders.js';
-import type { RoleGroup } from '../../lib/popup/hooks.js';
+import type { CachedRole } from '../../lib/shared/types.js';
 import { ADDR_A, ADDR_B } from '../fixtures.js';
 
 const PENALTY = 'REPORT_GENERAL_DELAYED_PENALTY_ROLE';
 const TOPUP = 'ENABLE_TOP_UP_ALLOCATION_ROLE';
 
-const GROUPS: RoleGroup[] = [
+const ROLES: CachedRole[] = [
   {
     role: PENALTY,
-    entries: [
-      { moduleType: 'csm', holders: [{ address: ADDR_A, isContract: false }] },
-      { moduleType: 'cm', holders: [{ address: ADDR_B, isContract: true }] },
+    holders: [
+      { address: ADDR_A, isContract: false },
+      { address: ADDR_B, isContract: true },
     ],
   },
-  { role: TOPUP, entries: [{ moduleType: 'cm', holders: [] }] },
+  { role: TOPUP, holders: [] },
 ];
 
 function setup(overrides: Partial<React.ComponentProps<typeof RoleHolders>> = {}) {
   const props = {
-    groups: GROUPS,
+    roles: ROLES,
     loading: false,
+    lastFetchedAt: null,
     addressLabels: {},
     onSelect: vi.fn(),
     onRefresh: vi.fn(),
@@ -36,23 +37,23 @@ describe('RoleHolders', () => {
     Object.assign(navigator, { clipboard: { writeText: vi.fn(() => Promise.resolve()) } });
   });
 
-  it('renders a header per role with module scope and holder count', () => {
+  it('renders a header per role with holder count', () => {
     setup();
     const headers = [...document.querySelectorAll('.role-group summary')].map((s) => s.textContent);
-    expect(headers).toEqual([`${PENALTY}CSM · CM2`, `${TOPUP}CM0`]);
+    expect(headers).toEqual([`${PENALTY}2`, `${TOPUP}0`]);
   });
 
-  it('tags holders as contract or EOA', () => {
+  it('tags holders as contract or EOA, without a module tag', () => {
     setup();
     const rows = [...document.querySelectorAll('.role-group .manual-entry')];
     expect(rows).toHaveLength(2);
-    expect(rows[0]!.textContent).toContain('CSM');
     expect(rows[0]!.querySelector('.role-pill.kind')!.textContent).toBe('EOA');
     expect(rows[1]!.querySelector('.role-pill.kind')!.textContent).toBe('contract');
+    expect(document.querySelectorAll('.role-pill')).toHaveLength(2);
   });
 
   it('shows no tag when contract status is unknown', () => {
-    setup({ groups: [{ role: PENALTY, entries: [{ moduleType: 'cm', holders: [{ address: ADDR_A }] }] }] });
+    setup({ roles: [{ role: PENALTY, holders: [{ address: ADDR_A }] }] });
     expect(document.querySelectorAll('.role-group .manual-entry')).toHaveLength(1);
     expect(document.querySelector('.role-pill.kind')).toBeNull();
   });
@@ -62,10 +63,10 @@ describe('RoleHolders', () => {
     expect(screen.getByText('Penalty bot')).toBeTruthy();
   });
 
-  it('selects a holder with its role and module', () => {
+  it('selects a holder with its role', () => {
     const { onSelect } = setup();
     fireEvent.click(document.querySelectorAll('.role-group .manual-entry')[1]!);
-    expect(onSelect).toHaveBeenCalledWith(ADDR_B, PENALTY, 'cm');
+    expect(onSelect).toHaveBeenCalledWith(ADDR_B, PENALTY);
   });
 
   it('copying does not select', () => {
@@ -74,16 +75,16 @@ describe('RoleHolders', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('flags an errored entry with the message as hint', () => {
-    setup({ groups: [{ role: PENALTY, entries: [{ moduleType: 'cm', holders: [], error: 'rpc down' }] }] });
+  it('flags an errored role with the message as hint', () => {
+    setup({ roles: [{ role: PENALTY, holders: [], error: 'rpc down' }] });
     const note = document.querySelector('.role-note.error')!;
-    expect(note.textContent).toBe('CM ⚠');
+    expect(note.textContent).toBe('⚠ failed to load');
     expect(note.getAttribute('data-hint')).toBe('rpc down');
   });
 
-  it('says so when a module has no holders', () => {
+  it('says so when a role has no holders', () => {
     setup();
-    expect(screen.getByText('CM — no holders')).toBeTruthy();
+    expect(screen.getByText('no holders')).toBeTruthy();
   });
 
   it('marks the connected holder, case-insensitively', () => {
@@ -94,13 +95,29 @@ describe('RoleHolders', () => {
   });
 
   it('shows an empty state once loaded with no roles', () => {
-    setup({ groups: [] });
-    expect(screen.getByText('No protocol roles on this network.')).toBeTruthy();
+    setup({ roles: [] });
+    expect(screen.getByText('No protocol roles for this module on this network.')).toBeTruthy();
   });
 
   it('shows the loading state while nothing has arrived', () => {
-    setup({ groups: [], loading: true });
+    setup({ roles: [], loading: true });
     expect(screen.getByText('Loading role holders…')).toBeTruthy();
+  });
+
+  it('keeps rendering cached roles while refreshing', () => {
+    setup({ loading: true });
+    expect(document.querySelectorAll('.role-group')).toHaveLength(2);
+    expect(screen.queryByText('Loading role holders…')).toBeNull();
+  });
+
+  it('shows when the roles were last updated', () => {
+    setup({ lastFetchedAt: Date.now() - 5 * 60_000 });
+    expect(document.querySelector('.staleness-label')!.textContent).toMatch(/^updated /);
+  });
+
+  it('omits the timestamp label before the first fetch', () => {
+    setup();
+    expect(document.querySelector('.staleness-label')).toBeNull();
   });
 
   it('refreshes on click', () => {

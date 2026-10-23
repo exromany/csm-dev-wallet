@@ -50,7 +50,7 @@ entrypoints/
   inpage.ts            — EIP-1193 provider injected into MAIN world
   popup/               — React UI
     SharedAddresses.tsx  — Shared tab: addresses on >1 operator or holding an unused gate proof, across modules
-    RoleHolders.tsx      — Roles tab: protocol role holders grouped by role, across modules
+    RoleHolders.tsx      — Roles tab: protocol role holders grouped by role, current module only
 lib/
   background/          — service worker modules (state, rpc-handler, rpc, operator-cache, anvil)
     gate-cache.ts        — unconsumed gate proofs per module/chain
@@ -163,7 +163,8 @@ GitHub release (versioned tag + a moving `latest`), npm publish, then Chrome Web
 - **Protocol roles:** `PROTOCOL_ROLES` in `lib/shared/modules.ts` is typed on the SDK's
   `ProtocolRole`, so an SDK rename breaks typecheck. Both roles live on the module contract and
   are read via `BaseModuleAbi.getRoleMembers` (the CuratedModule ABI lacks it). Role holders are
-  not attachments — `buildAttachmentIndex` never sees them. Cache is `roles_${module}_${chainId}`;
+  not attachments — `buildAttachmentIndex` never sees them. The Roles tab requests only the site's
+  current module (selecting a holder never switches module); Shared is the cross-module tab. Cache is `roles_${module}_${chainId}`;
   failures never raise the popup banner, and an entry holding an errored role counts as stale.
   A module with no config on the chain yields an empty entry, not an error.
 - **E2E seeds roles:** specs that open Roles call `seedRoles(...)`, or the worker reads live

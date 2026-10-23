@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type RefObject } from 'react';
-import type { WalletState, CachedOperator, CachedGate, CachedRole, RoleHolder, ModuleType } from '../shared/types.js';
-import type { ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
+import type { WalletState, CachedOperator, CachedGate, CachedRole, ModuleType } from '../shared/types.js';
 import { DEFAULT_WALLET_STATE } from '../shared/types.js';
 import { PORT_NAME, type PopupCommand, type PopupEvent, type ModuleAvailability } from '../shared/messages.js';
 import { ANVIL_CHAIN_ID, type SupportedChainId } from '../shared/networks.js';
-import { MODULE_ORDER, BASELINE_MODULE, PROBED_MODULES, PROTOCOL_ROLES } from '../shared/modules.js';
+import { MODULE_ORDER, BASELINE_MODULE, PROBED_MODULES } from '../shared/modules.js';
 import type { Address } from 'viem';
 import {
   buildAttachmentIndex,
@@ -242,10 +241,15 @@ type FeedMessage<T> =
   | { kind: 'update'; chainId: number; moduleType: ModuleType; data: T; fetchedAt?: number }
   | { kind: 'loading'; chainId: number; moduleType: ModuleType; loading: boolean };
 
-type FeedCommand =
-  | 'request-operators' | 'refresh-operators'
-  | 'request-gates' | 'refresh-gates'
-  | 'request-roles' | 'refresh-roles';
+type FeedPopupCommand = Extract<PopupCommand, { chainId: number; moduleType: ModuleType }>;
+type FeedCommand = FeedPopupCommand['type'];
+
+const feedCommand = (type: FeedCommand, origin: string, chainId: number, moduleType: ModuleType): FeedPopupCommand => ({
+  type,
+  origin,
+  chainId,
+  moduleType,
+});
 
 type FeedConfig<T> = {
   request: FeedCommand;
@@ -312,7 +316,7 @@ function useModuleFeed<T>(
 
     port.onMessage.addListener(handler);
     for (const moduleType of wanted) {
-      safePost(port, { type: request, origin, chainId, moduleType } as PopupCommand);
+      safePost(port, feedCommand(request, origin, chainId, moduleType));
     }
     return () => port.onMessage.removeListener(handler);
   }, [port, origin, chainId, wanted, enabled, resolved, request, parse]);
@@ -320,7 +324,7 @@ function useModuleFeed<T>(
   const refresh = useCallback(() => {
     if (!port || !origin || !resolved) return;
     for (const moduleType of wanted) {
-      safePost(port, { type: refreshType, origin, chainId, moduleType } as PopupCommand);
+      safePost(port, feedCommand(refreshType, origin, chainId, moduleType));
     }
   }, [port, origin, chainId, wanted, resolved, refreshType]);
 
@@ -363,7 +367,7 @@ const rolesFeed: FeedConfig<CachedRole[]> = {
   refresh: 'refresh-roles',
   parse: (e) =>
     e.type === 'roles-update'
-      ? { kind: 'update', chainId: e.chainId, moduleType: e.moduleType, data: e.roles }
+      ? { kind: 'update', chainId: e.chainId, moduleType: e.moduleType, data: e.roles, fetchedAt: e.lastFetchedAt }
       : e.type === 'roles-loading'
         ? { kind: 'loading', chainId: e.chainId, moduleType: e.moduleType, loading: e.loading }
         : null,
@@ -421,38 +425,18 @@ export function useSharedAddresses(
 
 // ── useRoleHolders ──
 
-export type RoleGroup = {
-  role: ProtocolRole;
-  entries: { moduleType: ModuleType; holders: RoleHolder[]; error?: string }[];
-};
-
-/** Pure: PROTOCOL_ROLES order, then `wanted` order (already MODULE_ORDER); only modules that hold the role. */
-export function groupRoles(
-  byModule: Partial<Record<ModuleType, CachedRole[]>>,
-  wanted: ModuleType[],
-): RoleGroup[] {
-  return PROTOCOL_ROLES.flatMap(({ role }) => {
-    const entries = wanted.flatMap((moduleType) => {
-      const found = byModule[moduleType]?.find((r) => r.role === role);
-      return found ? [{ moduleType, holders: found.holders, error: found.error }] : [];
-    });
-    return entries.length > 0 ? [{ role, entries }] : [];
-  });
-}
-
-/** Protocol role holders across every module available on this network. */
+/** Protocol role holders for the site's current module. */
 export function useRoleHolders(
   port: chrome.runtime.Port | null,
   origin: string | null,
   chainId: number,
-  availableModules: ModuleAvailability,
+  moduleType: ModuleType,
   enabled: boolean,
 ) {
-  const { wanted, resolved } = useWantedModules(availableModules);
-  const { byModule, loading, refresh } = useModuleFeed(rolesFeed, port, origin, chainId, wanted, resolved, enabled);
-  const groups = useMemo(() => groupRoles(byModule, wanted), [byModule, wanted]);
+  const wanted = useMemo(() => [moduleType], [moduleType]);
+  const { byModule, loading, refresh, fetchedAt } = useModuleFeed(rolesFeed, port, origin, chainId, wanted, true, enabled);
 
-  return { groups, loading, refresh };
+  return { roles: byModule[moduleType] ?? [], loading, refresh, lastFetchedAt: fetchedAt[moduleType] ?? null };
 }
 
 /** Scope + search filter for the Shared tab. */

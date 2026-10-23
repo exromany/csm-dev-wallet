@@ -154,7 +154,7 @@ export function App() {
     needAttachments,
   );
 
-  const roleHolders = useRoleHolders(port, origin, state.chainId, availableModules, visitedTabsRef.current.has('roles'));
+  const roleHolders = useRoleHolders(port, origin, state.chainId, state.moduleType, visitedTabsRef.current.has('roles'));
 
   const selectAddress = useCallback(
     (address: string, source: AddressSource, moduleType: ModuleType) =>
@@ -379,13 +379,14 @@ export function App() {
 
         {activeTab === 'roles' && (
           <RoleHolders
-            groups={roleHolders.groups}
+            roles={roleHolders.roles}
             loading={roleHolders.loading}
+            lastFetchedAt={roleHolders.lastFetchedAt}
             selectedAddress={state.selectedAddress?.address}
             addressLabels={state.addressLabels}
             onRefresh={roleHolders.refresh}
-            onSelect={(address, role, moduleType) =>
-              selectAddress(address, { type: 'role', role }, moduleType)
+            onSelect={(address, role) =>
+              selectAddress(address, { type: 'role', role }, state.moduleType)
             }
           />
         )}

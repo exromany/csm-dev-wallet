@@ -59,14 +59,15 @@ errored role counts as stale.
 ## Popup
 
 - `PopupTab` gains `'roles'`; tab sits between Manual and Anvil, always shown.
-- `useRoleHolders` hook requests every available module (like the Shared tab) and stays loading
-  until all answer.
-- `RoleHolders.tsx`: one collapsible section per role (header: role name, module scope, holder
-  count). Rows: module tag, address label (reuses `addressLabels`), truncated address,
-  `contract`/`EOA` tag, copy button. Errored role → ⚠ with the message as hint. Connected
-  address highlighted.
-- Selecting a row sends `select-address` with source `{ type: 'role', role }` and the row's
-  `moduleType` when it differs from the site's — the widget needs the holder's module open.
+- `useRoleHolders` requests the site's current module only (`state.moduleType`); no availability
+  wait. Why: selecting a holder from another module would switch the site's module anyway, and
+  Operators/Groups are per-module too. Shared is the deliberate cross-module tab.
+- `RoleHolders.tsx`: one collapsible section per role (header: role name, holder count). Rows:
+  address label (reuses `addressLabels`), truncated address, `contract`/`EOA` tag, copy button.
+  No module tag. Errored role → ⚠ with the message as hint. Connected address highlighted.
+  Filter bar shows `updated {time ago}` like Shared.
+- Selecting a row sends `select-address` with source `{ type: 'role', role }` and no `moduleType`
+  — no module switch.
 - Tab overflow: six tabs take ~362 of the 440px popup at the default 10px `.tab` padding, so no
   padding change; guarded by an e2e overflow check on CM + Anvil.
 
@@ -75,7 +76,7 @@ errored role counts as stale.
 - Unit: `role-cache` (multicall/getCode mocked like `gate-cache.test.ts`), `request-roles`
   background test, `RoleHolders` component test.
 - E2E: `seedRoles(...)` helper writing `roles_*` entries; spec opens Roles, selects a holder,
-  checks the connected address and module switch.
+  checks the connected address.
 
 ## SDK Bump
 

@@ -35,8 +35,8 @@ async function main() {
   console.log('Loading extension...\n');
   const { context, extensionId, sw } = await launchExtension();
 
-  async function seedFresh(cmRoles: CachedRole[] = CM_ROLES) {
-    await seedState(sw, extensionId, { chainId: 1, moduleType: 'csm' });
+  async function seedFresh(cmRoles: CachedRole[] = CM_ROLES, moduleType: 'csm' | 'cm' = 'cm') {
+    await seedState(sw, extensionId, { chainId: 1, moduleType });
     await seedOperators(sw, [], 1, 'csm');
     await seedOperators(sw, [], 1, 'cm');
     await seedGates(sw, [], 1, 'csm');
@@ -53,13 +53,23 @@ async function main() {
   }
 
   try {
-    await test('Roles tab lists both role groups', async () => {
-      await seedFresh();
+    await test('Roles tab lists the current module roles only', async () => {
+      await seedFresh(CM_ROLES, 'csm');
       const page = await openRoles();
       await page.locator('.role-group', { hasText: PENALTY }).waitFor();
+      const n = await page.locator('.role-group').count();
+      if (n !== 1) throw new Error(`expected 1 group on CSM, got ${n}`);
+      if ((await page.locator('.role-pill', { hasText: /^(CSM|CM)$/ }).count()) !== 0) throw new Error('module tag rendered');
+      await page.close();
+    });
+
+    await test('CM lists both role groups and an updated label', async () => {
+      await seedFresh();
+      const page = await openRoles();
       await page.locator('.role-group', { hasText: TOPUP }).waitFor();
       const n = await page.locator('.role-group').count();
-      if (n !== 2) throw new Error(`expected 2 groups, got ${n}`);
+      if (n !== 2) throw new Error(`expected 2 groups on CM, got ${n}`);
+      await page.locator('.staleness-label', { hasText: 'updated' }).waitFor();
       await page.close();
     });
 
@@ -73,7 +83,7 @@ async function main() {
       await page.close();
     });
 
-    await test('Selecting a CM holder connects it and switches the module to CM', async () => {
+    await test('Selecting a holder connects it and keeps the module', async () => {
       await seedFresh();
       const page = await openRoles();
       await page.locator('.role-group', { hasText: TOPUP }).locator('.manual-entry').click();
@@ -81,7 +91,7 @@ async function main() {
       const pill = await page.locator('.connected-pill').innerText();
       if (!pill.toLowerCase().includes(CONTRACT_B.slice(0, 6))) throw new Error(`pill: ${pill}`);
       const chip = await page.locator('.netmod-chip .mod-label').innerText();
-      if (chip !== 'CM') throw new Error(`expected module chip to read CM, got "${chip}"`);
+      if (chip !== 'CM') throw new Error(`expected module chip to stay CM, got "${chip}"`);
       await page.close();
     });
 
