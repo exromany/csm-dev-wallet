@@ -1,9 +1,8 @@
 import React from 'react';
 import type { Address } from 'viem';
 import { truncateAddress } from '../../lib/popup/utils.js';
-import { useCopyAddress } from '../../lib/popup/hooks.js';
+import { CopyButton } from './CopyButton.js';
 import { LabelEditor } from './LabelEditor.js';
-import { IconCheck, IconCopy } from './icons.js';
 
 type Props = {
   accounts: Address[];
@@ -22,8 +21,6 @@ export function AnvilAccounts({
   onSetLabel,
   onSelect,
 }: Props) {
-  const { copy, isCopied } = useCopyAddress();
-
   if (accounts.length === 0) {
     return (
       <div className="panel">
@@ -48,7 +45,6 @@ export function AnvilAccounts({
       {accounts.map((address, i) => {
         const selected = selectedAddress?.toLowerCase() === address.toLowerCase();
         const label = addressLabels[address.toLowerCase()] ?? '';
-        const copied = isCopied(address);
         return (
           <div
             key={address}
@@ -65,14 +61,7 @@ export function AnvilAccounts({
               />
               <div className="addr">{truncateAddress(address)}</div>
             </div>
-            <button
-              className={`btn-copy hint hint-right ${copied ? 'copied' : ''}`}
-              onClick={(e) => { e.stopPropagation(); copy(address); }}
-              data-hint={copied ? 'Copied' : 'Copy address'}
-              aria-label={copied ? 'Copied' : 'Copy address'}
-            >
-              {copied ? <IconCheck /> : <IconCopy />}
-            </button>
+            <CopyButton address={address} />
           </div>
         );
       })}

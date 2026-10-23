@@ -8,6 +8,7 @@ import {
   useAnvilStatus,
   useOperatorLabels,
   useSharedAddresses,
+  useRoleHolders,
   filterByGroup,
   type FilterGroup,
 } from '../../lib/popup/hooks.js';
@@ -20,10 +21,11 @@ import { OperatorGroups } from './OperatorGroups.js';
 import { ManualAddresses } from './ManualAddresses.js';
 import { AnvilAccounts } from './AnvilAccounts.js';
 import { SharedAddresses } from './SharedAddresses.js';
+import { RoleHolders } from './RoleHolders.js';
 import { Settings } from './Settings.js';
 import { THEME_KEY } from './theme-init.js';
 import { IconClose, IconMoon, IconSearch, IconSun } from './icons.js';
-import type { PopupTab } from '../../lib/shared/types.js';
+import type { AddressSource, ModuleType, PopupTab } from '../../lib/shared/types.js';
 import type { Attachment } from '../../lib/shared/attachments.js';
 
 // Settings is the one tab we never persist — see PopupTab.
@@ -70,7 +72,7 @@ export function App() {
   // browser owns show/hide via the `popovertarget` invoker; this mirrors it.
   const [netModOpen, setNetModOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const sharedVisitedRef = useRef(false);
+  const visitedTabsRef = useRef(new Set<Tab>());
 
   // Switch tabs locally for an instant response, and persist the choice per-site
   // so it's restored on reopen. Settings is intentionally not persisted.
@@ -137,12 +139,12 @@ export function App() {
   // Sticky: once visited, keep fetching so switching away and back doesn't
   // re-request. Avoids firing the Shared tab's cross-module fetch (and its
   // duplicate CSM request alongside the Operators tab) on every popup open.
-  sharedVisitedRef.current ||= activeTab === 'shared';
+  visitedTabsRef.current.add(activeTab);
   // The attached-operators panel on the connected bar needs the index too —
   // enable it whenever an address is connected, even without a Shared visit.
   // A warm cache is cheap: triggerRefresh broadcasts cached operators before
   // checking staleness, so this costs one message round-trip, not a refetch.
-  const needAttachments = sharedVisitedRef.current || !!state.selectedAddress;
+  const needAttachments = visitedTabsRef.current.has('shared') || !!state.selectedAddress;
   const sharedAddrs = useSharedAddresses(
     port,
     origin,
@@ -152,18 +154,30 @@ export function App() {
     needAttachments,
   );
 
-  const selectAttachment = useCallback(
-    (address: string, att: Attachment) =>
+  const roleHolders = useRoleHolders(port, origin, state.chainId, state.moduleType, visitedTabsRef.current.has('roles'));
+
+  const selectAddress = useCallback(
+    (address: string, source: AddressSource, moduleType: ModuleType) =>
       send({
         type: 'select-address',
         address,
-        source: att.type === 'gate'
-          ? { type: 'gate', gate: att.gate }
-          : { type: 'operator', operatorId: att.operatorId, role: att.primaryRole },
+        source,
         // Only sent when it differs, so same-module picks keep the existing behaviour.
-        ...(att.moduleType !== state.moduleType ? { moduleType: att.moduleType } : {}),
+        ...(moduleType !== state.moduleType ? { moduleType } : {}),
       }),
     [send, state.moduleType],
+  );
+
+  const selectAttachment = useCallback(
+    (address: string, att: Attachment) =>
+      selectAddress(
+        address,
+        att.type === 'gate'
+          ? { type: 'gate', gate: att.gate }
+          : { type: 'operator', operatorId: att.operatorId, role: att.primaryRole },
+        att.moduleType,
+      ),
+    [selectAddress],
   );
 
   const { isFavorite } = favorites;
@@ -244,6 +258,7 @@ export function App() {
             ...(showGroups ? ([['groups', 'Groups']] as const) : []),
             ['shared', 'Shared'],
             ['manual', 'Manual'],
+            ['roles', 'Roles'],
             ...(onAnvil ? ([['anvil', 'Anvil']] as const) : []),
           ] satisfies ReadonlyArray<readonly [Tab, string]>
         ).map(([t, label]) => (
@@ -358,6 +373,20 @@ export function App() {
             onSelect={selectAttachment}
             onSetAddressLabel={(address, label) =>
               send({ type: 'set-address-label', address, label })
+            }
+          />
+        )}
+
+        {activeTab === 'roles' && (
+          <RoleHolders
+            roles={roleHolders.roles}
+            loading={roleHolders.loading}
+            lastFetchedAt={roleHolders.lastFetchedAt}
+            selectedAddress={state.selectedAddress?.address}
+            addressLabels={state.addressLabels}
+            onRefresh={roleHolders.refresh}
+            onSelect={(address, role) =>
+              selectAddress(address, { type: 'role', role }, state.moduleType)
             }
           />
         )}

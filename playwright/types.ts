@@ -35,6 +35,8 @@ export type AddressSource =
   | { type: 'operator'; operatorId: string; role: string }
   /** Picked from an unused gate proof on the Shared tab — provenance only. */
   | { type: 'gate'; gate: string }
+  /** Picked from the Roles tab — provenance only. */
+  | { type: 'role'; role: string }
   | { type: 'anvil'; index: number }
   | { type: 'manual' };
 

@@ -56,6 +56,8 @@ export type PopupCommand =
   | { type: 'refresh-operators'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'request-gates'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'refresh-gates'; origin: string; chainId: number; moduleType: ModuleType }
+  | { type: 'request-roles'; origin: string; chainId: number; moduleType: ModuleType }
+  | { type: 'refresh-roles'; origin: string; chainId: number; moduleType: ModuleType }
   | { type: 'toggle-favorite'; origin: string; operatorId: string }
   | { type: 'toggle-group-favorite'; origin: string; groupId: string }
   | { type: 'set-active-tab'; origin: string; tab: PopupTab }
@@ -74,6 +76,8 @@ export type PopupEvent =
   | { type: 'operators-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
   | { type: 'gates-update'; chainId: number; moduleType: ModuleType; gates: import('./types.js').CachedGate[]; lastFetchedAt: number }
   | { type: 'gates-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
+  | { type: 'roles-update'; chainId: number; moduleType: ModuleType; roles: import('./types.js').CachedRole[]; lastFetchedAt: number }
+  | { type: 'roles-loading'; chainId: number; moduleType: ModuleType; loading: boolean }
   | { type: 'module-availability'; modules: ModuleAvailability }
   | { type: 'anvil-status'; forkedFrom: import('./networks.js').SupportedChainId | null; accounts: import('viem').Address[] }
   | { type: 'error'; message: string };

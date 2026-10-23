@@ -3,7 +3,6 @@ import {
   CURATED_GATES,
   DEFAULT_IPFS_GATEWAYS,
   MERKLE_TREE_FALLBACKS,
-  MODULE_CONFIG,
   fetchTree,
   getOperatorTypeByCurveId,
   isValidIpfsCid,
@@ -14,7 +13,7 @@ import { VettedGateAbi } from '@lidofinance/lido-csm-sdk/abi';
 import type { SupportedChainId } from '../shared/networks.js';
 import type { CacheContext, CachedGate, GateCacheEntry, ModuleType } from '../shared/types.js';
 import { errorMessage } from '../shared/errors.js';
-import { MODULE_NAMES, contractChainId, getClient } from './client.js';
+import { MODULE_NAMES, contractChainId, getClient, moduleContractAddresses } from './client.js';
 
 const VETTED_GATES = ['icsGate', 'idvtcGate'];
 // viem's 1 KB default would split a 500-leaf tree into ~18 eth_calls (~36 B calldata per isConsumed).
@@ -30,8 +29,7 @@ export function gateLabel(gate: string): string {
 
 /** Gates with a merkle tree deployed for this module on this chain. */
 export function gatesFor(moduleType: ModuleType, chainId: SupportedChainId): GateContract[] {
-  const addresses: Record<string, Address | undefined> =
-    MODULE_CONFIG[MODULE_NAMES[moduleType]][chainId]?.contractAddresses ?? {};
+  const addresses = moduleContractAddresses(moduleType, chainId);
   return [...VETTED_GATES, ...CURATED_GATES].flatMap((gate) => {
     const address = addresses[gate];
     return address ? [{ gate, address }] : [];

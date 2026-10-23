@@ -13,7 +13,7 @@ import {
 import type { SupportedChainId } from '../shared/networks.js';
 import type { CachedOperator, CacheContext, ModuleType, OperatorCacheEntry } from '../shared/types.js';
 import type { ModuleAvailability } from '../shared/messages.js';
-import { MODULE_NAMES, contractChainId, getClient } from './client.js';
+import { MODULE_NAMES, contractChainId, getClient, moduleContractAddresses } from './client.js';
 
 export { clearClientCache, isStale } from './client.js';
 
@@ -295,7 +295,7 @@ async function enrichWithFeeSplits(
   moduleType: ModuleType,
   operators: CachedOperator[],
 ): Promise<void> {
-  const accounting = MODULE_CONFIG[MODULE_NAMES[moduleType]][ccid]?.contractAddresses.accounting;
+  const accounting = moduleContractAddresses(moduleType, ccid).accounting;
   if (!accounting || operators.length === 0) return;
 
   try {

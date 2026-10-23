@@ -11,6 +11,7 @@ See [PRIVACY.md](./PRIVACY.md) for the privacy policy.
 - Browse all CSM / CSM 0x02 / CM operators with search by ID or address
 - Connect as manager, rewards, proposed, or claimer address
 - Favorites operators
+- Protocol role holders (Roles tab) — connect as a holder of a role the widget gates actions on
 - Manual address entry (Manual tab) + Anvil pre-funded accounts (Anvil tab, fork only)
 - Optional signing approval modal (Anvil only)
 - Configurable RPC endpoints

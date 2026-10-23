@@ -1,4 +1,5 @@
 import type { Address } from 'viem';
+import type { ProtocolRole } from '@lidofinance/lido-csm-sdk/common';
 import type { SupportedChainId } from './networks.js';
 
 export type ModuleType = 'csm' | 'cm' | 'csm02';
@@ -20,6 +21,7 @@ export type AddressRole =
 export type AddressSource =
   | { type: 'operator'; operatorId: string; role: AddressRole }
   | { type: 'gate'; gate: string }
+  | { type: 'role'; role: ProtocolRole }
   | { type: 'anvil'; index: number }
   | { type: 'manual' };
 
@@ -70,6 +72,13 @@ export type GateCacheEntry = {
   lastFetchedAt: number;
 };
 
+export type RoleHolder = { address: Address; isContract?: boolean };
+
+/** `error` set → the role couldn't be read; `holders` is empty. */
+export type CachedRole = { role: ProtocolRole; holders: RoleHolder[]; error?: string };
+
+export type RoleCacheEntry = { roles: CachedRole[]; lastFetchedAt: number };
+
 export type SelectedAddress = {
   address: Address;
   source: AddressSource;
@@ -77,7 +86,7 @@ export type SelectedAddress = {
 
 // Persistable popup tabs. Settings is deliberately excluded — it's a transient
 // destination we never want to land on when the popup reopens.
-export type PopupTab = 'operators' | 'groups' | 'shared' | 'manual' | 'anvil';
+export type PopupTab = 'operators' | 'groups' | 'shared' | 'manual' | 'roles' | 'anvil';
 
 // Per-origin state — each site gets its own network/address/view
 export type SiteState = {
